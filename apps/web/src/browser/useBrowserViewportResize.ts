@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import { useStableCallback } from "../hooks/useStableCallback";
+import { shieldEmbeddedContent } from "./guestPointerShield";
 import { type BrowserViewportTarget, commitBrowserViewportChange } from "./browserViewportActions";
 import {
   browserViewportSettingKey,
@@ -184,9 +185,15 @@ export function useBrowserViewportResize(options: {
       target.setPointerCapture(pointerId);
     } catch {}
 
+    const releaseShield = shieldEmbeddedContent();
     const sourceChanged = () => !isCurrentSource(sourceViewportKey);
     const move = (moveEvent: PointerEvent) => {
       if (moveEvent.pointerId !== pointerId) return;
+      // The release happened where we could not see it (another window, a lost capture).
+      if ((moveEvent.buttons & 1) === 0) {
+        finish(moveEvent);
+        return;
+      }
       if (sourceChanged()) {
         cleanup();
         dragVersionRef.current += 1;
@@ -212,6 +219,8 @@ export function useBrowserViewportResize(options: {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", finish);
       window.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("blur", complete);
+      releaseShield();
       dragCleanupRef.current = null;
       try {
         target.releasePointerCapture(pointerId);
@@ -221,6 +230,9 @@ export function useBrowserViewportResize(options: {
     }
     function finish(upEvent: PointerEvent) {
       if (upEvent.pointerId !== pointerId) return;
+      complete();
+    }
+    function complete() {
       cleanup();
       if (sourceChanged() || (latest.width === startWidth && latest.height === startHeight)) {
         clearDrag();
@@ -242,6 +254,7 @@ export function useBrowserViewportResize(options: {
     window.addEventListener("pointermove", move, { passive: false });
     window.addEventListener("pointerup", finish);
     window.addEventListener("pointercancel", cancel);
+    window.addEventListener("blur", complete);
   };
 
   return {

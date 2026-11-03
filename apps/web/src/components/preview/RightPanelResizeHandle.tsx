@@ -26,7 +26,8 @@ export function RightPanelResizeHandle({ handlers, className, label, ...separato
     >
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-transparent transition-colors duration-150 group-hover:bg-border group-focus-visible:bg-primary/60 group-active:bg-primary/60"
+        // Drawn over the panel's left border so hover darkens it rather than adding a second line.
+        className="pointer-events-none absolute inset-y-0 left-[3px] w-px bg-transparent transition-colors duration-150 group-hover:bg-foreground/20 group-focus-visible:bg-primary/60 group-active:bg-primary/60"
       />
     </div>
   );

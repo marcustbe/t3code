@@ -1,10 +1,10 @@
-import { ArrowLeftIcon, ArrowRightIcon, ChartNoAxesColumnIcon, SettingsIcon } from "lucide-react";
+import { ArrowLeftIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { memo } from "react";
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 
 import { useAtomValue } from "@effect/atom-react";
-import { useEnvironmentIdentificationMode } from "../../hooks/useSettings";
+import { useClientSettings, useEnvironmentIdentificationMode } from "../../hooks/useSettings";
 import { shortcutLabelForCommand } from "../../keybindings";
 import {
   navigateHistory,
@@ -14,7 +14,6 @@ import {
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import { cn } from "../../lib/utils";
 import { usePullRequestsSupported } from "../../state/environments";
-import { T3Wordmark } from "../T3Wordmark";
 import {
   resolveEnvironmentIdentificationPillLabel,
   resolveSidebarStageBackdropVariant,
@@ -29,16 +28,28 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
-  useSidebar,
+  useSidebarMobileControls,
 } from "../ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { readPullRequestListPreferences } from "../pullRequest/pullRequestListPreferences";
-import { isSidebarUtilityPage, useNavigateToMainApp } from "./mainAppLocation";
+import {
+  isSettingsPage,
+  isSidebarUtilityPage,
+  useCloseAppModal,
+  useNavigateToMainApp,
+} from "./mainAppLocation";
 import { SidebarThreadUndoNotice } from "./SidebarThreadUndoNotice";
 import { SidebarProviderUpdatePill } from "./SidebarProviderUpdatePill";
 import { SidebarUpdateArchitectureWarning, SidebarUpdatePill } from "./SidebarUpdatePill";
 import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import { observeResize } from "~/lib/observeResize";
+import {
+  ArrowLeftSymbol,
+  HISTORY_ARROW_SIZE,
+  HISTORY_ARROW_STROKE,
+  SettingsSymbol,
+  UsageSymbol,
+} from "./SidebarSymbols";
 
 export const SidebarChromeHeader = memo(function SidebarChromeHeader({
   isElectron,
@@ -71,16 +82,9 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
           aria-label="Toggle main sidebar"
         />
       </div>
-      <div className="relative z-10 flex h-8 min-w-0 flex-1 flex-wrap content-start items-center gap-x-2 overflow-hidden py-0.5">
-        <div className="flex shrink-0 items-center gap-1">
-          <SidebarBrand onBackdrop={backdropVariant !== null} />
-          {isElectron ? (
-            <div className="hidden items-center md:flex">
-              <HistoryNavigationButton direction="back" onBackdrop={backdropVariant !== null} />
-              <HistoryNavigationButton direction="forward" onBackdrop={backdropVariant !== null} />
-            </div>
-          ) : null}
-        </div>
+      {/* The sidebar toggle and history arrows float above this row (SidebarControl), so they
+          stay put when the sidebar collapses. */}
+      <div className="relative z-10 ml-[var(--workspace-titlebar-content-left)] flex h-8 min-w-0 flex-1 flex-wrap content-start items-center gap-x-2 overflow-hidden py-0.5">
         {pillLabel ? (
           <div className="ml-1 flex h-7 items-center">
             <Badge data-environment-identification="pill" size="sm" variant="secondary">
@@ -93,11 +97,10 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
   );
 });
 
+/** Measures the window controls, toggle and history arrows, so the sidebar never gets narrower. */
 export function SidebarBrandWidthProbe({
-  isElectron,
   onWidthChange,
 }: {
-  isElectron: boolean;
   onWidthChange: (width: number) => void;
 }) {
   const observeWidth = (probe: HTMLDivElement) => {
@@ -112,10 +115,17 @@ export function SidebarBrandWidthProbe({
       className="pointer-events-none invisible fixed top-0 left-0 flex w-max border-r border-transparent pr-3"
       ref={observeWidth}
     >
-      <div className="ml-[var(--workspace-titlebar-content-left)] flex gap-1">
-        <SidebarBrandMark onBackdrop={false} />
-        {isElectron ? <div className="w-[calc(2*var(--workspace-titlebar-control-size))]" /> : null}
-      </div>
+      <div className="ml-[var(--workspace-titlebar-content-left)] flex gap-1" />
+    </div>
+  );
+}
+
+/** Back and forward, beside the sidebar toggle; desktop only. */
+export function HistoryNavigationButtons({ onBackdrop }: { onBackdrop: boolean }) {
+  return (
+    <div className="pointer-events-auto flex items-center -space-x-1">
+      <HistoryNavigationButton direction="back" onBackdrop={onBackdrop} />
+      <HistoryNavigationButton direction="forward" onBackdrop={onBackdrop} />
     </div>
   );
 }
@@ -134,7 +144,6 @@ function HistoryNavigationButton({
     keybindings,
     direction === "back" ? "navigation.back" : "navigation.forward",
   );
-  const Icon = direction === "back" ? ArrowLeftIcon : ArrowRightIcon;
   return (
     <Tooltip>
       <TooltipTrigger
@@ -152,7 +161,14 @@ function HistoryNavigationButton({
           />
         }
       >
-        <Icon className="size-3.5" />
+        <ArrowLeftSymbol
+          {...HISTORY_ARROW_STROKE}
+          className={cn(
+            HISTORY_ARROW_SIZE,
+            "text-(--sidebar-icon-color)",
+            direction === "forward" && "-scale-x-100",
+          )}
+        />
       </TooltipTrigger>
       <TooltipPopup side="bottom">
         {label}
@@ -162,52 +178,31 @@ function HistoryNavigationButton({
   );
 }
 
-function SidebarBrand({ onBackdrop }: { onBackdrop: boolean }) {
-  return (
-    <Link
-      aria-label="T3 Code home"
-      className={cn(
-        "relative z-10 ml-[var(--workspace-titlebar-content-left)] hidden h-7 w-fit min-w-0 shrink-0 items-center overflow-hidden rounded-md outline-hidden ring-ring focus-visible:ring-2 focus-visible:ring-inset md:flex",
-        onBackdrop ? "text-white" : "text-foreground",
-      )}
-      to="/"
-    >
-      <SidebarBrandMark onBackdrop={onBackdrop} />
-    </Link>
-  );
-}
-
-function SidebarBrandMark({ onBackdrop }: { onBackdrop: boolean }) {
-  return (
-    <span className="inline-flex min-w-0 items-baseline gap-1 text-sm font-medium tracking-tight">
-      <T3Wordmark aria-label="T3" className="h-[1cap] w-auto shrink-0" />
-      <span
-        className={cn(
-          "truncate [text-box:trim-both_cap_alphabetic] supports-[text-box:trim-both_cap_alphabetic]:py-1",
-          onBackdrop ? "text-white/70" : "text-muted-foreground",
-        )}
-      >
-        Code
-      </span>
-    </span>
-  );
-}
-
 function SidebarUtilityItem({
   icon,
   label,
   onClick,
+  className,
+  isActive = false,
 }: {
   icon: ReactNode;
   label: string;
   onClick: () => void;
+  className?: string;
+  isActive?: boolean;
 }) {
   return (
-    <SidebarMenuItem className="shrink-0">
+    <SidebarMenuItem className={cn("shrink-0", className)}>
       <Tooltip>
         <TooltipTrigger
           render={
-            <SidebarMenuButton aria-label={label} onClick={onClick} size="icon">
+            <SidebarMenuButton
+              aria-label={label}
+              aria-pressed={isActive}
+              isActive={isActive}
+              onClick={onClick}
+              size="icon"
+            >
               {icon}
             </SidebarMenuButton>
           }
@@ -221,11 +216,16 @@ function SidebarUtilityItem({
 const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
   const navigate = useNavigate();
   const navigateToMainApp = useNavigateToMainApp();
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebarMobileControls();
+  const closeAppModal = useCloseAppModal();
   const isOnUtilityPage = useLocation({
     select: (location) => isSidebarUtilityPage(location.pathname),
   });
-  const pullRequestsSupported = usePullRequestsSupported();
+  // Settings and Usage toggle: their footer button opens the page and, pressed again, leaves it.
+  const settingsOpen = useLocation({ select: (location) => isSettingsPage(location.pathname) });
+  const usageOpen = useLocation({ select: (location) => location.pathname === "/usage" });
+  const showPullRequests = useClientSettings((settings) => settings.sidebarShowPullRequests);
+  const pullRequestsSupported = usePullRequestsSupported() && showPullRequests;
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -240,12 +240,21 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
   };
   const handleSettingsClick = () => {
     closeMobileSidebar();
-    void navigate({ to: "/settings" });
+    if (settingsOpen) {
+      void closeAppModal();
+      return;
+    }
+    // Straight to the first section: "/settings" only redirects there, costing a second navigation.
+    void navigate({ to: "/settings/general" });
   };
 
   const handleUsageClick = () => {
     if (isMobile) {
       setOpenMobile(false);
+    }
+    if (usageOpen) {
+      void closeAppModal();
+      return;
     }
     void navigate({ to: "/usage" });
   };
@@ -258,19 +267,24 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
   return (
     <SidebarMenu className="flex-row items-center">
       {isOnUtilityPage ? (
-        <SidebarMenuItem className="min-w-0 flex-1">
-          <SidebarMenuButton onClick={handleBackClick}>
-            <ArrowLeftIcon />
-            <span>Back</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+        <>
+          <SidebarMenuItem className="min-w-0 flex-1">
+            <SidebarMenuButton onClick={handleBackClick}>
+              <ArrowLeftIcon />
+              <span>Back</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarUpdatePill />
+        </>
       ) : (
         <>
           <SidebarUtilityItem
-            icon={<SettingsIcon />}
+            icon={<SettingsSymbol />}
             label="Settings"
+            isActive={settingsOpen}
             onClick={handleSettingsClick}
           />
+          <SidebarUpdatePill />
           {pullRequestsSupported ? (
             <SidebarUtilityItem
               icon={<PullRequestGlyph.pullRequest />}
@@ -278,15 +292,19 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
               onClick={handlePullRequestsClick}
             />
           ) : null}
-          <SidebarUtilityItem
-            icon={<ChartNoAxesColumnIcon />}
-            label="Usage"
-            onClick={handleUsageClick}
-          />
         </>
       )}
       <SidebarThreadUndoNotice />
-      <SidebarUpdatePill />
+      {isOnUtilityPage ? null : (
+        <SidebarUtilityItem
+          // 2px out so the chart's ink, not its padded box, sits 18px from the edge like the rest.
+          className="-me-0.5 ml-auto"
+          icon={<UsageSymbol />}
+          label="Usage"
+          isActive={usageOpen}
+          onClick={handleUsageClick}
+        />
+      )}
     </SidebarMenu>
   );
 });

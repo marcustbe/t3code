@@ -33,6 +33,7 @@ import {
   hasExplicitComposerModelSelection,
   resolveNewDraftStartFromOrigin,
   resolveNewThreadModelSelectionOverride,
+  resolveRememberedNewChatProject,
 } from "../lib/chatThreadActions";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import { readT3ProjectFile } from "../lib/t3ProjectFileDefaults";
@@ -456,11 +457,13 @@ export function useHandleNewThread() {
   const projects = useProjects();
   const handleNewThread = useNewThreadHandler();
   const defaultProjectRef = resolveDefaultProjectRef(projects, projectOrder);
+  const rememberedProjectRef = resolveRememberedNewChatProject(projects);
 
   return {
     activeDraftThread,
     activeThread,
     defaultProjectRef,
+    rememberedProjectRef,
     handleNewThread,
     routeDraftId,
     routeThreadRef,

@@ -362,6 +362,34 @@ export function resolveTimelineMinimapIndexFromPointer(input: {
   return Math.max(0, Math.min(input.itemCount - 1, Math.round(progress * (input.itemCount - 1))));
 }
 
+/**
+ * The row of the reply that just finished, when it starts above the visible top (the view
+ * followed it to its end), so the reader can be taken back to where it begins. Null when the
+ * reply's start is in view, unmeasured, or no reply follows the last message you sent.
+ */
+export function resolveFinishedReplyStartIndex(
+  rows: ReadonlyArray<MessagesTimelineRow>,
+  state:
+    | {
+        readonly scroll: number;
+        readonly positionAtIndex: (index: number) => number | undefined;
+      }
+    | undefined,
+  visibleTopInset: number,
+): number | null {
+  if (!state) return null;
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    const row = rows[index]!;
+    if (row.kind !== "message") continue;
+    if (row.message.role === "user") return null;
+    if (row.message.role !== "assistant") continue;
+    const top = state.positionAtIndex(index);
+    if (typeof top !== "number" || !Number.isFinite(top)) return null;
+    return top < state.scroll + visibleTopInset ? index : null;
+  }
+  return null;
+}
+
 /** Recheck the rendered buffer: LegendList's unbuffered range can lag during scrolling. */
 export function resolveTimelineMinimapVisibleRange(state: {
   readonly startBuffered: number | null | undefined;
@@ -454,12 +482,6 @@ export function resolveTimelineMinimapHitStripWidth(
       Math.floor(sideGutter) - TIMELINE_MINIMAP_HIT_STRIP_LEFT,
     ),
   );
-}
-
-const TIMELINE_MINIMAP_NAVIGATION_REACH = 14;
-
-export function resolveTimelineMinimapNavigationInteractive(collapsedWidth: number): boolean {
-  return collapsedWidth >= TIMELINE_MINIMAP_NAVIGATION_REACH;
 }
 
 export function resolveTimelineMinimapInteractiveWidth(
@@ -595,6 +617,8 @@ type MessagesTimelineRowContent =
       assistantCopyStreaming: boolean;
       assistantTurnDiffSummary?: TurnDiffSummary | undefined;
       revertTurnCount?: number | undefined;
+      /** Set on your messages that can be edited into a new version. */
+      edit?: MessageEditTarget | undefined;
       /** Another of your messages follows directly, so the two sit closer together. */
       groupedWithNext?: boolean;
       /** Set when the message above is a steer too, so the label shows once. */
@@ -1430,6 +1454,7 @@ export function deriveMessagesTimelineRows(input: {
         availableRevertTurnCounts: input.availableRevertTurnCounts,
       })
     : new Map<MessageId, number>();
+  const editTargetByUserMessageId = deriveMessageEditTargets(timelineEntries, unsettledRunId);
   const nextRows: MessagesTimelineRow[] = [];
   const terminalAssistantMessageIds = deriveTerminalAssistantMessageIds(timelineEntries);
   const failedRunIds = failedTimelineRunIds(timelineEntries, input.latestRun ?? null);
@@ -2049,6 +2074,10 @@ export function deriveMessagesTimelineRows(input: {
         timelineEntry.message.role === "user"
           ? revertTurnCountByUserMessageId.get(timelineEntry.message.id)
           : undefined,
+      edit:
+        timelineEntry.message.role === "user"
+          ? editTargetByUserMessageId.get(timelineEntry.message.id)
+          : undefined,
     });
   }
 
@@ -2507,11 +2536,54 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
         a.assistantCopyStreaming === bm.assistantCopyStreaming &&
         a.assistantTurnDiffSummary === bm.assistantTurnDiffSummary &&
         a.revertTurnCount === bm.revertTurnCount &&
+        messageEditTargetsEqual(a.edit, bm.edit) &&
         a.groupedWithNext === bm.groupedWithNext &&
         a.continuesSteer === bm.continuesSteer
       );
     }
   }
+}
+
+export interface MessageEditTarget {
+  /** The thread that owns the message; inherited history belongs to the thread it was forked from. */
+  readonly ownerThreadId: ThreadId;
+  /** The run just before the message, which a new version forks from; null for the first message. */
+  readonly base: { readonly threadId: ThreadId; readonly runId: RunId } | null;
+}
+
+/** Your finished turn-starting messages, each with the run a new version of it forks from. */
+export function deriveMessageEditTargets(
+  timelineEntries: ReadonlyArray<TimelineEntry>,
+  unsettledRunId: RunId | null,
+): Map<MessageId, MessageEditTarget> {
+  const targets = new Map<MessageId, MessageEditTarget>();
+  let currentRun = null as MessageEditTarget["base"];
+  let previousRun = null as MessageEditTarget["base"];
+  for (const entry of timelineEntries) {
+    if (entry.kind !== "message") continue;
+    const { message, projectedItem } = entry;
+    if (message.runId == null || projectedItem === undefined) continue;
+    if (currentRun?.runId !== message.runId) {
+      previousRun = currentRun;
+      currentRun = { threadId: projectedItem.sourceThreadId, runId: message.runId };
+    }
+    if (message.role !== "user" || message.runId === unsettledRunId) continue;
+    if (message.inputIntent !== "turn_start" && message.inputIntent !== "queued_turn") continue;
+    targets.set(message.id, { ownerThreadId: projectedItem.sourceThreadId, base: previousRun });
+  }
+  return targets;
+}
+
+function messageEditTargetsEqual(
+  a: MessageEditTarget | undefined,
+  b: MessageEditTarget | undefined,
+): boolean {
+  if (a === undefined || b === undefined) return a === b;
+  return (
+    a.ownerThreadId === b.ownerThreadId &&
+    a.base?.threadId === b.base?.threadId &&
+    a.base?.runId === b.base?.runId
+  );
 }
 
 const MAX_COLLAPSED_USER_MESSAGE_LINES = 8;

@@ -1,4 +1,5 @@
 import { useAtomValue } from "@effect/atom-react";
+import { ArrowLeftIcon } from "lucide-react";
 import * as Schema from "effect/Schema";
 import {
   useEffect,
@@ -12,6 +13,7 @@ import { useLocation, useRouter, type AnyRouter } from "@tanstack/react-router";
 import { moveWorkspaceFocus, workspaceAreaProps } from "../lib/workspaceFocus";
 import { isCommandPaletteOpen } from "../commandPaletteBus";
 import { isElectron } from "../env";
+import { ZoomIndicator } from "./ZoomIndicator";
 import {
   releaseThreadUndoShortcut,
   threadUndoClaimsShortcut,
@@ -38,10 +40,15 @@ import {
   usePanelNavigationSuppression,
 } from "../panelAnimations";
 import { BackgroundThreadAnnouncer } from "./BackgroundThreadAnnouncer";
-import { HistorySwipeNavigation } from "./HistorySwipeNavigation";
 import ThreadSidebar from "./Sidebar";
-import { SidebarBrandWidthProbe } from "./sidebar/SidebarChrome";
-import { isAppModalPage } from "./sidebar/mainAppLocation";
+import {
+  HistoryNavigationButtons,
+  SidebarBrandWidthProbe,
+  SidebarChromeFooter,
+  SidebarChromeHeader,
+} from "./sidebar/SidebarChrome";
+import { isAppModalPage, isSettingsPage, useCloseAppModal } from "./sidebar/mainAppLocation";
+import { SettingsSidebarNav } from "./settings/SettingsSidebarNav";
 import type { SidebarRouteReveal } from "./sidebar/routeReveal";
 import { useSidebarStageBackdropVariant } from "./SidebarStageBackdrop";
 import {
@@ -54,6 +61,9 @@ import {
 } from "./threadSidebarWidth";
 import {
   Sidebar,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
@@ -304,12 +314,24 @@ function registerAppShellCommands(router: AnyRouter, shellElement: Element): () 
     registerPullRequestsEscapeCommand(router),
     registerMenuAction("open-settings", () => {
       if (!/^\/settings(\/|$)/.test(router.state.location.pathname))
-        void router.navigate({ to: "/settings" });
+        void router.navigate({ to: "/settings/general" });
     }),
+    preloadSettingsWhenIdle(router),
   ];
   return () => {
     for (const dispose of disposers) dispose();
   };
+}
+
+/** Settings is code-split; load its chunks while the app is idle so the first open doesn't wait on them. */
+function preloadSettingsWhenIdle(router: AnyRouter): () => void {
+  const handle = window.requestIdleCallback(
+    () => {
+      router.preloadRoute({ to: "/settings/general" }).catch(() => undefined);
+    },
+    { timeout: 5000 },
+  );
+  return () => window.cancelIdleCallback(handle);
 }
 
 function SidebarControl() {
@@ -397,6 +419,40 @@ function SidebarControl() {
           Toggle main sidebar{shortcutLabel ? ` (${shortcutLabel})` : ""}
         </TooltipPopup>
       </Tooltip>
+      {isElectron ? (
+        // Positioned in index.css: they ride the sidebar's right edge, then stop beside the toggle.
+        <div
+          className="fixed top-[var(--workspace-controls-top)] flex h-[var(--workspace-topbar-height)] items-center"
+          data-history-navigation=""
+        >
+          <HistoryNavigationButtons
+            onBackdrop={isSidebarVisible && stageBackdropVariant !== null}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** The sidebar while Settings is open: Back to where it was opened, then its search and sections. */
+function SettingsSidebar({ pathname }: { pathname: string }) {
+  const closeSettings = useCloseAppModal();
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <SidebarChromeHeader isElectron={isElectron} />
+      <div className="px-(--sidebar-side-inset) pb-1">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => void closeSettings()}>
+              <ArrowLeftIcon />
+              <span>Back</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </div>
+      <SettingsSidebarNav pathname={pathname} />
+      {/* The footer stays, so the gear that opened Settings closes it again. */}
+      <SidebarChromeFooter />
     </div>
   );
 }
@@ -410,6 +466,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
   const { active: panelAnimationsActive, durationMs: panelAnimationDurationMs } =
     usePanelAnimationSettings();
   const pathname = useLocation({ select: (location) => location.pathname });
+  const settingsPage = isSettingsPage(pathname);
   const panelAnimationsSuppressed = usePanelNavigationSuppression(pathname);
   const routePanelAnimationsActive = panelAnimationsActive && !panelAnimationsSuppressed;
   const isMacosDesktop = isElectron && isMacPlatform(navigator.platform);
@@ -433,10 +490,22 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
   );
   const windowControlsInsetStyle = (
     isMacosDesktop && !isWindowFullscreen
-      ? { "--workspace-controls-left": MACOS_TRAFFIC_LIGHTS_LEFT_INSET }
+      ? {
+          "--workspace-controls-left": MACOS_TRAFFIC_LIGHTS_LEFT_INSET,
+          // The top-right icons' glyphs sit the top bar's side padding from the edge (6px inside
+          // their 28px buttons).
+          "--workspace-controls-right": "calc(var(--topbar-side-padding, 16px) - 6px)",
+        }
       : {}
   ) as CSSProperties;
   const sidebarProviderStyle = {
+    // Desktop keeps back and forward beside the sidebar toggle, so titlebar content starts after them.
+    ...(isElectron
+      ? {
+          "--workspace-titlebar-content-left":
+            "calc(var(--workspace-controls-left) + 3 * var(--workspace-titlebar-control-size) + var(--workspace-titlebar-control-gap))",
+        }
+      : {}),
     "--sidebar-width": `${clampThreadSidebarWidth(sidebarWidth, sidebarMinimumWidth, sidebarMaximumWidth)}px`,
     "--panel-animation-duration": `${panelAnimationDurationMs}ms`,
     ...windowControlsInsetStyle,
@@ -450,7 +519,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         defaultOpen
         style={sidebarProviderStyle}
       >
-        <SidebarBrandWidthProbe isElectron={isElectron} onWidthChange={setBrandWidth} />
+        <SidebarBrandWidthProbe onWidthChange={setBrandWidth} />
         <Sidebar
           side="left"
           collapsible="offcanvas"
@@ -469,13 +538,17 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
           }}
           style={windowControlsInsetStyle}
         >
-          <ThreadSidebar routeReveal={sidebarRouteReveal} />
+          {/* Settings takes over the sidebar; the thread list stays mounted underneath it. */}
+          <div className={cn("flex min-h-0 flex-1 flex-col", settingsPage && "hidden")}>
+            <ThreadSidebar routeReveal={sidebarRouteReveal} />
+          </div>
+          {settingsPage ? <SettingsSidebar pathname={pathname} /> : null}
           <SidebarRail onDoubleClick={resetSidebarWidth} />
         </Sidebar>
         {children}
         <BackgroundThreadAnnouncer />
         <SidebarControl />
-        {isElectron ? <HistorySwipeNavigation /> : null}
+        {isElectron ? <ZoomIndicator /> : null}
       </SidebarProvider>
     </PanelAnimationSuppressionProvider>
   );

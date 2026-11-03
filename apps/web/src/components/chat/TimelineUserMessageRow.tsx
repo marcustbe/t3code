@@ -32,10 +32,15 @@ import {
   DownloadIcon,
   EyeIcon,
   type LucideIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   MessagesSquareIcon,
   Redo2Icon,
   PencilIcon,
+  RotateCcwIcon,
 } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
+import { findMessageVersion, useMessageVersionStore } from "../../messageVersionStore";
 import { Link as LinkIconNode } from "lucide";
 import { Button, InlineButton } from "../ui/button";
 import { useAssetUrlRefresh, useAssetUrls, useAssetUrlState } from "../../assets/assetUrls";
@@ -55,7 +60,7 @@ import { MessageCopyButton } from "./MessageCopyButton";
 import { promptLinkFor } from "../promptLinks/copyPromptLink";
 import { PierreEntryIcon } from "./PierreEntryIcon";
 import { formatBytes } from "../../lib/formatBytes";
-import { shouldCollapseUserMessage } from "./MessagesTimeline.logic";
+import { type MessageEditTarget, shouldCollapseUserMessage } from "./MessagesTimeline.logic";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import {
   asKnownContextRecord,
@@ -74,13 +79,14 @@ import {
 import { chatMarkdownClipboardPayload } from "../../markdown-clipboard";
 import type { ChatMarkdownContextReference } from "../ChatMarkdown";
 import { cn } from "~/lib/utils";
-import { formatChatTimestampTooltip, formatDayAwareTimestamp } from "../../timestampFormat";
+import { formatChatTimestampTooltip } from "../../timestampFormat";
 import { WorkflowOpeningBlock } from "./WorkflowOpeningBlock";
 import { TimelineRowCtx, TimelineRowActivityCtx, type TimelineRow } from "./timelineRowContext";
 import {
   MESSAGE_HEADING_LEVEL,
   MessageAuthorHeading,
   TimelineRowTimestamp,
+  RelativeMessageTime,
 } from "./TimelineRowParts";
 import { UserMessageContextReferenceChip } from "./UserMessageContextChips";
 import {
@@ -131,7 +137,7 @@ function UserFileCard({
   return (
     <div
       data-markdown-copy={copyMarkdown}
-      className="flex w-64 max-w-full items-center gap-1 rounded-2xl bg-message py-2 ps-2 pe-1 text-message-foreground"
+      className="flex w-64 max-w-full items-center gap-1 rounded-xl bg-message py-2 ps-2 pe-1 text-message-foreground"
     >
       {file.downloadable === false ? (
         <>
@@ -278,7 +284,7 @@ function AutomationMessageRow({ row }: { row: Extract<TimelineRow, { kind: "mess
       ) : null}
       <div
         className={cn(
-          "min-w-0 max-w-[80%] rounded-2xl bg-message text-message-foreground",
+          "min-w-0 max-w-[80%] rounded-xl bg-message text-message-foreground",
           BUBBLE_CHIP_CLASS_NAME,
           expanded && "w-full",
         )}
@@ -321,7 +327,7 @@ function AutomationMessageRow({ row }: { row: Extract<TimelineRow, { kind: "mess
               timestampFormat={ctx.timestampFormat}
               alwaysVisible
             />
-            <div className="flex items-center gap-0.5">
+            <div data-message-actions="" className="flex items-center gap-0.5">
               {typeof revertTurnCount === "number" && (
                 <RevertUserMessageButton turnCount={revertTurnCount} messageId={row.message.id} />
               )}
@@ -366,7 +372,7 @@ export function FoldedMessageHeader(props: {
       aria-expanded={props.expanded}
       data-scroll-anchor-ignore
       onClick={props.onToggle}
-      className="flex w-full min-w-0 items-center gap-1.5 rounded-2xl px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-ring"
+      className="flex w-full min-w-0 items-center gap-1.5 rounded-xl px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-ring"
     >
       <Icon className="size-4 shrink-0 stroke-2 text-muted-foreground" />
       <span className="max-w-1/2 shrink-0 truncate text-muted-foreground">{props.label}</span>
@@ -401,6 +407,7 @@ function UserMessageProjectedStatus({ row }: { row: Extract<TimelineRow, { kind:
 
 function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" }> }) {
   const ctx = use(TimelineRowCtx);
+  const [editing, setEditing] = useState(false);
   const { onImageExpand, onFileOpen } = ctx;
   const senderThreadId = row.message.senderThreadId;
   const resources = selectMessageImageResources(row.message.attachments);
@@ -735,6 +742,19 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
       </div>
     ) : null;
 
+  if (editing && row.edit) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <UserMessageEditor
+          initialText={plainText}
+          messageId={row.message.id}
+          edit={row.edit}
+          onClose={() => setEditing(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className="group flex flex-col items-end gap-1"
@@ -768,13 +788,14 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
       ) : null}
       <div
         className={cn(
-          "relative min-w-0 max-w-[80%] rounded-2xl text-message-foreground",
+          // Like Claude's: corners about 0.8× the text size, 16px sides, a quiet fill.
+          "relative min-w-0 max-w-[80%] rounded-xl text-message-foreground",
           mediaAboveText && "rounded-tr-md",
           BUBBLE_CHIP_CLASS_NAME,
           userMessage.attribution === "guest"
             ? guestBubbleClassName(false)
             : !mediaOnly && !fileCardsOnly && !audioOnly && "bg-message",
-          !folded && !mediaOnly && !fileCardsOnly && !audioOnly && "p-3",
+          !folded && !mediaOnly && !fileCardsOnly && !audioOnly && "px-4 py-2.5",
           folded && expanded && "w-full",
         )}
       >
@@ -929,22 +950,27 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
       </div>
       <UserMessageProjectedStatus row={row} />
       {!folded || expanded ? (
-        <div className="flex w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 transition-opacity duration-200 pointer-coarse:opacity-100 focus-within:opacity-100 group-hover:opacity-100">
-          <div className="flex shrink-0 items-center gap-2">
+        <div className="flex w-full max-w-[80%] items-center justify-end gap-2 pe-1 text-xs tabular-nums">
+          <div className="flex shrink-0 items-center gap-2 opacity-0 transition-opacity duration-200 pointer-coarse:opacity-100 focus-within:opacity-100 group-hover:opacity-100">
             {folded && senderThreadId ? (
               <InlineButton onClick={() => ctx.onOpenThread(senderThreadId)} tone="muted">
                 Open thread
               </InlineButton>
             ) : null}
             <Tooltip>
-              <TooltipTrigger render={<p className="text-muted-foreground text-xs tabular-nums" />}>
-                {formatDayAwareTimestamp(row.message.createdAt, ctx.timestampFormat)}
+              <TooltipTrigger
+                render={<p className="text-muted-foreground text-xs font-book tabular-nums" />}
+              >
+                <RelativeMessageTime timestamp={row.message.createdAt} />
               </TooltipTrigger>
               <TooltipPopup>
                 {formatChatTimestampTooltip(row.message.createdAt, ctx.timestampFormat)}
               </TooltipPopup>
             </Tooltip>
-            <div className="flex items-center gap-0.5">
+            <div data-message-actions="" className="flex items-center gap-0.5">
+              {row.edit && ctx.onEditMessage ? (
+                <EditUserMessageButton onEdit={() => setEditing(true)} />
+              ) : null}
               {typeof revertTurnCount === "number" && (
                 <RevertUserMessageButton turnCount={revertTurnCount} messageId={row.message.id} />
               )}
@@ -971,6 +997,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
               )}
             </div>
           </div>
+          <MessageVersionSwitcher row={row} />
         </div>
       ) : null}
     </div>
@@ -1020,7 +1047,7 @@ function RevertUserMessageButton({
         render={
           <Button
             type="button"
-            size="xs"
+            size="icon-xs"
             variant="ghost"
             disabled={activity.isRevertingCheckpoint || activity.isWorking}
             onClick={() => ctx.onRevertToTurnCount(turnCount, messageId)}
@@ -1028,10 +1055,158 @@ function RevertUserMessageButton({
           />
         }
       >
+        <RotateCcwIcon className="size-3" />
+      </TooltipTrigger>
+      <TooltipPopup side="top">Rewind to here</TooltipPopup>
+    </Tooltip>
+  );
+}
+
+function EditUserMessageButton({ onEdit }: { onEdit: () => void }) {
+  const activity = use(TimelineRowActivityCtx);
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            disabled={activity.isWorking}
+            onClick={onEdit}
+            aria-label="Edit message"
+          />
+        }
+      >
         <PencilIcon className="size-3" />
       </TooltipTrigger>
-      <TooltipPopup side="top">Edit from here</TooltipPopup>
+      <TooltipPopup side="top">Edit message</TooltipPopup>
     </Tooltip>
+  );
+}
+
+/** Edits the message in place; sending makes it a new version you can flip back from. */
+function UserMessageEditor({
+  initialText,
+  messageId,
+  edit,
+  onClose,
+}: {
+  initialText: string;
+  messageId: MessageId;
+  edit: MessageEditTarget;
+  onClose: () => void;
+}) {
+  const ctx = use(TimelineRowCtx);
+  const activity = use(TimelineRowActivityCtx);
+  const [text, setText] = useState(initialText);
+  const [sending, setSending] = useState(false);
+  const canSend =
+    ctx.onEditMessage !== undefined &&
+    !sending &&
+    !activity.isWorking &&
+    text.trim().length > 0 &&
+    text.trim() !== initialText.trim();
+
+  const submit = async () => {
+    if (!canSend || !ctx.onEditMessage) return;
+    setSending(true);
+    const sent = await ctx.onEditMessage({ messageId, text, edit });
+    setSending(false);
+    if (sent) onClose();
+  };
+
+  return (
+    <div className="flex w-full max-w-[80%] flex-col gap-2 rounded-xl bg-message p-3 text-message-foreground">
+      <textarea
+        ref={(element) => {
+          if (!element || element.dataset.focused) return;
+          element.dataset.focused = "true";
+          element.focus();
+          element.setSelectionRange(element.value.length, element.value.length);
+        }}
+        aria-label="Edit message"
+        className="field-sizing-content max-h-80 min-h-12 w-full resize-none bg-transparent text-chat outline-none"
+        value={text}
+        disabled={sending}
+        onChange={(event) => setText(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            onClose();
+          } else if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+            event.preventDefault();
+            void submit();
+          }
+        }}
+      />
+      <div className="flex items-center justify-end gap-2">
+        <Button type="button" size="sm" variant="ghost" onClick={onClose} disabled={sending}>
+          Cancel
+        </Button>
+        <Button type="button" size="sm" onClick={() => void submit()} disabled={!canSend}>
+          {sending ? "Sending…" : "Send"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+const NO_MESSAGE_VERSION = { groupId: null, index: 0, count: 0 } as const;
+
+// No hover fill, so the arrows sit close to the count; hover only brightens them.
+const MESSAGE_VERSION_ARROW_CLASS_NAME =
+  "inline-flex cursor-pointer items-center justify-center rounded-sm outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-default disabled:opacity-40 disabled:hover:text-inherit";
+
+/** `< 2/3 >` under a message you edited: flips the chat to that version of it. */
+function MessageVersionSwitcher({ row }: { row: Extract<TimelineRow, { kind: "message" }> }) {
+  const ctx = use(TimelineRowCtx);
+  const activity = use(TimelineRowActivityCtx);
+  const ownerThreadId = row.projectedItem?.sourceThreadId ?? null;
+  const version = useMessageVersionStore(
+    useShallow((state) => {
+      if (ownerThreadId === null) return NO_MESSAGE_VERSION;
+      const match = findMessageVersion(
+        state.groups,
+        ctx.activeThreadEnvironmentId,
+        ownerThreadId,
+        row.message.id,
+      );
+      return match
+        ? { groupId: match.group.id, index: match.index, count: match.group.versions.length }
+        : NO_MESSAGE_VERSION;
+    }),
+  );
+  const onSwitch = ctx.onSwitchMessageVersion;
+  if (version.groupId === null || version.count < 2 || !onSwitch) return null;
+  const { groupId, index, count } = version;
+  const switchTo = (to: number) => void onSwitch({ groupId, from: index, to });
+
+  return (
+    <div className="flex shrink-0 items-center gap-1 text-muted-foreground" data-message-version>
+      <button
+        type="button"
+        aria-label="Previous version"
+        className={MESSAGE_VERSION_ARROW_CLASS_NAME}
+        disabled={activity.isWorking || index === 0}
+        onClick={() => switchTo(index - 1)}
+      >
+        <ChevronLeftIcon className="size-3.5" />
+      </button>
+      <span className="tabular-nums">
+        {index + 1}/{count}
+      </span>
+      <button
+        type="button"
+        aria-label="Next version"
+        className={MESSAGE_VERSION_ARROW_CLASS_NAME}
+        disabled={activity.isWorking || index === count - 1}
+        onClick={() => switchTo(index + 1)}
+      >
+        <ChevronRightIcon className="size-3.5" />
+      </button>
+    </div>
   );
 }
 

@@ -12,6 +12,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
+  useRef,
   useState,
 } from "react";
 
@@ -19,6 +20,8 @@ import { Button } from "~/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "~/components/ui/input-group";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { cn } from "~/lib/utils";
+
+import { PREVIEW_WHITE_SURFACE_CLASS } from "./previewConstants";
 
 interface Props {
   url: string;
@@ -78,6 +81,7 @@ export function PreviewChromeRow({
 }: Props) {
   const [draft, setDraft] = useState(url);
   const [inputFocused, setInputFocused] = useState(false);
+  const stopBlurOnOutsidePress = useRef<(() => void) | null>(null);
 
   const submit = (event?: FormEvent | KeyboardEvent) => {
     event?.preventDefault();
@@ -91,8 +95,11 @@ export function PreviewChromeRow({
     <div className="relative">
       <form
         onSubmit={submit}
-        className="flex h-10 min-h-10 shrink-0 items-center gap-1 border-b border-border/60 bg-background px-2 in-data-[preview-panel-mode=inline]:mb-3 in-data-[preview-panel-mode=inline]:h-7 in-data-[preview-panel-mode=inline]:min-h-7 in-data-[preview-panel-mode=inline]:border-b-transparent"
-        data-surface-subheader
+        className={cn(
+          // Sides, top and bottom follow Settings › Appearance › Browser padding.
+          "flex h-10 min-h-10 shrink-0 items-center gap-1 border-b border-separator bg-background px-(--browser-side-padding) pt-(--browser-top-padding) in-data-[preview-panel-mode=inline]:h-auto in-data-[preview-panel-mode=inline]:min-h-0 in-data-[preview-panel-mode=inline]:pb-(--browser-bottom-padding)",
+          PREVIEW_WHITE_SURFACE_CLASS,
+        )}
       >
         <div className="flex items-center gap-0.5" role="group" aria-label="Navigation">
           <Tooltip>
@@ -150,7 +157,7 @@ export function PreviewChromeRow({
 
         {leadingActions}
 
-        <InputGroup variant="ghost" className="group/address h-7 flex-1">
+        <InputGroup variant="filled" className="group/address h-7 flex-1">
           <Tooltip>
             <TooltipTrigger
               render={
@@ -158,12 +165,26 @@ export function PreviewChromeRow({
                   ref={inputRef}
                   value={inputFocused ? draft : url}
                   onChange={(event) => setDraft(event.target.value)}
-                  onFocus={() => {
+                  onFocus={(event) => {
                     setDraft(url);
                     setInputFocused(true);
                     queueMicrotask(() => inputRef.current?.select());
+                    // A press anywhere else drops the field and its selection, also on spots that
+                    // keep focus where it is (the page's webview replays its clicks as pointerdown).
+                    const input = event.currentTarget;
+                    const onPointerDown = (press: PointerEvent) => {
+                      if (!input.isConnected) stopBlurOnOutsidePress.current?.();
+                      else if (press.target !== input) input.blur();
+                    };
+                    stopBlurOnOutsidePress.current?.();
+                    input.ownerDocument.addEventListener("pointerdown", onPointerDown, true);
+                    stopBlurOnOutsidePress.current = () => {
+                      input.ownerDocument.removeEventListener("pointerdown", onPointerDown, true);
+                      stopBlurOnOutsidePress.current = null;
+                    };
                   }}
                   onBlur={() => {
+                    stopBlurOnOutsidePress.current?.();
                     setInputFocused(false);
                   }}
                   onKeyDown={(event) => {
@@ -181,13 +202,20 @@ export function PreviewChromeRow({
                   disabled={inputDisabled}
                   data-preview-url-input
                   size="sm"
+                  // A long address fades out at its right edge instead of being cut mid-letter.
+                  className={
+                    inputFocused
+                      ? undefined
+                      : "[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]"
+                  }
                 />
               }
             />
           </Tooltip>
           {onOpenInBrowser && !inputFocused ? (
-            <InputGroupAddon align="inline-end">
-              {}
+            // The button sits as far from the bar's right edge as from its top and bottom (1px inside
+            // the border): -8px cancels most of the addon's 9px text inset.
+            <InputGroupAddon align="inline-end" className="-me-2">
               <span className="pointer-events-none flex opacity-0 transition-opacity focus-within:pointer-events-auto focus-within:opacity-100 group-hover/address:pointer-events-auto group-hover/address:opacity-100">
                 <Tooltip>
                   <TooltipTrigger

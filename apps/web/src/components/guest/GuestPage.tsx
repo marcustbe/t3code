@@ -534,7 +534,6 @@ function GuestThread({
             onAnchorReady={ignore}
             onAnchorSizeChanged={ignore}
             contentInsetEndAdjustment={0}
-            emptyPlaceholderInset={0}
             liveFollowEnabled={follow.timelineLiveFollowEnabled}
             onIsAtEndChange={follow.onIsAtEndChangeStable}
             onViewportAttach={follow.attachTimelineViewport}

@@ -1,13 +1,15 @@
 import { workspaceAreaProps } from "../lib/workspaceFocus";
 import { Outlet, createFileRoute, redirect, useLocation } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { RotateCcwIcon } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { useSettingsRestore } from "../components/settings/SettingsPanels";
 
-import { AppRouteModal, AppRouteModalClose } from "../components/AppRouteModal";
 import { SettingsBreadcrumb } from "../components/settings/SettingsBreadcrumb";
-import { SettingsSidebarNav } from "../components/settings/SettingsSidebarNav";
+import { useCloseAppModal } from "../components/sidebar/mainAppLocation";
+import { SidebarInset } from "../components/ui/sidebar";
+import { WorkspacePageHeader } from "../components/WorkspacePageHeader";
+import { isElectron } from "../env";
 import {
   SettingsScopeProvider,
   useSettingsScope,
@@ -116,30 +118,47 @@ function SettingsContentLayout() {
       : JSON.stringify(search);
   const [restoreSignal, setRestoreSignal] = useState(0);
 
+  // Settings sits in the main area like any page: the sidebar shows its sections and a Back row
+  // (AppSidebarLayout), and Escape goes back as the old floating panel's close did.
+  const closeSettings = useCloseAppModal();
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window keydown listener: Escape leaves Settings
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (
+        target?.closest(
+          'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="menu"], [role="listbox"]',
+        )
+      ) {
+        return;
+      }
+      void closeSettings();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [closeSettings]);
+
   return (
-    <AppRouteModal label="Settings">
-      <div className="relative flex min-h-0 flex-1">
-        <SettingsSidebarNav pathname={location.pathname} />
-        <div {...contentArea} className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="flex h-12 shrink-0 items-center gap-3 border-b ps-5 pe-2">
-            <SettingsBreadcrumb pathname={location.pathname} />
-            <div className="ms-auto flex shrink-0 items-center gap-1">
-              {location.pathname === "/settings/general" ? (
-                <RestoreDeviceDefaultsButton
-                  onRestored={() => setRestoreSignal((value) => value + 1)}
-                />
-              ) : null}
-              <AppRouteModalClose />
-            </div>
-          </header>
-          <div key={`${contentScopeKey}:${restoreSignal}`} className="min-h-0 flex flex-1 flex-col">
-            <SettingsScopeBoundary pathname={location.pathname}>
-              <Outlet />
-            </SettingsScopeBoundary>
+    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none">
+      <div {...contentArea} className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+        <WorkspacePageHeader electron={isElectron} className="border-b border-border">
+          <SettingsBreadcrumb pathname={location.pathname} />
+          <div className="ms-auto flex shrink-0 items-center gap-1">
+            {location.pathname === "/settings/general" ? (
+              <RestoreDeviceDefaultsButton
+                onRestored={() => setRestoreSignal((value) => value + 1)}
+              />
+            ) : null}
           </div>
+        </WorkspacePageHeader>
+        <div key={`${contentScopeKey}:${restoreSignal}`} className="min-h-0 flex flex-1 flex-col">
+          <SettingsScopeBoundary pathname={location.pathname}>
+            <Outlet />
+          </SettingsScopeBoundary>
         </div>
       </div>
-    </AppRouteModal>
+    </SidebarInset>
   );
 }
 

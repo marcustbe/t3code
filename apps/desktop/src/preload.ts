@@ -44,14 +44,21 @@ try {
 // oxlint-disable-next-line t3code/no-global-process-runtime -- Electron exposes the client platform in its sandboxed preload process.
 const clientPlatform = process.platform;
 
-if (clientPlatform === "darwin") {
+// Settings › Appearance places the window buttons; the top bar is inset + 14 + inset tall so they
+// centre in it, and the sidebar toggle starts 22pt after the 52pt button group.
+const windowButtonInsets = { top: 18, left: 12 };
+const syncWindowControlInset = () => {
+  if (clientPlatform !== "darwin") return;
   // Native buttons ignore Chromium zoom; reserve native points even after reload.
-  const syncWindowControlInset = () => {
-    document.documentElement.style.setProperty(
-      "--desktop-window-controls-inset",
-      `${90 / webFrame.getZoomFactor()}px`,
-    );
-  };
+  const zoom = webFrame.getZoomFactor();
+  const top = Math.round(windowButtonInsets.top * zoom);
+  // 1.5: the icons' ink inset, as in DesktopWindow.ts.
+  const buttonsX = Math.round((windowButtonInsets.left + 1.5) * zoom);
+  const style = document.documentElement.style;
+  style.setProperty("--desktop-window-controls-inset", `${(buttonsX + 74) / zoom}px`);
+  style.setProperty("--workspace-topbar-height", `${(2 * top + 14) / zoom}px`);
+};
+if (clientPlatform === "darwin") {
   window.addEventListener("DOMContentLoaded", syncWindowControlInset, { once: true });
   window.addEventListener("resize", syncWindowControlInset);
 }
@@ -192,6 +199,15 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     ipcRenderer.invoke(IpcChannels.PICK_PROJECT_FAVICON_CHANNEL, initialPath),
   pickThemeFiles: () => ipcRenderer.invoke(IpcChannels.PICK_THEME_FILES_CHANNEL, undefined),
   setTheme: (theme) => ipcRenderer.invoke(IpcChannels.SET_THEME_CHANNEL, theme),
+  setWindowTranslucent: (input) =>
+    ipcRenderer.invoke(IpcChannels.SET_WINDOW_TRANSLUCENT_CHANNEL, input),
+  setWindowButtonInsets: (input) => {
+    windowButtonInsets.top = input.top;
+    windowButtonInsets.left = input.left;
+    syncWindowControlInset();
+    return ipcRenderer.invoke(IpcChannels.SET_WINDOW_BUTTON_INSETS_CHANNEL, input);
+  },
+  setPreventSleep: (enabled) => ipcRenderer.invoke(IpcChannels.SET_PREVENT_SLEEP_CHANNEL, enabled),
   showContextMenu: (items, position) =>
     ipcRenderer.invoke(IpcChannels.CONTEXT_MENU_CHANNEL, {
       items,
@@ -352,6 +368,15 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     listBrowserImportSources: () => ipcRenderer.invoke(IpcChannels.PREVIEW_IMPORT_SOURCES_CHANNEL),
     importBrowserCookies: (input) =>
       ipcRenderer.invoke(IpcChannels.PREVIEW_IMPORT_COOKIES_CHANNEL, input),
+    extensions: {
+      list: () => ipcRenderer.invoke(IpcChannels.PREVIEW_EXTENSIONS_LIST_CHANNEL),
+      addUnpacked: () => ipcRenderer.invoke(IpcChannels.PREVIEW_EXTENSIONS_ADD_UNPACKED_CHANNEL),
+      remove: (path) => ipcRenderer.invoke(IpcChannels.PREVIEW_EXTENSIONS_REMOVE_CHANNEL, { path }),
+      listChromeCandidates: () =>
+        ipcRenderer.invoke(IpcChannels.PREVIEW_EXTENSIONS_CHROME_CANDIDATES_CHANNEL),
+      importFromChrome: (path) =>
+        ipcRenderer.invoke(IpcChannels.PREVIEW_EXTENSIONS_IMPORT_CHROME_CHANNEL, { path }),
+    },
     clearCookies: (environmentId, profileId) =>
       ipcRenderer.invoke(IpcChannels.PREVIEW_CLEAR_COOKIES_CHANNEL, { environmentId, profileId }),
     clearCache: (environmentId, profileId) =>

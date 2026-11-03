@@ -26,13 +26,50 @@ import { serializeAssistantCitation } from "@t3tools/shared/assistantCitations";
 import {
   computeStableMessagesTimelineRows,
   deriveMessagesTimelineRows,
+  deriveMessageEditTargets,
   timelineTurnFoldRunIdsByEntryId,
   deriveMessagesTimelineRowsWithState,
   shouldCollapseUserMessage,
   resolveAssistantMessageCopyState,
+  resolveFinishedReplyStartIndex,
   type MessagesTimelineRow,
   workEntryDisplayLabel,
 } from "./MessagesTimeline.logic";
+
+describe("resolveFinishedReplyStartIndex", () => {
+  const message = (id: string, role: "user" | "assistant") =>
+    ({
+      kind: "message",
+      id,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      message: {
+        id: MessageId.make(id),
+        role,
+        text: id,
+        runId: null,
+        streaming: false,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      showAssistantMeta: false,
+      showAssistantCopyButton: false,
+      assistantCopyStreaming: false,
+    }) as MessagesTimelineRow;
+  const rows = [message("ask", "user"), message("reply", "assistant")];
+  const state = (scroll: number) => ({
+    scroll,
+    positionAtIndex: (index: number) => [0, 100][index],
+  });
+
+  it("returns the reply when its start is above the visible top", () => {
+    expect(resolveFinishedReplyStartIndex(rows, state(80), 40)).toBe(1);
+  });
+
+  it("leaves a reply whose start is in view, or a turn with no reply", () => {
+    expect(resolveFinishedReplyStartIndex(rows, state(50), 40)).toBeNull();
+    expect(resolveFinishedReplyStartIndex([message("ask", "user")], state(80), 0)).toBeNull();
+  });
+});
 
 describe("resolveAssistantMessageCopyState", () => {
   it("copies the rendered representation of Codex directives", () => {
@@ -4360,5 +4397,55 @@ describe("shouldCollapseUserMessage", () => {
 
     expect(shouldCollapseUserMessage(`${citation} Can you expand on this?`)).toBe(false);
     expect(shouldCollapseUserMessage(`${citation} ${"More text. ".repeat(60)}`)).toBe(true);
+  });
+});
+
+describe("deriveMessageEditTargets", () => {
+  const source = ThreadId.make("thread-source");
+  const fork = ThreadId.make("thread-fork");
+  const entry = (input: {
+    id: string;
+    role: "user" | "assistant";
+    runId: string;
+    owner: ThreadId;
+    inputIntent?: "turn_start" | "steer";
+  }) =>
+    ({
+      kind: "message",
+      id: input.id,
+      createdAt: "2026-10-30T00:00:00.000Z",
+      message: {
+        id: MessageId.make(input.id),
+        role: input.role,
+        text: input.id,
+        runId: RunId.make(input.runId),
+        ...(input.role === "user" ? { inputIntent: input.inputIntent ?? "turn_start" } : {}),
+        createdAt: "2026-10-30T00:00:00.000Z",
+        updatedAt: "2026-10-30T00:00:00.000Z",
+        streaming: false,
+      },
+      projectedItem: { sourceThreadId: input.owner, visibility: "local" },
+    }) as unknown as Parameters<typeof deriveMessageEditTargets>[0][number];
+
+  it("forks each message from the run before it, owned by the thread that ran it", () => {
+    const targets = deriveMessageEditTargets(
+      [
+        entry({ id: "u1", role: "user", runId: "r1", owner: source }),
+        entry({ id: "a1", role: "assistant", runId: "r1", owner: source }),
+        entry({ id: "u2", role: "user", runId: "r2", owner: fork }),
+        entry({ id: "s2", role: "user", runId: "r2", owner: fork, inputIntent: "steer" }),
+        entry({ id: "a2", role: "assistant", runId: "r2", owner: fork }),
+        entry({ id: "u3", role: "user", runId: "r3", owner: fork }),
+      ],
+      RunId.make("r3"),
+    );
+
+    expect(targets.get(MessageId.make("u1"))).toEqual({ ownerThreadId: source, base: null });
+    expect(targets.get(MessageId.make("u2"))).toEqual({
+      ownerThreadId: fork,
+      base: { threadId: source, runId: RunId.make("r1") },
+    });
+    expect(targets.has(MessageId.make("s2"))).toBe(false);
+    expect(targets.has(MessageId.make("u3"))).toBe(false);
   });
 });

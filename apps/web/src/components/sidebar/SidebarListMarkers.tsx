@@ -110,8 +110,8 @@ export function SidebarDragBoundary(props: {
 export function SidebarSectionHeader(props: {
   marker: "working-header" | "snoozed-header" | "settled-header";
   label: string;
-  /** A muted trailing count. */
-  count: number;
+  /** A muted trailing count; null hides it. */
+  count: number | null;
   className?: string;
   dragging?: boolean;
   isDropTarget?: boolean;
@@ -127,7 +127,8 @@ export function SidebarSectionHeader(props: {
     <SortableSidebarMarker
       marker={props.marker}
       data-testid={`sidebar-${props.marker}`}
-      className={cn("relative mx-0.5 h-8", props.className)}
+      // Nudged half a pixel right (index.css) so its hover sits exactly under the chat rows'.
+      className={cn("relative h-7.5", props.className)}
     >
       <CollapsibleSectionHeader
         role="treeitem"
@@ -137,7 +138,15 @@ export function SidebarSectionHeader(props: {
         expanded={props.toggle.expanded}
         tone={props.isDropTarget ? "accent" : props.dragging ? "emphasized" : "muted"}
         data-testid={`sidebar-${shelf}-shelf-toggle`}
-        accessory={<span className="font-normal tabular-nums">{props.count}</span>}
+        // The count sits 4px from the chevron (the row's 8px gap less 4px).
+        accessory={
+          // Hidden counts still pass an (empty) accessory so the header draws no leader rule.
+          props.count === null ? (
+            <span />
+          ) : (
+            <span className="-me-1 font-normal tabular-nums">{props.count}</span>
+          )
+        }
       >
         {props.label}
       </CollapsibleSectionHeader>

@@ -728,13 +728,6 @@ export function isSidebarNestedLinkClick(target: EventTarget | null): boolean {
   return nodeClosest(parent, "a[href]") !== null;
 }
 
-export function shouldCreateNewThreadInCurrentProject(
-  shiftKey: boolean,
-  projectGroupCount: number,
-): boolean {
-  return shiftKey || projectGroupCount <= 1;
-}
-
 export function orderItemsByPreferredIds<TItem, TId>(input: {
   items: readonly TItem[];
   preferredIds: readonly TId[];
@@ -970,7 +963,28 @@ export function firstValidTimestampMs(
   return 0;
 }
 
-export { sortActiveThreadsByOrderKey as sortThreadsForSidebar } from "@t3tools/client-runtime/state/thread-sort";
+/**
+ * Newest first by the time each row shows (his last message, else the last update), so the list
+ * reads in the same order as its times. Ties keep a stable id order.
+ */
+export function sortThreadsByShownTime<
+  T extends {
+    readonly id: string;
+    readonly updatedAt: string;
+    readonly latestUserMessageAt?: string | null;
+  },
+>(threads: readonly T[]): T[] {
+  const shown = (thread: T) =>
+    toSortableTimestamp(thread.latestUserMessageAt ?? thread.updatedAt) ?? Number.NEGATIVE_INFINITY;
+  return threads
+    .map((thread) => ({ thread, time: shown(thread) }))
+    .sort(
+      (left, right) =>
+        right.time - left.time ||
+        (left.thread.id < right.thread.id ? -1 : left.thread.id > right.thread.id ? 1 : 0),
+    )
+    .map(({ thread }) => thread);
+}
 export {
   sortInboxThreadsByReturn,
   sortWorkingThreadsBySend,

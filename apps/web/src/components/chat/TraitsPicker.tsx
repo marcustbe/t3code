@@ -329,23 +329,15 @@ interface TraitsMenuContentProps {
   extraMenuHint?: string;
 }
 
-export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
-  provider,
-  instanceId,
-  models,
-  model,
-  promptUltrathink,
-  onPromptEdit,
-  modelOptions,
-  reportedModelSelection,
-  allowPromptInjectedEffort = true,
-  planModeEnabled,
-  ...persistence
-}: TraitsMenuContentProps & TraitsPersistence) {
-  const modelSelection =
-    instanceId && model ? { instanceId, model, options: modelOptions ?? [] } : null;
+/** Writes trait options to the composer's draft or thread, or to the caller's own handler. */
+function useTraitsModelOptionsUpdater(
+  provider: ProviderDriverKind,
+  instanceId: TraitsMenuContentProps["instanceId"],
+  model: TraitsMenuContentProps["model"],
+  persistence: TraitsPersistence,
+) {
   const setProviderModelOptions = useComposerDraftStore((store) => store.setProviderModelOptions);
-  const updateModelOptions = (nextOptions: ProviderOptions | undefined) => {
+  return (nextOptions: ProviderOptions | undefined) => {
     if ("onModelOptionsChange" in persistence) {
       persistence.onModelOptionsChange(nextOptions);
       return;
@@ -360,6 +352,25 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
       persistSticky: true,
     });
   };
+}
+
+export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
+  provider,
+  instanceId,
+  models,
+  model,
+  promptUltrathink,
+  onPromptEdit,
+  modelOptions,
+  reportedModelSelection,
+  allowPromptInjectedEffort = true,
+  planModeEnabled,
+  extraMenuContent,
+  ...persistence
+}: TraitsMenuContentProps & TraitsPersistence) {
+  const modelSelection =
+    instanceId && model ? { instanceId, model, options: modelOptions ?? [] } : null;
+  const updateModelOptions = useTraitsModelOptionsUpdater(provider, instanceId, model, persistence);
   const selected = getTraitsSectionVisibility({
     provider,
     models,
@@ -397,7 +408,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
   };
 
   if (!hasAnyControls) {
-    return null;
+    return extraMenuContent ?? null;
   }
 
   if (modelIsUnavailable) {
@@ -422,91 +433,116 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
             </div>
           );
         })}
+        {extraMenuContent ? (
+          <>
+            <MenuDivider />
+            {extraMenuContent}
+          </>
+        ) : null}
       </>
     );
   }
 
+  const renderSelectGroup = (descriptor: Extract<ProviderOptionDescriptor, { type: "select" }>) => {
+    const selectedValue =
+      ultrathinkPromptControlled && descriptor.id === primarySelectDescriptor?.id
+        ? "ultrathink"
+        : (getDescriptorStringValue(descriptor, modelSelection, reportedModelSelection) ?? "");
+
+    return (
+      <MenuGroup>
+        <div className="px-2 pt-1.5 pb-1 font-medium text-muted-foreground text-xs">
+          {descriptor.label}
+        </div>
+        {ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id ? (
+          <div className="px-2 pb-1.5 text-muted-foreground/80 text-xs">
+            Your prompt contains &quot;ultrathink&quot; in the text. Remove it to change this
+            option.
+          </div>
+        ) : null}
+        <MenuRadioGroup
+          value={selectedValue}
+          onValueChange={(value) => handleSelectChange(descriptor, value)}
+        >
+          {selectableProviderOptionChoices(descriptor).map((option) => (
+            <MenuRadioItem
+              key={option.id}
+              value={option.id}
+              hideIndicator
+              closeOnClick
+              emphasizeActive
+              disabled={ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id}
+            >
+              <span className="flex w-full min-w-0 flex-col">
+                <span className="flex min-w-0 items-center gap-1">
+                  <span className="min-w-0 truncate">{option.label}</span>
+                  {option.isDefault ? <DefaultBadge /> : null}
+                </span>
+                {option.description ? (
+                  <span className="max-w-56 text-pretty text-muted-foreground/80 text-xs">
+                    {option.description}
+                  </span>
+                ) : null}
+              </span>
+            </MenuRadioItem>
+          ))}
+        </MenuRadioGroup>
+      </MenuGroup>
+    );
+  };
+  const renderBooleanGroup = (descriptor: (typeof booleanDescriptors)[number]) => {
+    const selectedValue = descriptor.currentValue === true ? "on" : "off";
+
+    return (
+      <MenuGroup>
+        <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">
+          {descriptor.label}
+        </div>
+        <MenuRadioGroup
+          value={selectedValue}
+          onValueChange={(value) => {
+            updateDescriptors(
+              replaceDescriptorCurrentValue(descriptors, descriptor.id, value === "on"),
+            );
+          }}
+        >
+          {(["on", "off"] as const).map((value) => (
+            <MenuRadioItem key={value} value={value} hideIndicator closeOnClick emphasizeActive>
+              <span className="flex w-full min-w-0 items-center justify-between gap-3">
+                <span>{value === "on" ? "On" : "Off"}</span>
+              </span>
+            </MenuRadioItem>
+          ))}
+        </MenuRadioGroup>
+      </MenuGroup>
+    );
+  };
+
+  // Reasoning comes last, below Fast mode and Permissions.
+  const isReasoning = (descriptor: ProviderOptionDescriptor) =>
+    REASONING_SELECT_DESCRIPTOR_IDS.has(descriptor.id);
+  const sections = [
+    ...selectDescriptors
+      .filter((descriptor) => !isReasoning(descriptor))
+      .map((descriptor) => ({ key: descriptor.id, node: renderSelectGroup(descriptor) })),
+    ...booleanDescriptors.map((descriptor) => ({
+      key: descriptor.id,
+      node: renderBooleanGroup(descriptor),
+    })),
+    ...(extraMenuContent ? [{ key: "extra-menu-content", node: extraMenuContent }] : []),
+    ...selectDescriptors
+      .filter(isReasoning)
+      .map((descriptor) => ({ key: descriptor.id, node: renderSelectGroup(descriptor) })),
+  ];
+
   return (
     <>
-      {selectDescriptors.map((descriptor, index) => {
-        const selectedValue =
-          ultrathinkPromptControlled && descriptor.id === primarySelectDescriptor?.id
-            ? "ultrathink"
-            : (getDescriptorStringValue(descriptor, modelSelection, reportedModelSelection) ?? "");
-
-        return (
-          <div key={descriptor.id}>
-            {index > 0 ? <MenuDivider /> : null}
-            <MenuGroup>
-              <div className="px-2 pt-1.5 pb-1 font-medium text-muted-foreground text-xs">
-                {descriptor.label}
-              </div>
-              {ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id ? (
-                <div className="px-2 pb-1.5 text-muted-foreground/80 text-xs">
-                  Your prompt contains &quot;ultrathink&quot; in the text. Remove it to change this
-                  option.
-                </div>
-              ) : null}
-              <MenuRadioGroup
-                value={selectedValue}
-                onValueChange={(value) => handleSelectChange(descriptor, value)}
-              >
-                {selectableProviderOptionChoices(descriptor).map((option) => (
-                  <MenuRadioItem
-                    key={option.id}
-                    value={option.id}
-                    hideIndicator
-                    closeOnClick
-                    disabled={ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id}
-                  >
-                    <span className="flex w-full min-w-0 flex-col">
-                      <span className="flex min-w-0 items-center gap-1">
-                        <span className="min-w-0 truncate">{option.label}</span>
-                        {option.isDefault ? <DefaultBadge /> : null}
-                      </span>
-                      {option.description ? (
-                        <span className="max-w-56 text-pretty text-muted-foreground/80 text-xs">
-                          {option.description}
-                        </span>
-                      ) : null}
-                    </span>
-                  </MenuRadioItem>
-                ))}
-              </MenuRadioGroup>
-            </MenuGroup>
-          </div>
-        );
-      })}
-      {booleanDescriptors.map((descriptor, index) => {
-        const selectedValue = descriptor.currentValue === true ? "on" : "off";
-
-        return (
-          <div key={descriptor.id}>
-            {index > 0 || selectDescriptors.length > 0 ? <MenuDivider /> : null}
-            <MenuGroup>
-              <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">
-                {descriptor.label}
-              </div>
-              <MenuRadioGroup
-                value={selectedValue}
-                onValueChange={(value) => {
-                  updateDescriptors(
-                    replaceDescriptorCurrentValue(descriptors, descriptor.id, value === "on"),
-                  );
-                }}
-              >
-                {(["on", "off"] as const).map((value) => (
-                  <MenuRadioItem key={value} value={value} hideIndicator closeOnClick>
-                    <span className="flex w-full min-w-0 items-center justify-between gap-3">
-                      <span>{value === "on" ? "On" : "Off"}</span>
-                    </span>
-                  </MenuRadioItem>
-                ))}
-              </MenuRadioGroup>
-            </MenuGroup>
-          </div>
-        );
-      })}
+      {sections.map(({ key, node }, index) => (
+        <div key={key}>
+          {index > 0 ? <MenuDivider /> : null}
+          {node}
+        </div>
+      ))}
     </>
   );
 });
@@ -596,6 +632,10 @@ export const TraitsPicker = memo(function TraitsPicker({
     reportedModelSelection,
   });
   const isCodexStyle = provider === "codex";
+  // In the composer, Fast mode is its own toggle (FastModeToggle), so the trigger shows no bolt.
+  const fastModeDescriptor = isComposerOwned
+    ? descriptors.find((descriptor) => descriptor.id === "fastMode")
+    : undefined;
   // In the composer the glyph has no word, so the tooltip and label name the control.
   const triggerDescription = isComposerOwned
     ? [`Effort: ${triggerLabel}`, speedLabel, extraMenuHint].filter(Boolean).join(" · ")
@@ -653,12 +693,12 @@ export const TraitsPicker = memo(function TraitsPicker({
                       ? "min-w-0 max-w-40 shrink justify-start overflow-hidden whitespace-nowrap sm:max-w-48"
                       : "shrink-0 whitespace-nowrap",
                     triggerClassName,
-                    // Effort reads on from the model name, "Opus 5.5 High", at about the space
-                    // inside the name: this cancels the model chip's end padding and the row gap.
-                    isComposerOwned && (effortWord !== null ? "-ms-1 ps-0" : "-ms-1 ps-0.5"),
-                    // The word is muted next to the model name and brightens like it on hover.
+                    // Effort reads on from the model name, "Opus 5.5 High", a word space (4px)
+                    // after it: the model chip's 4px end padding and the 2px row gap, less 2px.
+                    isComposerOwned && (effortWord !== null ? "-ms-0.5 ps-0" : "-ms-1 ps-0.5"),
+                    // The word sits at 55% next to the model name and brightens like it on hover.
                     effortWord !== null &&
-                      "text-muted-foreground hover:text-foreground data-pressed:text-foreground data-popup-open:text-foreground",
+                      "text-foreground/55 hover:text-foreground data-pressed:text-foreground data-popup-open:text-foreground",
                   )}
                 />
               }
@@ -685,7 +725,8 @@ export const TraitsPicker = memo(function TraitsPicker({
                   {triggerLabel}
                 </span>
               )}
-              {speedLabel === "Fast" || speedLabel === "Ultrafast" ? (
+              {speedLabel === "Ultrafast" ||
+              (speedLabel === "Fast" && fastModeDescriptor === undefined) ? (
                 <FastBolt ultra={speedLabel === "Ultrafast"} />
               ) : null}
               {otherLabels.length > 0 ? (
@@ -742,15 +783,90 @@ export const TraitsPicker = memo(function TraitsPicker({
           reportedModelSelection={reportedModelSelection}
           allowPromptInjectedEffort={allowPromptInjectedEffort}
           planModeEnabled={planModeEnabled}
+          {...(extraMenuContent ? { extraMenuContent } : {})}
           {...persistence}
         />
-        {extraMenuContent ? (
-          <>
-            <MenuDivider />
-            {extraMenuContent}
-          </>
-        ) : null}
       </MenuPopup>
     </Menu>
+  );
+});
+
+/** Whether the model offers Fast mode, so the composer shows FastModeToggle instead of a logo. */
+export function hasFastModeTrait(
+  input: Pick<
+    TraitsMenuContentProps,
+    "provider" | "models" | "model" | "modelOptions" | "planModeEnabled"
+  >,
+): boolean {
+  return getTraitsSectionVisibility({
+    ...input,
+    modelOptions: input.modelOptions,
+  }).descriptors.some(
+    (descriptor) => descriptor.id === "fastMode" && descriptor.type === "boolean",
+  );
+}
+
+/**
+ * Fast mode in the composer: a bolt where the provider logo sat, 5px from the model name like the
+ * logo. One click toggles it; on, it is a filled white bolt, off a hollow grey one.
+ */
+export const FastModeToggle = memo(function FastModeToggle({
+  provider,
+  instanceId,
+  models,
+  model,
+  modelOptions,
+  planModeEnabled,
+  size = "sm",
+  disabled = false,
+  ...persistence
+}: Pick<
+  TraitsMenuContentProps,
+  "provider" | "instanceId" | "models" | "model" | "modelOptions" | "planModeEnabled"
+> &
+  TraitsPersistence & { size?: ComposerControlSize; disabled?: boolean }) {
+  const updateModelOptions = useTraitsModelOptionsUpdater(provider, instanceId, model, persistence);
+  const { descriptors } = getTraitsSectionVisibility({
+    provider,
+    models,
+    model,
+    modelOptions,
+    planModeEnabled,
+  });
+  const fastMode = descriptors.find((descriptor) => descriptor.id === "fastMode");
+  if (!fastMode || fastMode.type !== "boolean") return null;
+  const on = fastMode.currentValue === true;
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <ComposerControl
+            size={size}
+            disabled={disabled}
+            aria-label="Fast mode"
+            aria-pressed={on}
+            onClick={() =>
+              updateModelOptions(
+                buildProviderOptionSelectionsFromDescriptors(
+                  replaceDescriptorCurrentValue(descriptors, "fastMode", !on),
+                ),
+              )
+            }
+            // A 20px square with the bolt centred, overlapping the model button so the bolt sits
+            // about 5px from the model name and reads as one group with it (8px felt detached); the
+            // square stops just short of the name. On is the filled bolt alone: no pressed fill
+            // behind it. It sits above the model button so its whole hover square is the click target.
+            className="z-10 size-5 px-0 -me-3 aria-pressed:bg-transparent aria-pressed:hover:bg-sidebar-row-selected"
+          />
+        }
+      >
+        <ZapIcon
+          aria-hidden="true"
+          data-composer-control-icon
+          className={cn("size-3", on ? "fill-current text-foreground" : "text-foreground/40")}
+        />
+      </TooltipTrigger>
+      <TooltipPopup side="top">Fast mode {on ? "on" : "off"}</TooltipPopup>
+    </Tooltip>
   );
 });

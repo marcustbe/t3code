@@ -59,6 +59,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 import { flushSync } from "react-dom";
 import {
@@ -81,7 +82,6 @@ import {
   getAntigravitySendBlockReason,
   readFileAsDataUrl,
   resolveComposerInteractionMode,
-  threadShellHasStarted,
 } from "../ChatView.logic";
 import {
   dataTransferHasComposerMention,
@@ -198,7 +198,11 @@ import {
   ComposerRestingImagePreviews,
 } from "./ComposerAttachmentStrip";
 import { ComposerPrimaryActions } from "./ComposerPrimaryActions";
-import { ComposerFooterPrimaryActions } from "./ComposerFooterControls";
+import {
+  ContextWindowMeter,
+  ContextWindowMeterPlaceholder,
+  SessionLimitMeter,
+} from "./ContextWindowMeter";
 import { ComposerPendingUserInputPanel } from "./ComposerPendingUserInputPanel";
 import { ComposerPlanFollowUpBanner } from "./ComposerPlanFollowUpBanner";
 import { resolveComposerMenuActiveItemId } from "./composerMenuHighlight";
@@ -208,7 +212,6 @@ import { readPromptUltrathink } from "./TraitsPicker";
 import {
   providerSupportsManualCompaction,
   resolveContextWindowModelDisplayName,
-  shouldReserveContextWindowMeter,
 } from "./ContextWindowMeter.logic";
 import {
   buildAttachmentVideoPreview,
@@ -346,6 +349,10 @@ export interface ChatComposerHandle {
 }
 
 export interface ChatComposerProps {
+  /** Leads the row under the composer (the new-thread project and branch strip). */
+  footerStart?: ReactNode;
+  /** The provider's 5-hour limit, shown in the ring until the chat has context to show. */
+  sessionLimit: { usedPercent: number; label: string; resetsAtLabel: string | null } | null;
   composerDraftTarget: ScopedThreadRef | DraftId;
   environmentId: EnvironmentId;
   canOperateThread: boolean;
@@ -440,7 +447,6 @@ export interface ChatComposerProps {
   threadPullRequests: ReadonlyArray<ThreadPullRequestLink> | undefined;
   onComposerOverlayHeightChange: (height: number) => void;
   /** The new-thread strip names the permissions, so the controls row hides its chip. */
-  permissionsShownInStrip: boolean;
 
   promptRef: React.RefObject<string>;
   composerImagesRef: React.RefObject<ComposerImageAttachment[]>;
@@ -972,14 +978,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     activeThreadModelSelection,
     modelOptionsByInstance,
   );
-  const reserveContextWindowMeter = shouldReserveContextWindowMeter({
-    meterEnabled: settings.contextWindowMeterEnabled,
-    detailLoading: props.threadSyncPhase === "loading",
-    threadStarted: threadShellHasStarted(props.activeThreadShell),
-    providerReportsContextWindow: selectedProviderStatus
-      ? selectedProviderStatus.reportsContextWindow === true
-      : null,
-  });
 
   const [composerCursor, setComposerCursor] = useState(() => {
     const value = isLiteralPendingAnswer ? (activePendingProgress?.customAnswer ?? prompt) : prompt;
@@ -1507,6 +1505,27 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       setIsComposerPrimaryActionsCompact(measurePrimaryActionsCompact());
     });
   }, [composerFooterHasWideActions]);
+
+  // A short prompt shares one row with + and send; once it wraps or has a second line it moves
+  // above them, Cursor-style, and stays there until the prompt is cleared (so it can't flip back
+  // and forth as the wider row lets it fit again). The "inline" layout keeps it in that row.
+  const promptEditorBoxRef = useRef<HTMLDivElement>(null);
+  const [promptWrapped, setPromptMultiline] = useState(false);
+  const promptMultiline = settings.composerPromptLayout !== "inline" && promptWrapped;
+  const promptIsEmpty = prompt.length === 0;
+  if (promptWrapped && promptIsEmpty) setPromptMultiline(false);
+  if (!promptWrapped && prompt.includes("\n")) setPromptMultiline(true);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- measures the prompt box via ResizeObserver to move a wrapped prompt above the buttons
+  useLayoutEffect(() => {
+    const box = promptEditorBoxRef.current;
+    if (!box || promptWrapped) return;
+    // One line is 44px tall; anything taller has wrapped.
+    const measure = () => {
+      if (box.getBoundingClientRect().height > 48) setPromptMultiline(true);
+    };
+    measure();
+    return observeResize(box, measure);
+  }, [promptWrapped]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reads draft images as data URLs and persists them to the draft store, dropping stale results on cleanup
   useEffect(() => {
@@ -2312,7 +2331,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       handleRuntimeModeChange={handleRuntimeModeChange}
       composerControlsCollapsed={composerControlsCollapsed}
       effortDisplay={settings.effortDisplay}
-      permissionsShownInStrip={props.permissionsShownInStrip}
       composerControlsHidden={composerControlsHidden}
       restingHiddenBlockCount={restingHiddenBlockCount}
       iconOnlyBlockCount={iconOnlyBlockCount}
@@ -2806,11 +2824,12 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         focusComposer();
         return true;
       },
-      citeAssistantText: (citation, sourceAnchor) =>
+      // Cite drops the chip straight into the prompt; its pencil still adds a comment later.
+      citeAssistantText: (citation) =>
         insertComposerTextStable(
           formatAssistantCitationForComposer(citation, citation.comment),
           "cursor",
-          { ensureLeadingBoundary: true, citationCommentAnchor: sourceAnchor },
+          { ensureLeadingBoundary: true },
         ),
       openModelPicker: openModelPickerStable,
       stepReasoningEffort: (direction) => {
@@ -3079,6 +3098,16 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         onRemoveFile={removeComposerFileFromDraft}
       />
     ) : null;
+  const composerQueuedAttachmentRow =
+    !isComposerCollapsedMobile &&
+    pendingUserInputs.length === 0 &&
+    editingQueuedAttachments !== null &&
+    editingQueuedAttachments.length > 0 ? (
+      <ComposerQueuedAttachmentRow
+        attachments={editingQueuedAttachments}
+        onRemove={onRemoveEditingQueuedAttachment}
+      />
+    ) : null;
   const composerAttachButton = showComposerAttachAction ? (
     <ComposerAttachButton
       addComposerAttachments={addComposerAttachments}
@@ -3134,7 +3163,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         if (isInsideRestingComposerControlScope(event.target)) return;
         composerMentionDragHandlers.onDrop(event);
       }}
-      className="mx-auto w-full min-w-0 max-w-(--chat-content-max-width)"
+      className="mx-auto w-full min-w-0 max-w-[min(var(--chat-content-max-width),800px)]"
       data-chat-composer-form="true"
       {...threadContextDropTargetProps()}
     >
@@ -3189,7 +3218,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             data-chat-composer-surface="true"
             data-chat-composer-mobile-collapsed={isComposerCollapsedMobile ? "true" : "false"}
             className={cn(
-              "rounded-2xl transition-[background-color] duration-200",
+              "rounded-[inherit] transition-[background-color] duration-200",
               "in-data-[thread-context-over]:bg-accent/45 in-data-[thread-context-over]:ring-1 in-data-[thread-context-over]:ring-inset in-data-[thread-context-over]:ring-primary/70",
               isDragOverComposer ? "bg-accent/45 ring-1 ring-inset ring-primary/70" : null,
               projectSelectionRequired ? "opacity-75" : null,
@@ -3255,11 +3284,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                 };
               }}
               data-chat-composer-body="true"
-              className={cn(
-                "relative px-4 pb-2",
-                "pt-3.5 sm:pt-4",
-                isComposerCollapsedMobile && "hidden",
-              )}
+              className={cn("relative", isComposerCollapsedMobile && "hidden")}
             >
               {isStashMenuOpen && !composerMenuOpen && (
                 <ComposerCommandMenuLayer anchor={composerMenuAnchor}>
@@ -3305,155 +3330,158 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                 </ComposerCommandMenuLayer>
               )}
 
-              {!isComposerCollapsedMobile &&
-                pendingUserInputs.length === 0 &&
-                editingQueuedAttachments !== null &&
-                editingQueuedAttachments.length > 0 && (
-                  <ComposerQueuedAttachmentRow
-                    attachments={editingQueuedAttachments}
-                    onRemove={onRemoveEditingQueuedAttachment}
-                  />
-                )}
+              {composerQueuedAttachmentRow ||
+              composerAttachmentMediaRow ||
+              composerAttachmentFileList ? (
+                <div data-chat-composer-attachments="true" className="px-4 pt-3">
+                  {composerQueuedAttachmentRow}
+                  {composerAttachmentMediaRow}
+                  {composerAttachmentFileList}
+                </div>
+              ) : null}
 
-              {composerAttachmentMediaRow}
-
-              {composerAttachmentFileList}
-
-              <div className="relative">
-                {previewFile ? (
-                  <ComposerFilePreviewDialog
-                    file={previewFile}
-                    onRemove={removeComposerFileFromDraft}
-                    onPreviewFileIdChange={setPreviewFileId}
-                  />
-                ) : null}
-                <ComposerContextActionsContext value={composerContextActions}>
-                  <ComposerPromptEditor
-                    draftKey={composerDraftTargetKey}
-                    // Switching threads lands focus here, so the label names the thread.
-                    ariaLabel={activeThread ? `Message ${activeThread.title}` : "Message"}
-                    suggestionListId={composerSuggestionListId}
-                    activeSuggestionId={
-                      composerSuggestionListVisible && activeComposerMenuItem
-                        ? composerSuggestionOptionId(
-                            composerSuggestionListId,
-                            activeComposerMenuItem.id,
-                          )
-                        : undefined
-                    }
-                    editorRef={composerEditorRef}
-                    richTextEnabled={settings.composerRichTextEnabled}
-                    literalText={isLiteralPendingAnswer}
-                    isPathQueryActive={isPathQueryActiveStable}
-                    value={activePendingProgress ? activePendingProgress.customAnswer : prompt}
-                    cursor={composerCursor}
-                    contextRecords={composerContextRecords}
-                    buildContextClipboardFragment={buildContextClipboardFragmentStable}
-                    importContextFragment={importContextFragmentStable}
-                    skills={selectedProviderSkills}
-                    className={cn(showMobilePendingAnswerActions && "max-sm:pb-12")}
-                    onChange={onPromptChangeStable}
-                    onCommandKeyDown={onComposerCommandKeyStable}
-                    onPageScrollKeyDown={onPageScrollKeyDown}
-                    onPageScrollKeyUp={onPageScrollKeyUp}
-                    onPageScrollRelease={onPageScrollRelease}
-                    onCitationSubmitAndSend={submitCitationAndSendStable}
-                    onCitationDraftSave={saveCitationDraftToPromptStable}
-                    onPaste={onComposerPasteStable}
-                    placeholder={
-                      isComposerApprovalState
-                        ? activePendingApproval?.supportsFeedback
-                          ? "Send feedback to decline this request"
-                          : "Send a message to decline and redirect the agent"
-                        : activePendingProgress
-                          ? isChoiceOnlyPendingQuestion
-                            ? "Choose an option above"
-                            : "Type your own answer, or leave this blank to use the selected option"
-                          : showPlanFollowUpPrompt && activeProposedPlan
-                            ? "Add feedback to refine the plan, or leave this blank to implement it"
-                            : projectSelectionRequired
-                              ? "Choose a project above to start a thread"
-                              : showProviderUnavailable
-                                ? "Enable a provider in Settings to send a message"
-                                : DEFAULT_COMPOSER_PLACEHOLDER
-                    }
-                    disabled={
-                      projectSelectionRequired ||
-                      isChoiceOnlyPendingQuestion ||
-                      activePendingIsResponding
-                    }
-                  />
-                </ComposerContextActionsContext>
-                {showMobilePendingAnswerActions ? (
-                  <div
-                    data-chat-composer-mobile-pending-actions="true"
-                    className="absolute bottom-0 right-0 flex items-center justify-end gap-1"
-                  >
-                    <ComposerPrimaryActions
-                      compact
-                      canOperateThread={canOperateThread}
-                      pendingAction={pendingPrimaryAction}
-                      isRunning={false}
-                      canInterrupt={false}
-                      showPlanFollowUpPrompt={false}
-                      promptHasText={false}
-                      isSendBusy={isSendBusy}
-                      sendDisabledReason={sendDisabledReason}
-                      isEnvironmentUnavailable={
-                        environmentUnavailable !== null ||
-                        noProviderAvailable ||
-                        projectSelectionRequired
-                      }
-                      isPreparingWorktree={false}
-                      hasSendableContent={false}
-                      preserveComposerFocusOnPointerDown
-                      onPreviousPendingQuestion={onPreviousActivePendingUserInputQuestion}
-                      onInterrupt={handleInterruptPrimaryActionStable}
-                      onImplementPlanInNewThread={handleImplementPlanInNewThreadPrimaryActionStable}
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            <ComposerPromptLengthValidation
-              message={providerInputSubmissionError ?? composerSubmissionError}
-            />
-
-            {isComposerCollapsedMobile ? null : (
+              {/* One row (+, prompt, send) while the prompt is one line; Cursor's two rows (prompt
+                  over + and send) once it wraps. The prompt's scroll box reaches the box edge, so
+                  that edge is the clip. */}
               <div
-                data-chat-composer-footer="true"
-                className={cn(
-                  "flex min-w-0 flex-nowrap items-center overflow-visible px-2 pb-2",
-                  pendingUserInputs.length > 0 && "pt-2",
-                  showMobilePendingAnswerActions && "hidden sm:flex",
-                )}
+                data-chat-composer-input-row="true"
+                data-multiline={promptMultiline || undefined}
+                className="flex flex-wrap items-end"
               >
-                {composerAttachButton ? <div className="me-2">{composerAttachButton}</div> : null}
+                <div
+                  ref={promptEditorBoxRef}
+                  className={cn(
+                    "relative min-w-0",
+                    promptMultiline ? "order-1 w-full px-4" : "order-2 flex-1 px-1",
+                  )}
+                >
+                  {previewFile ? (
+                    <ComposerFilePreviewDialog
+                      file={previewFile}
+                      onRemove={removeComposerFileFromDraft}
+                      onPreviewFileIdChange={setPreviewFileId}
+                    />
+                  ) : null}
+                  <ComposerContextActionsContext value={composerContextActions}>
+                    <ComposerPromptEditor
+                      draftKey={composerDraftTargetKey}
+                      // Switching threads lands focus here, so the label names the thread.
+                      ariaLabel={activeThread ? `Message ${activeThread.title}` : "Message"}
+                      suggestionListId={composerSuggestionListId}
+                      activeSuggestionId={
+                        composerSuggestionListVisible && activeComposerMenuItem
+                          ? composerSuggestionOptionId(
+                              composerSuggestionListId,
+                              activeComposerMenuItem.id,
+                            )
+                          : undefined
+                      }
+                      editorRef={composerEditorRef}
+                      richTextEnabled={settings.composerRichTextEnabled}
+                      literalText={isLiteralPendingAnswer}
+                      isPathQueryActive={isPathQueryActiveStable}
+                      value={activePendingProgress ? activePendingProgress.customAnswer : prompt}
+                      cursor={composerCursor}
+                      contextRecords={composerContextRecords}
+                      buildContextClipboardFragment={buildContextClipboardFragmentStable}
+                      importContextFragment={importContextFragmentStable}
+                      skills={selectedProviderSkills}
+                      className={cn(
+                        "my-0 min-h-11",
+                        promptMultiline ? "pt-3 pb-1" : "py-2.5",
+                        showMobilePendingAnswerActions && "max-sm:pb-12",
+                      )}
+                      placeholderClassName={cn(
+                        // Quieter than other fields' placeholders.
+                        "truncate opacity-65",
+                        promptMultiline ? "pt-3 pb-1" : "py-2.5",
+                      )}
+                      onChange={onPromptChangeStable}
+                      onCommandKeyDown={onComposerCommandKeyStable}
+                      onPageScrollKeyDown={onPageScrollKeyDown}
+                      onPageScrollKeyUp={onPageScrollKeyUp}
+                      onPageScrollRelease={onPageScrollRelease}
+                      onCitationSubmitAndSend={submitCitationAndSendStable}
+                      onCitationDraftSave={saveCitationDraftToPromptStable}
+                      onPaste={onComposerPasteStable}
+                      placeholder={
+                        isComposerApprovalState
+                          ? activePendingApproval?.supportsFeedback
+                            ? "Send feedback to decline this request"
+                            : "Send a message to decline and redirect the agent"
+                          : activePendingProgress
+                            ? isChoiceOnlyPendingQuestion
+                              ? "Choose an option above"
+                              : "Type your own answer, or leave this blank to use the selected option"
+                            : showPlanFollowUpPrompt && activeProposedPlan
+                              ? "Add feedback to refine the plan, or leave this blank to implement it"
+                              : projectSelectionRequired
+                                ? "Choose a project above to start a thread"
+                                : showProviderUnavailable
+                                  ? "Enable a provider in Settings to send a message"
+                                  : DEFAULT_COMPOSER_PLACEHOLDER
+                      }
+                      disabled={
+                        projectSelectionRequired ||
+                        isChoiceOnlyPendingQuestion ||
+                        activePendingIsResponding
+                      }
+                    />
+                  </ComposerContextActionsContext>
+                  {showMobilePendingAnswerActions ? (
+                    <div
+                      data-chat-composer-mobile-pending-actions="true"
+                      className="absolute bottom-0 right-0 flex items-center justify-end gap-1"
+                    >
+                      <ComposerPrimaryActions
+                        compact
+                        canOperateThread={canOperateThread}
+                        pendingAction={pendingPrimaryAction}
+                        isRunning={false}
+                        canInterrupt={false}
+                        showPlanFollowUpPrompt={false}
+                        promptHasText={false}
+                        isSendBusy={isSendBusy}
+                        sendDisabledReason={sendDisabledReason}
+                        isEnvironmentUnavailable={
+                          environmentUnavailable !== null ||
+                          noProviderAvailable ||
+                          projectSelectionRequired
+                        }
+                        isPreparingWorktree={false}
+                        hasSendableContent={false}
+                        preserveComposerFocusOnPointerDown
+                        onPreviousPendingQuestion={onPreviousActivePendingUserInputQuestion}
+                        onInterrupt={handleInterruptPrimaryActionStable}
+                        onImplementPlanInNewThread={
+                          handleImplementPlanInNewThreadPrimaryActionStable
+                        }
+                      />
+                    </div>
+                  ) : null}
+                </div>
+                <div
+                  className={cn(
+                    "flex min-w-0 items-center ps-2 pb-2",
+                    promptMultiline ? "order-2 flex-1" : "order-1 shrink-0",
+                  )}
+                >
+                  {composerAttachButton}
+                </div>
                 <div
                   data-chat-composer-actions="right"
                   data-chat-composer-transition-actions="true"
                   data-chat-composer-primary-actions-compact={
                     isComposerPrimaryActionsCompact ? "true" : "false"
                   }
-                  className="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-2"
+                  className={cn(
+                    "order-3 flex shrink-0 items-center gap-2 pe-2 pb-2",
+                    showMobilePendingAnswerActions && "hidden sm:flex",
+                  )}
                 >
-                  <div
-                    ref={attachExpandedComposerControls}
-                    data-chat-composer-controls="footer"
-                    data-chat-composer-footer-controls="true"
-                    className="relative flex min-w-0 flex-1 items-center justify-end gap-0.5"
-                  >
-                    {composerControls}
-                  </div>
-                  <ComposerFooterPrimaryActions
+                  <ComposerPrimaryActions
                     compact={isComposerPrimaryActionsCompact}
                     canOperateThread={canOperateThread}
-                    activeContextWindow={
-                      settings.contextWindowMeterEnabled ? activeContextWindow : null
-                    }
-                    reserveContextWindowMeter={reserveContextWindowMeter}
-                    activeThreadModelDisplayName={activeThreadModelDisplayName}
                     pendingAction={pendingPrimaryAction}
                     isRunning={phase === "running"}
                     canInterrupt={canInterrupt}
@@ -3498,15 +3526,15 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     compactBeforeSendTokens={props.resumeCompactionTokens}
                     keepFullHistory={props.keepFullHistory}
                     onToggleKeepFullHistory={props.onToggleKeepFullHistory}
-                    compactDisabled={compactDisabled || noProviderAvailable || isSendBusy}
-                    compactDisabledReason={resolvedCompactDisabledReason}
-                    {...(compactCommandAvailable
-                      ? { onCompactContext: compactThreadContextStable }
-                      : {})}
                   />
                 </div>
               </div>
-            )}
+            </div>
+
+            <ComposerPromptLengthValidation
+              message={providerInputSubmissionError ?? composerSubmissionError}
+            />
+
             {showInlineRestingControls ? (
               <div className="h-8">
                 <div
@@ -3531,6 +3559,47 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           </div>
         </ComposerSurface.Main>
       </div>
+      {isComposerCollapsedMobile ? null : (
+        <div
+          data-chat-composer-footer="true"
+          className={cn(
+            // One row under the composer in every chat, so its height and the gap below never
+            // change: the ring and the new-thread project strip on the left, the model on the right.
+            // It hangs 13px into the 16px gap below, so its controls centre 19px above the window's
+            // bottom edge, level with the sidebar footer's icons.
+            "-mb-3.25 flex h-9 min-w-0 flex-nowrap items-center gap-2 px-4 pt-1",
+            showMobilePendingAnswerActions && "hidden sm:flex",
+          )}
+        >
+          {/* Pulled out by the button's own inset so the ring lines up with the pill's text. */}
+          {settings.contextWindowMeterVisible ? (
+            <div className="-ms-1.75 flex shrink-0 items-center">
+              {activeContextWindow ? (
+                <ContextWindowMeter
+                  usage={activeContextWindow}
+                  modelDisplayName={activeThreadModelDisplayName}
+                  compactDisabled={compactDisabled || noProviderAvailable || isSendBusy}
+                  compactDisabledReason={resolvedCompactDisabledReason}
+                  {...(compactCommandAvailable ? { onCompact: compactThreadContextStable } : {})}
+                />
+              ) : props.sessionLimit ? (
+                <SessionLimitMeter {...props.sessionLimit} />
+              ) : (
+                <ContextWindowMeterPlaceholder />
+              )}
+            </div>
+          ) : null}
+          <div className="flex min-w-0 flex-1 items-center">{props.footerStart}</div>
+          <div
+            ref={attachExpandedComposerControls}
+            data-chat-composer-controls="footer"
+            data-chat-composer-footer-controls="true"
+            className="relative -me-1 flex min-w-0 shrink items-center justify-end gap-0.5"
+          >
+            {composerControls}
+          </div>
+        </div>
+      )}
     </form>
   );
 });

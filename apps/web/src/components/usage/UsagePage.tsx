@@ -69,7 +69,10 @@ import {
 } from "../ui/menu";
 import { ScrollArea } from "../ui/scroll-area";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
-import { AppRouteModal, AppRouteModalClose } from "../AppRouteModal";
+import { useCloseAppModal } from "../sidebar/mainAppLocation";
+import { SidebarInset } from "../ui/sidebar";
+import { WorkspacePageHeader } from "../WorkspacePageHeader";
+import { isElectron } from "../../env";
 import { Skeleton } from "../ui/skeleton";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -174,6 +177,26 @@ function UsageModelDialogHost({
 }
 
 export function UsagePage() {
+  const closeUsage = useCloseAppModal();
+  // Escape goes back, as the old floating panel's close did; menus and fields keep their own Escape.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- document keydown listener: Escape leaves Usage
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (
+        target?.closest(
+          'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="menu"], [role="listbox"]',
+        )
+      ) {
+        return;
+      }
+      void closeUsage();
+    };
+    // `document`, not `window`: this component names its usage period `window`.
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [closeUsage]);
   const [preferences, setPreferences] = useState(readUsagePagePreferences);
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const hour12 = usePrimarySettings((settings) => resolveHour12(settings.timestampFormat));
@@ -439,13 +462,15 @@ export function UsagePage() {
           <RefreshIcon size="sm" refreshing={isRefreshing} />
         </Button>
       </div>
-      <div className="ms-auto flex shrink-0 items-center justify-end gap-1 @4xl/usage-header:hidden">
+      {/* Read like the breadcrumb beside them: full colour, medium, its size; the buttons' own
+          padding is the gap between them. */}
+      <div className="ms-auto flex shrink-0 items-center justify-end @4xl/usage-header:hidden">
         {showingLimits ? null : (
           <Select value={String(windowDays)} onValueChange={(value) => selectWindow(Number(value))}>
             <SelectTrigger
               aria-label="Usage period"
-              size="compact"
-              variant="ghost"
+              size="breadcrumb"
+              variant="breadcrumb"
               className="w-auto min-w-0"
             >
               <SelectValue>
@@ -473,8 +498,8 @@ export function UsagePage() {
         >
           <SelectTrigger
             aria-label="Usage metric"
-            size="compact"
-            variant="ghost"
+            size="breadcrumb"
+            variant="breadcrumb"
             className="w-auto min-w-0"
           >
             <SelectValue>
@@ -504,12 +529,17 @@ export function UsagePage() {
   );
 
   return (
-    <AppRouteModal label="Usage">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="@container/usage-header flex min-h-12 shrink-0 items-center gap-1 border-b ps-5 pe-2">
+    // A page in the main area like Settings, over the chat and its right panel; the thread sidebar
+    // stays, so clicking a chat there leaves it. Esc returns to where it was opened.
+    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+        <WorkspacePageHeader
+          electron={isElectron}
+          aria-label="Usage"
+          className="@container/usage-header gap-1 border-b border-border"
+        >
           {topbarContent}
-          <AppRouteModalClose />
-        </header>
+        </WorkspacePageHeader>
 
         <ScrollArea className="min-h-0 flex-1">
           <WorkspacePageContainer width="wide">
@@ -597,7 +627,7 @@ export function UsagePage() {
           }}
         />
       ) : null}
-    </AppRouteModal>
+    </SidebarInset>
   );
 }
 

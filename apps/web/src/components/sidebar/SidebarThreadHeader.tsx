@@ -1,16 +1,21 @@
-import { FolderPlusIcon, SearchIcon, SquarePenIcon, XIcon } from "lucide-react";
+import { Link, useLocation } from "@tanstack/react-router";
 import {
   type ComponentProps,
-  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type RefObject,
 } from "react";
 
 import { cn } from "~/lib/utils";
-import { Button } from "../ui/button";
-import { SidebarInput, SidebarMenuButton } from "../ui/sidebar";
+import { SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import {
+  AddProjectSymbol,
+  ComposeSymbol,
+  NewChatSymbol,
+  RoutinesSymbol,
+  SearchSymbol,
+} from "./SidebarSymbols";
 
 export interface SidebarThreadHeaderProps {
   searchFieldRef?: RefObject<HTMLDivElement | null>;
@@ -20,16 +25,9 @@ export interface SidebarThreadHeaderProps {
   onNewThread: (event: ReactMouseEvent) => void;
   newThreadDisabled: boolean;
   newThreadShortcutLabel: string | null | undefined;
-  newThreadInProjectShortcutLabel: string | null | undefined;
-  showNewThreadInProjectHint: boolean;
-  searchInputRef: RefObject<HTMLInputElement | null>;
-  searchQuery: string;
-  onSearchQueryChange: (value: string) => void;
-  onSearchKeyDown: (event: ReactKeyboardEvent<HTMLInputElement>) => void;
-  isSearching: boolean;
-  searchResultCount: number;
-  activeSearchResultIndex: number;
-  onClearSearch: () => void;
+  onSearch: () => void;
+  searchShortcutLabel: string | null | undefined;
+  onNavigate: () => void;
 }
 
 export function SidebarThreadHeader({
@@ -40,96 +38,71 @@ export function SidebarThreadHeader({
   onNewThread,
   newThreadDisabled,
   newThreadShortcutLabel,
-  newThreadInProjectShortcutLabel,
-  showNewThreadInProjectHint,
-  searchInputRef,
-  searchQuery,
-  onSearchQueryChange,
-  onSearchKeyDown,
-  isSearching,
-  searchResultCount,
-  activeSearchResultIndex,
-  onClearSearch,
+  onSearch,
+  searchShortcutLabel,
+  onNavigate,
 }: SidebarThreadHeaderProps) {
-  const resultsVisible = isSearching && searchResultCount > 0;
-  // Shrinking results can remove the active option; never leave aria-activedescendant pointing at it.
-  const activeResultExists = resultsVisible && activeSearchResultIndex < searchResultCount;
+  const routinesActive = useLocation({ select: (location) => location.pathname === "/routines" });
   const newThreadLabel = newThreadShortcutLabel
     ? `New thread (${newThreadShortcutLabel})`
     : "New thread";
 
+  // Laid out after his Figma (node 21:1129): New, Routines and Search rows, then the list toolbar
+  // with the project filter left and add project / new thread right. The toolbar's 28px buttons
+  // sit 3px in so their icons line up with the row icons above.
   return (
-    <div className="flex items-center gap-1">
-      <div
-        ref={searchFieldRef}
-        className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-within:bg-sidebar-row-hover focus-within:text-sidebar-foreground focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring/70"
-      >
-        <SearchIcon className="size-4 shrink-0 text-(--sidebar-icon-color)" />
-        <SidebarInput
-          ref={searchInputRef}
-          nativeInput
-          type="search"
-          value={searchQuery}
-          onChange={(event) => onSearchQueryChange(event.currentTarget.value)}
-          onKeyDown={onSearchKeyDown}
-          placeholder="Search"
-          aria-label="Search threads"
-          role="combobox"
-          aria-autocomplete="list"
-          aria-expanded={resultsVisible}
-          aria-controls={resultsVisible ? "sidebar-thread-search-results" : undefined}
-          aria-activedescendant={
-            activeResultExists
-              ? `sidebar-thread-search-result-${activeSearchResultIndex}`
-              : undefined
-          }
-          className="min-w-0 flex-1"
-        />
-        {isSearching ? (
-          <Button
-            type="button"
-            size="icon-micro"
-            variant="ghost-muted"
-            className="shrink-0"
-            aria-label="Clear thread search"
-            onClick={() => {
-              onClearSearch();
-              searchInputRef.current?.focus();
-            }}
+    <div className="flex flex-col">
+      <ul className="flex w-full min-w-0 flex-col">
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            disabled={newThreadDisabled}
+            onClick={onNewThread}
+            title={newThreadLabel}
           >
-            <XIcon className="size-3" />
-          </Button>
-        ) : null}
-      </div>
-      <div className="flex shrink-0 items-center">
-        {hasProjects ? (
-          <>
-            {projectScope}
-            <SidebarHeaderIconButton label="Add project" onClick={onNewProject}>
-              <FolderPlusIcon />
-            </SidebarHeaderIconButton>
-          </>
-        ) : null}
-        <SidebarHeaderIconButton
-          label="New thread"
-          tooltip={
-            showNewThreadInProjectHint ? (
-              <span className="flex flex-col gap-0.5">
-                <span>{newThreadLabel}</span>
-                <span className="text-muted-foreground">
-                  New thread in current project: Shift+click
-                  {newThreadInProjectShortcutLabel ? ` (${newThreadInProjectShortcutLabel})` : ""}
-                </span>
-              </span>
-            ) : (
-              newThreadLabel
-            )
-          }
-          disabled={newThreadDisabled}
-          onClick={onNewThread}
-        >
-          <SquarePenIcon />
-        </SidebarHeaderIconButton>
+            <NewChatSymbol />
+            <span>New</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            isActive={routinesActive}
+            render={<Link to="/routines" onClick={onNavigate} />}
+          >
+            <RoutinesSymbol />
+            <span>Routines</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        {/* Search opens the ⌘K palette, which searches threads, projects and commands. */}
+        <SidebarMenuItem>
+          <div ref={searchFieldRef}>
+            <SidebarMenuButton
+              onClick={onSearch}
+              title={searchShortcutLabel ? `Search (${searchShortcutLabel})` : "Search"}
+            >
+              <SearchSymbol />
+              <span>Search</span>
+            </SidebarMenuButton>
+          </div>
+        </SidebarMenuItem>
+      </ul>
+      {/* 22px from the Search icon to the toolbar icons, the same as from the window buttons to New. */}
+      <div className="mt-1.5 -mb-1 flex items-center justify-between px-0.75">
+        {/* Out to the rows' edge: the filter pads itself 8px like a row (Sidebar.tsx). */}
+        <div className="-ms-0.75 flex items-center">{hasProjects ? projectScope : null}</div>
+        {/* Pulled 3px out so the compose icon's ink ends on the rows' right line, like the times. */}
+        <div className="-me-0.75 flex items-center">
+          <SidebarHeaderIconButton label="Add project" onClick={onNewProject}>
+            <AddProjectSymbol />
+          </SidebarHeaderIconButton>
+          <SidebarHeaderIconButton
+            label="New thread"
+            tooltip={newThreadLabel}
+            disabled={newThreadDisabled}
+            onClick={onNewThread}
+          >
+            <ComposeSymbol />
+          </SidebarHeaderIconButton>
+        </div>
       </div>
     </div>
   );

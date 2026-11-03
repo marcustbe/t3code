@@ -48,11 +48,6 @@ import {
 import { previewEnvironment } from "~/state/preview";
 import { usePreviewStreamAccess } from "~/state/previewStream";
 import { useAtomCommand } from "~/state/use-atom-command";
-import {
-  browserMiniPlayerSource,
-  selectThreadPreviewMiniPlayerTabId,
-  usePreviewMiniPlayerStore,
-} from "~/previewMiniPlayerStore";
 import { readEnvironmentScope, useEnvironmentScope } from "~/state/session";
 import { useRightPanelStore } from "~/rightPanelStore";
 
@@ -79,6 +74,7 @@ import { BrowserSurfaceSlot } from "~/browser/BrowserSurfaceSlot";
 import { alternatePreviewRuntime, useRendersServerTabNatively } from "~/browser/previewRuntime";
 import { ServerBrowserSurface, type ServerBrowserHandle } from "~/browser/ServerBrowserSurface";
 import { cn } from "~/lib/utils";
+import { PREVIEW_WHITE_SURFACE_CLASS } from "./previewConstants";
 import { useBrowserSurfaceStore } from "~/browser/browserSurfaceStore";
 import { usePreviewSession } from "./usePreviewSession";
 import { ZoomIndicator } from "./ZoomIndicator";
@@ -156,9 +152,6 @@ export function PreviewView({
   const recentHistoryEntries = useThreadRecentHistory(
     threadRef,
     BROWSER_HISTORY_MAX_ENTRIES_PER_PROJECT,
-  );
-  const miniPlayerTabId = usePreviewMiniPlayerStore((state) =>
-    selectThreadPreviewMiniPlayerTabId(state.byThreadKey, threadRef),
   );
   const addPreviewAnnotation = useComposerDraftStore((store) => store.addPreviewAnnotation);
   const addImage = useComposerDraftStore((store) => store.addImage);
@@ -397,16 +390,6 @@ export function PreviewView({
     }
     useRightPanelStore.getState().openBrowser(threadRef, result.value.tabId);
     await closePreviewSession({ closePreview, snapshot, tabId, threadRef });
-  };
-
-  const handlePictureInPicture = () => {
-    if (!tabId) return;
-    if (miniPlayerTabId === tabId) {
-      usePreviewMiniPlayerStore.getState().close(threadRef);
-      return;
-    }
-    usePreviewMiniPlayerStore.getState().open(threadRef, browserMiniPlayerSource(tabId));
-    useRightPanelStore.getState().close(threadRef);
   };
 
   const desktopCall = (op: ((tabId: string) => Promise<void>) | undefined) => () => {
@@ -844,7 +827,7 @@ export function PreviewView({
 
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col bg-background"
+      className={cn("flex min-h-0 flex-1 flex-col bg-background", PREVIEW_WHITE_SURFACE_CLASS)}
       data-thread-key={scopedThreadKey(threadRef)}
     >
       <PreviewChromeRow
@@ -863,13 +846,6 @@ export function PreviewView({
         onCapture={previewBridge && tabId && !isServerTab ? handleCapture : undefined}
         captureDisabled={!desktopOverlay || isUnreachable}
         recording={recordingRuntimeTabId !== null}
-        onPictureInPicture={
-          tabId && (isServerTab || previewBridge) ? handlePictureInPicture : undefined
-        }
-        pictureInPicture={miniPlayerTabId === tabId}
-        pictureInPictureDisabled={
-          isUnreachable || (!isServerTab && !desktopOverlay?.hasWebContents)
-        }
         onPickElement={previewBridge && tabId && !isServerTab ? handlePickElement : undefined}
         pickActive={pickActive}
         pickDisabled={!tabId || isUnreachable}
@@ -898,6 +874,7 @@ export function PreviewView({
                 ? { move: { label: moveLabel, onMove: () => void handleMoveTab() } }
                 : {})}
               profileName={activeProfileName}
+              extensions={!serverOwnsRendering || nativeServerTab}
               zoomFactor={
                 serverOwnsRendering ? serverZoomFactor : (desktopOverlay?.zoomFactor ?? 1)
               }

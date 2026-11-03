@@ -16,7 +16,7 @@ export const MessageCopyButton = memo(function MessageCopyButton({
   label = "Copy message",
   icon = Copy,
   extraFlavors,
-  size = "xs",
+  size = "icon-xs",
   variant = "outline",
   className,
 }: {

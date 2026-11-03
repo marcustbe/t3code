@@ -29,6 +29,7 @@ import { type MessagesTimelineRow, type WorkGroupScrollAnchor } from "./Messages
 import { type TimestampFormat } from "@t3tools/contracts/settings";
 import type { TurnItemDetailSource } from "../../state/queries";
 import { type HandoffTimelineRun } from "./V2LifecycleRow";
+import type { MessageEditInput, MessageVersionSwitch } from "./useMessageVersions";
 
 /**
  * Where an expanded row reads an item's detail and a command's output. The owner's rows read them
@@ -84,6 +85,9 @@ export interface TimelineRowSharedState {
   onForkFromRun:
     | ((input: { readonly sourceThreadId: ThreadId; readonly runId: RunId }) => Promise<void>)
     | undefined;
+  /** Absent hides editing your messages, as in the guest view. */
+  onEditMessage: ((input: MessageEditInput) => Promise<boolean>) | undefined;
+  onSwitchMessageVersion: ((input: MessageVersionSwitch) => Promise<void>) | undefined;
   onToggleTurnFold: (runId: RunId) => void;
   onToggleAttemptFold: (attemptId: RunAttemptId) => void;
   onFileOpen: (attachment: ChatFileAttachment) => void;

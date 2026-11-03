@@ -1,10 +1,16 @@
 import {
+  DEFAULT_CHAT_FONT_SIZE,
+  DEFAULT_CHAT_FONT_WEIGHT,
   DEFAULT_CODE_FONT_SIZE,
   DEFAULT_INTERFACE_FONT_SIZE,
   DEFAULT_PROMPT_FONT_SIZE,
+  MAX_CHAT_FONT_SIZE,
+  MAX_CHAT_FONT_WEIGHT,
   MAX_CODE_FONT_SIZE,
   MAX_INTERFACE_FONT_SIZE,
   MAX_PROMPT_FONT_SIZE,
+  MIN_CHAT_FONT_SIZE,
+  MIN_CHAT_FONT_WEIGHT,
   MIN_CODE_FONT_SIZE,
   MIN_INTERFACE_FONT_SIZE,
   MIN_PROMPT_FONT_SIZE,
@@ -64,11 +70,27 @@ export interface AppearanceFontPreferences {
   readonly composer: string;
   readonly sizeInterface: number;
   readonly sizePrompt: number;
+  readonly sizeChat: number;
+  readonly weightChat: number;
   readonly sizeCode: number;
   readonly smoothing: boolean;
 }
 
-/** Always writes sizes: interface size sets the root; prompt and code use pixels to avoid double scaling. */
+// Tailwind's text sizes at the default 16px interface size. Interface size scales these, rounded
+// to whole pixels, while the root stays 16px so spacing, radii and icons stay on the 4px grid.
+// (Scaling the root instead made every rem size fractional: 14px icons drew at 13.1px.)
+const INTERFACE_TEXT_SIZES: ReadonlyArray<readonly [variable: string, px: number]> = [
+  ["--text-xs", 12],
+  ["--text-sm", 14],
+  ["--text-base", 16],
+  ["--text-lg", 18],
+  ["--text-xl", 20],
+  ["--text-2xl", 24],
+  ["--text-3xl", 30],
+  ["--text-4xl", 36],
+];
+
+/** Always writes sizes: interface size scales the text tokens; prompt, chat and code use their own pixels. */
 export function applyAppearanceFontVariables(
   root: HTMLElement,
   preferences: AppearanceFontPreferences,
@@ -87,8 +109,27 @@ export function applyAppearanceFontVariables(
     }
   }
 
-  root.style.fontSize = `${clampInterfaceFontSize(preferences.sizeInterface)}px`;
+  root.style.fontSize = `${DEFAULT_INTERFACE_FONT_SIZE}px`;
+  const textScale = clampInterfaceFontSize(preferences.sizeInterface) / DEFAULT_INTERFACE_FONT_SIZE;
+  for (const [variable, px] of INTERFACE_TEXT_SIZES) {
+    root.style.setProperty(variable, `${Math.round(px * textScale)}px`);
+  }
   root.style.setProperty("--font-size-prompt", `${clampPromptFontSize(preferences.sizePrompt)}px`);
+  root.style.setProperty(
+    "--font-size-chat",
+    `${clampFontSize(preferences.sizeChat, MIN_CHAT_FONT_SIZE, MAX_CHAT_FONT_SIZE, DEFAULT_CHAT_FONT_SIZE)}px`,
+  );
+  root.style.setProperty(
+    "--font-weight-chat",
+    String(
+      clampFontSize(
+        preferences.weightChat,
+        MIN_CHAT_FONT_WEIGHT,
+        MAX_CHAT_FONT_WEIGHT,
+        DEFAULT_CHAT_FONT_WEIGHT,
+      ),
+    ),
+  );
   const code = clampCodeFontSize(preferences.sizeCode);
   root.style.setProperty("--font-size-code", `${code}px`);
   root.style.setProperty("--diffs-font-size", `${code}px`);

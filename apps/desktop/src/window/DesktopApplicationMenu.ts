@@ -310,6 +310,9 @@ export const make = Effect.gen(function* () {
             label: "Check for Updates...",
             click: checkForUpdatesClick,
           },
+          { type: "separator" },
+          // Works while the page ignores input: the menu bar belongs to the main process.
+          { label: "Save Diagnostics Report", click: mainContentsClick("saveDiagnostics") },
         ],
       },
     );

@@ -102,13 +102,19 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
    */
   --control-radius: 0.5rem;
   --sidebar-content-inset: 0.5rem;
+  /* After his Figma (TrDfmQjPQHd1pcsYhESjuN 21:348): rows sit 4px from the sidebar's sides and
+     pad their own content (and hover) 8px. Vertical spacing keeps --sidebar-content-inset. */
+  --sidebar-side-inset: 0.25rem;
   --sidebar-control-gap: 0.5rem;
-  --sidebar-icon-color: color-mix(
-    in srgb,
-    var(--contrast-sidebar-muted-foreground) 85%,
-    var(--sidebar)
-  );
-  --sidebar-row-content-inset: 0.625rem;
+  --sidebar-row-content-inset: 0.5rem;
+  /* Settings › Appearance › Layout and Top bar blur; appearanceLayout.ts overrides these. */
+  --sidebar-side-padding: 12px;
+  --sidebar-bottom-padding: 12px;
+  --topbar-side-padding: 1rem;
+  --browser-side-padding: 0.5rem;
+  --browser-top-padding: 0px;
+  --browser-bottom-padding: 0.5rem;
+  --top-bar-blur: 16px;
   --command-shell-inset: 0.5rem;
   --command-content-inset: 1rem;
   --floating-content-inset: 0.75rem;
@@ -128,7 +134,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --workspace-titlebar-control-size: 1.75rem;
   --workspace-titlebar-control-gap: 0.75rem;
   --workspace-titlebar-scroll-fade-height: 1.5rem;
-  --chat-content-max-width: 46rem;
+  --chat-content-max-width: 45rem;
   --thread-details-panel-width: 17.5rem;
   /* The prompt on phones: iOS zooms into any input under 16px on focus. */
   --font-size-prompt-touch: max(var(--font-size-prompt, 1rem), 16px);
@@ -168,6 +174,20 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
    the variables and Settings -> Appearance can override them at runtime. The
    default stacks are mirrored in `appearanceFonts.ts`. */
 @theme {
+  /* Icon sizes in whole pixels: rem sizes go fractional at a 15px interface size (14px became
+     13.1px), which softens SF Symbol and Lucide edges on Retina screens. */
+  --spacing-icon-sm: 12px;
+  --spacing-icon: 14px;
+  --spacing-icon-lg: 16px;
+  --spacing-icon-tile: 20px;
+  --spacing-status-dot: 6px;
+  /* Rounded, not a pill: Claude's composer corners, about a third of the one-line height. */
+  --radius-composer: 16px;
+  /* Between regular and medium: message times under the actions (500 read too bold). */
+  --font-weight-book: 450;
+  /* Snappy by default: hovers, menus and popovers settle in 120ms with a fast-out curve. */
+  --default-transition-duration: 120ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif;
   --font-mono:
@@ -188,6 +208,11 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --text-4xs--line-height: 1;
   --text-5xs: 0.4375rem;
   --text-5xs--line-height: 1;
+  /* Chat message text, a step above text-sm. */
+  /* Chat text has its own size and weight (Settings › Appearance › Chat font), in whole pixels. */
+  --text-chat: var(--font-size-chat, 0.9375rem);
+  --text-chat--line-height: 1.5;
+  --text-chat--font-weight: var(--font-weight-chat, 450);
   /* Motion. drawer is the decelerating curve for surfaces that slide or pop in
      (composer context, pills). */
   --inset-shadow-control-highlight: 0 1px rgb(255 255 255 / 16%);
@@ -285,6 +310,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --color-sidebar-row-hover: var(--sidebar-row-hover);
   --color-sidebar-row-active: var(--sidebar-row-active);
   --color-sidebar-row-selected: var(--sidebar-row-selected);
+  --color-separator: var(--separator);
   --color-sidebar-border: var(--contrast-sidebar-border);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -449,6 +475,43 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   @variant dark {
     background: color-mix(in srgb, var(--background) 64%, transparent);
   }
+}
+
+/* The ⌘K palette is glassier than other dialogs: a thinner fill with a stronger blur, a 1px shadow
+   ring instead of a border (like the composer's outline), the dialogs' large drop shadow, and a
+   more blurred page behind it. */
+[data-slot="command-dialog-popup"] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--background) 62%, transparent);
+  -webkit-backdrop-filter: blur(28px) saturate(1.6);
+  backdrop-filter: blur(28px) saturate(1.6);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 8%),
+    0 24px 64px -24px rgb(0 0 0 / 65%);
+}
+:root.dark [data-slot="command-dialog-popup"] {
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 8%),
+    inset 0 1px rgb(255 255 255 / 4%),
+    0 24px 72px -20px rgb(0 0 0 / 90%);
+}
+/* The last row (Settled) sits as far above the footer's line as from the sidebar's sides. */
+[data-sidebar-thread-list] {
+  padding-bottom: var(--sidebar-side-inset);
+}
+/* Sidebar shelf headers (Settled…) sit half a pixel right so their hover lines up with the chat
+   rows' (1px overshot). */
+[data-testid="sidebar-working-header"],
+[data-testid="sidebar-snoozed-header"],
+[data-testid="sidebar-settled-header"] {
+  translate: 0.5px 0;
+}
+
+/* Nothing behind the ⌘K palette is blurred or washed out: its backdrop only catches clicks. */
+[data-slot="command-dialog-backdrop"] {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 @utility dropdown-glass {
@@ -1113,7 +1176,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 :root {
   color-scheme: light;
   --radius: 0.5rem;
-  --background: var(--color-zinc-25);
+  --background: var(--color-white);
   --app-chrome-background: var(--background);
   --toolbar-background: var(--app-chrome-background);
   --toolbar-foreground: var(--foreground);
@@ -1127,7 +1190,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --card-foreground: var(--color-zinc-900);
   --popover: var(--color-white);
   --popover-foreground: var(--color-zinc-900);
-  --primary: oklch(0.488 0.217 264);
+  --primary: #0077f9;
   --primary-foreground: var(--color-white);
   --secondary: var(--color-zinc-50);
   --secondary-foreground: var(--color-zinc-800);
@@ -1172,9 +1235,10 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --sidebar-foreground: var(--foreground);
   --sidebar-muted-foreground: var(--muted-foreground);
   --sidebar-control-surface: var(--color-zinc-100);
-  --sidebar-row-hover: var(--color-zinc-25);
-  --sidebar-row-active: var(--color-white);
-  --sidebar-row-selected: var(--color-white);
+  /* Rows darken like a macOS sidebar: a faint gray on hover, a deeper one when open. */
+  --sidebar-row-hover: color-mix(in srgb, var(--contrast-foreground) 5%, transparent);
+  --sidebar-row-active: color-mix(in srgb, var(--contrast-foreground) 8%, transparent);
+  --sidebar-row-selected: color-mix(in srgb, var(--contrast-foreground) 8%, transparent);
   --sidebar-border: var(--border);
   --sidebar-stage-fade: var(--sidebar);
   --code-background: color-mix(in srgb, var(--card) 90%, var(--background));
@@ -1186,25 +1250,26 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 
   @variant dark {
     color-scheme: dark;
-    /* The canvas is true black, matching the sidebar. Raised surfaces keep the tone they had
-       over neutral-950, so cards, popovers, and the composer still lift. Borders and hover
-       states provide separation without milky gray fills. */
-    --background: #000;
-    --surface-raised: color-mix(in srgb, var(--color-neutral-950) 97%, var(--color-white));
-    --foreground: var(--color-neutral-100);
-    --card: color-mix(in srgb, var(--color-neutral-950) 97%, var(--color-white));
-    --card-foreground: var(--color-neutral-100);
-    --popover: color-mix(in srgb, var(--color-neutral-950) 97%, var(--color-white));
-    --popover-foreground: var(--color-neutral-100);
-    --primary: oklch(0.571 0.21 264);
+    /* The canvas is a dark gray, matching the sidebar, rather than true black. Raised
+       surfaces sit a step lighter, so cards, popovers, and the composer still lift. Borders
+       and hover states provide separation without milky gray fills. */
+    --background: #181818;
+    --surface-raised: #1f1f1f;
+    /* Text sits at about 88% white rather than near-white, softer on the dark grey. */
+    --foreground: #e0e0e0;
+    --card: #1f1f1f;
+    --card-foreground: #e0e0e0;
+    --popover: #1f1f1f;
+    --popover-foreground: #e0e0e0;
+    --primary: #0077f9;
     --secondary: --alpha(var(--color-white) / 3%);
-    --secondary-foreground: var(--color-neutral-100);
+    --secondary-foreground: #e0e0e0;
     --muted: --alpha(var(--color-white) / 3%);
     --muted-foreground: var(--color-neutral-400);
     --accent: --alpha(var(--color-white) / 4%);
-    --accent-foreground: var(--color-neutral-100);
+    --accent-foreground: #e0e0e0;
     /* A user turn sits above the composer tone, level with the selected sidebar row. */
-    --message-surface: color-mix(in srgb, var(--color-neutral-950) 92%, var(--color-white));
+    --message-surface: #242424;
     --error: color-mix(in srgb, var(--color-red-500) 90%, var(--color-white));
     --error-foreground: var(--color-red-400);
     --tool-error-icon: #fca5a5;
@@ -1221,7 +1286,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     --sidebar-control-surface: var(--muted);
     --sidebar-row-hover: var(--accent);
     --sidebar-row-active: var(--accent);
-    --sidebar-row-selected: var(--muted);
+    /* Icon-button hovers in the main area match the sidebar's (white 7%), not the fainter muted. */
+    --sidebar-row-selected: color-mix(in srgb, var(--contrast-foreground) 7%, transparent);
     --sidebar-stage-fade: var(--card);
     --terminal-cursor: rgb(180 203 255);
     --terminal-selection-background: rgb(180 203 255 / 25%);
@@ -1229,8 +1295,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 }
 
 /* Keep both sidebar implementations (default and legacy) on the same quiet
-   zinc hierarchy: zinc-50 navigation, zinc-25 hover, and white selected/raised
-   surfaces. */
+   zinc hierarchy: zinc-50 navigation with gray hover and selected rows, and
+   white raised surfaces. */
 [data-app-sidebar] {
   --background: var(--color-zinc-25);
   --foreground: var(--color-zinc-900);
@@ -1246,34 +1312,137 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --sidebar-foreground: var(--color-zinc-900);
   --sidebar-muted-foreground: var(--color-zinc-500);
   --sidebar-control-surface: var(--color-zinc-100);
-  --sidebar-row-hover: var(--color-zinc-25);
-  --sidebar-row-active: var(--color-white);
-  --sidebar-row-selected: var(--color-white);
+  --sidebar-row-hover: color-mix(in srgb, var(--contrast-foreground) 5%, transparent);
+  --sidebar-row-active: color-mix(in srgb, var(--contrast-foreground) 8%, transparent);
+  --sidebar-row-selected: color-mix(in srgb, var(--contrast-foreground) 8%, transparent);
   --sidebar-border: var(--color-zinc-200);
   --sidebar-stage-fade: var(--sidebar);
 
   @variant dark {
-    --background: #000;
-    --foreground: #f1f3f7;
-    --card: #000;
+    --background: #141414;
+    --foreground: #e0e0e0;
+    --card: #141414;
     --card-foreground: var(--foreground);
-    --accent: #191a1d;
-    --accent-foreground: #f7f9ff;
-    --muted: #0a0a0a;
-    --muted-foreground: #a3a3a3;
+    --accent: #26272a;
+    --accent-foreground: #e6e6e6;
+    --muted: #1c1c1c;
+    --muted-foreground: #9a9a9a;
     --border: rgb(255 255 255 / 8%);
     --input: rgb(255 255 255 / 18%);
     --sidebar: var(--card);
     --sidebar-foreground: var(--foreground);
     --sidebar-muted-foreground: var(--muted-foreground);
     --sidebar-control-surface: var(--muted);
-    --sidebar-row-hover: color-mix(in srgb, var(--contrast-foreground) 8%, transparent);
-    --sidebar-row-active: color-mix(in srgb, var(--contrast-foreground) 11%, transparent);
+    --sidebar-row-hover: color-mix(in srgb, var(--contrast-foreground) 5%, transparent);
+    --sidebar-row-active: color-mix(in srgb, var(--contrast-foreground) 7%, transparent);
     --sidebar-row-selected: color-mix(in srgb, var(--contrast-foreground) 7%, transparent);
     --sidebar-border: var(--border);
     --sidebar-stage-fade: var(--card);
     /* Row metadata sits a step below read titles (75% white). */
     --secondary-label: #8f8f8f;
+  }
+}
+
+/* Back/forward follow the sidebar's right edge live (resizing only writes the container's width
+   until the drag ends), then stop beside the toggle once it collapses. */
+[data-app-sidebar][data-slot="sidebar-container"] {
+  anchor-name: --app-sidebar;
+}
+
+/* The forward chevron's ink ends Sidebar side padding (12px) from the sidebar's edge, on the rows'
+   line (+2px measured at 12). */
+[data-history-navigation] {
+  left: max(
+    anchor(--app-sidebar right, 0px) - 2 * var(--workspace-titlebar-control-size) + 14px -
+      var(--sidebar-side-padding),
+    var(--workspace-controls-left) + 1px + var(--workspace-titlebar-control-size)
+  );
+}
+
+/* Hovering the resize rail darkens the separator in place; the rail's own 2px line drew 7px into
+   the main area and its fill widened the sidebar. */
+[data-app-sidebar] [data-slot="sidebar-rail"] {
+  background-color: transparent;
+}
+
+[data-app-sidebar] [data-slot="sidebar-rail"]::after {
+  left: 50%;
+  width: 1px;
+}
+
+[data-app-sidebar] [data-slot="sidebar-rail"]:hover::after {
+  background-color: color-mix(in srgb, var(--sidebar-foreground) 25%, transparent);
+}
+
+/* Settings groups: selectors and outlined buttons are solid white (raised a step in dark) on the
+   grey group, also when the transparent window clears --background. */
+[data-slot="settings-group"] [data-slot="select-trigger"]:not([class*="border-transparent"]) {
+  background-color: #fff;
+}
+.dark [data-slot="settings-group"] [data-slot="select-trigger"]:not([class*="border-transparent"]) {
+  background-color: rgb(255 255 255 / 8%);
+}
+
+/* Message actions sit 8px apart icon to icon (their 24px hover squares overlap by 4px), and
+   the time beside them keeps the same 8px. */
+[data-message-actions] {
+  gap: 0;
+}
+[data-message-actions] > * + * {
+  margin-inline-start: -4px;
+}
+[data-message-actions] + * {
+  margin-inline-start: -4px;
+}
+* + [data-message-actions] {
+  margin-inline-start: -4px;
+}
+/* Their icons are 12px, so the 2.1 stroke of the 16px icons would draw thinner; 2.4 is a touch
+   heavier than that (2.8 read too bold). Copy is a morphicon, which the lucide stroke rule doesn't
+   reach. */
+[data-message-actions] svg {
+  stroke-width: 2.4;
+}
+
+/* The chat header is its own band: no fill (the main area's own tint shows through, also in the
+   transparent window). The conversation stops at its bottom edge
+   (`.messages-timeline-under-header`) instead of fading under it, and the 1px separator there only
+   shows once something has scrolled under it: a scroll-driven animation on the timeline's
+   scroller, so it needs no JS (no scroll room, no line). */
+[data-chat-column] {
+  timeline-scope: --chat-timeline-scroll;
+}
+.messages-timeline-scroll {
+  scroll-timeline: --chat-timeline-scroll block;
+}
+/* The bar blurs what scrolls under it over a 75% fill of the main area's colour. Chromium only blurs
+   over an opaque backdrop in the transparent macOS window (probed in Electron 44: over a 85% fill
+   the text comes through half sharp, over nothing not blurred at all), so it is a full blur while
+   Main area opacity is 100% and weakens below that. */
+[data-chat-header] {
+  background-color: color-mix(in srgb, var(--background) 75%, transparent);
+  /* Settings › Appearance › Top bar blur. */
+  backdrop-filter: blur(var(--top-bar-blur, 16px));
+  border-bottom-color: transparent;
+  animation: chat-header-separator linear both;
+  animation-timeline: --chat-timeline-scroll;
+  animation-range: 0px 8px;
+}
+/* In the transparent window the fill is the main area's own tint, invisible at 100% opacity. */
+html[data-window-translucent] [data-chat-header] {
+  background-color: color-mix(in srgb, var(--translucent-content-tint) 75%, transparent);
+}
+/* Main area under 100% (appInit sets the attribute): a blur can't work over the see-through tint
+   (sharp text shows through, foggy) and any fill or filter on the bar reads lighter than the main
+   area, so the bar paints nothing and the conversation stops at its line
+   (`.messages-timeline-under-header`). */
+html[data-content-translucent] [data-chat-header] {
+  background-color: transparent;
+  backdrop-filter: none;
+}
+@keyframes chat-header-separator {
+  to {
+    border-bottom-color: var(--separator);
   }
 }
 
@@ -1464,8 +1633,10 @@ html[data-theme-token-probe] *::after {
 /* Workspace actions use a small, separate chrome hierarchy. Keeping these
    roles explicit prevents the thread toolbar from falling back to the default
    dark-mode whites while preserving the same theme file across clients. */
+/* The chat header is clear: the main area paints the colour (a themed toolbar fill showed as a
+   darker band, and in the transparent window it resolved to the solid root colour). */
 html[data-theme-id] [data-chat-header] {
-  background-color: var(--toolbar-background);
+  background-color: transparent;
   color: var(--contrast-toolbar-foreground);
 }
 
@@ -1595,9 +1766,12 @@ html[data-theme-id="t3-chat"] [data-app-sidebar] {
   }
 }
 
-/* Recompute contrast wherever a subtree owns its own semantic color palette. */
+/* Recompute contrast wherever a subtree owns its own semantic color palette. The top-bar sidebar
+   toggle and history arrows sit outside the sidebar but share its palette. */
 :root,
-[data-app-sidebar] {
+[data-app-sidebar],
+[data-sidebar-control],
+[data-history-navigation] {
   --contrast-toolbar-foreground: color-mix(
     in oklab,
     color-mix(
@@ -1708,6 +1882,8 @@ html[data-theme-id="t3-chat"] [data-app-sidebar] {
     color-mix(in srgb, var(--sidebar-border) var(--appearance-contrast-base), transparent),
     var(--sidebar-foreground) var(--appearance-contrast-border-boost)
   );
+  /* Sidebar icons match the muted text beside them. */
+  --sidebar-icon-color: var(--contrast-sidebar-muted-foreground);
 }
 
 body {
@@ -1718,11 +1894,29 @@ body {
   padding: 0;
 }
 
-/* Lighter default icon stroke. In the base layer so stroke-* utilities still win; any
-   CSS beats lucide's stroke-width="2" attribute. */
+/* Default icon stroke: 2.1, a touch heavier than Lucide's 2. In the base layer so stroke-*
+   utilities still win; any CSS beats lucide's stroke-width="2" attribute. */
 @layer base {
   :where(svg.lucide[stroke-width="2"]) {
-    stroke-width: 1.75;
+    stroke-width: 2.1;
+  }
+}
+
+/* In the transparent window icon colours carry alpha (white 62%), and where an icon's separate
+   strokes meet the overlap paints twice and glows. The stroke flattens the icon's own colour onto
+   the surface tint so each icon is one solid grey; opaque colours pass through unchanged. In the
+   base layer so stroke-* utilities still win. */
+@layer base {
+  html[data-window-translucent] :where(svg.lucide) {
+    --icon-flatten-base: 31;
+    stroke: rgb(
+      from currentColor calc(r * alpha + var(--icon-flatten-base) * (1 - alpha))
+        calc(g * alpha + var(--icon-flatten-base) * (1 - alpha))
+        calc(b * alpha + var(--icon-flatten-base) * (1 - alpha)) / 1
+    );
+  }
+  html[data-window-translucent]:not(.dark) :where(svg.lucide) {
+    --icon-flatten-base: 250;
   }
 }
 
@@ -1842,21 +2036,22 @@ code {
   -webkit-app-region: no-drag;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
+/* Scrollbar styling. macOS keeps the system's own overlay scrollbars (thin, fading), which any
+   ::-webkit-scrollbar rule would replace; appInit marks the root there. */
+:root:not([data-native-scrollbars]) ::-webkit-scrollbar {
   width: var(--app-scrollbar-width);
 }
 
-::-webkit-scrollbar-track {
+:root:not([data-native-scrollbars]) ::-webkit-scrollbar-track {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
+:root:not([data-native-scrollbars]) ::-webkit-scrollbar-thumb {
   background: var(--app-scrollbar-thumb);
   border-radius: 3px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+:root:not([data-native-scrollbars]) ::-webkit-scrollbar-thumb:hover {
   background: var(--app-scrollbar-thumb-hover);
 }
 
@@ -2032,9 +2227,10 @@ code {
   text-decoration: none;
 }
 
-/* File links and context chips own their color and focus ring. */
+/* File links and context chips own their color and focus ring. Links are #036DE2 in both
+   appearances, a step deeper than the highlight blue. */
 .chat-markdown a:not(.chat-markdown-file-link, :has([data-slot="context-chip-label"])) {
-  color: var(--info-foreground);
+  color: #036de2;
 }
 
 .chat-markdown
@@ -2522,19 +2718,21 @@ code {
     inset-inline-start: var(--chat-lane-inset-start, 0px);
     inset-inline-end: var(--chat-lane-inset-end, 0px);
   }
+  /* Wide windows keep the same 1rem side gap as the composer's bottom gap; the lane fills the
+     width up to --chat-content-max-width. */
   @media (min-width: 640px) {
     .chat-composer-lane {
       padding-inline-start: calc(
-        env(safe-area-inset-left) + 3rem + var(--chat-lane-inset-start, 0px)
+        env(safe-area-inset-left) + 1rem + var(--chat-lane-inset-start, 0px)
       );
-      padding-inline-end: calc(env(safe-area-inset-right) + 3rem + var(--chat-lane-inset-end, 0px));
+      padding-inline-end: calc(env(safe-area-inset-right) + 1rem + var(--chat-lane-inset-end, 0px));
     }
     [data-chat-canvas] .messages-timeline-scroll {
       padding-inline-start: calc(
-        3rem + var(--chat-lane-inset-start, 0px) - var(--chat-timeline-gutter, 0px)
+        1rem + var(--chat-lane-inset-start, 0px) - var(--chat-timeline-gutter, 0px)
       );
       padding-inline-end: calc(
-        3rem + var(--chat-lane-inset-end, 0px) - var(--chat-timeline-gutter, 0px)
+        1rem + var(--chat-lane-inset-end, 0px) - var(--chat-timeline-gutter, 0px)
       );
     }
   }
@@ -2544,4 +2742,244 @@ code {
 [data-workspace-area]:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: -2px;
+}
+
+/*
+ * Transparent window (Settings › Appearance, macOS desktop). The desktop app clears the window's
+ * background, the sidebar and the main area each paint one tint at their own opacity, and every surface
+ * inside them paints nothing, so stacked layers never add up. Solid fills become white (dark) or
+ * black (light) washes, the way macOS vibrant fills brighten or darken whatever shows through.
+ */
+/* !important: the theme writes the chrome colour inline on <html> and <body> (useTheme.ts). */
+html[data-window-translucent],
+html[data-window-translucent] body {
+  background-color: transparent !important;
+}
+
+/* The tint sits on the container so it also runs under the separator; on the inner surface the
+   separator showed the desktop raw. */
+html[data-window-translucent] [data-slot="sidebar-container"] {
+  --translucent-sidebar-tint: var(--sidebar);
+  background-color: color-mix(
+    in srgb,
+    var(--translucent-sidebar-tint) var(--sidebar-surface-opacity),
+    transparent
+  );
+  border-right-width: 1px;
+  border-color: var(--separator);
+}
+
+html.dark[data-window-translucent] [data-slot="sidebar-container"] {
+  --translucent-sidebar-tint: rgb(31 31 31);
+}
+
+html[data-window-translucent] [data-slot="sidebar-container"] * {
+  --sidebar: transparent;
+  --background: transparent;
+  --app-chrome-background: transparent;
+  --sidebar-stage-fade: transparent;
+}
+
+html[data-window-translucent] [data-slot="sidebar-inset"] {
+  background-color: color-mix(
+    in srgb,
+    var(--background) var(--content-surface-opacity),
+    transparent
+  );
+}
+
+html[data-window-translucent] [data-slot="sidebar-inset"] * {
+  --background: transparent;
+  --app-chrome-background: transparent;
+  --sidebar: transparent;
+}
+
+/* The right panel paints the main area's tint (the sidebar's grey read greyer than the chat at the
+   same opacity) behind the same separator, at its own opacity (Right panel opacity in settings).
+   The main area's tint then moves from the inset onto the chat column, so the panel isn't stacked
+   on it. The tints are captured on the inset, where --background is still the real colour. */
+html[data-window-translucent] [data-slot="sidebar-inset"] {
+  --translucent-content-tint: var(--background);
+  --translucent-panel-tint: var(--background);
+}
+html[data-window-translucent] [data-slot="sidebar-inset"]:has([data-preview-panel-mode="inline"]) {
+  background-color: transparent;
+  background-image: none;
+}
+/* The grain moves with the tint, so the main area looks the same with the right panel open or
+   closed (the chat column's tint used to cover the inset's grain). */
+html[data-window-translucent]
+  [data-slot="sidebar-inset"]:has([data-preview-panel-mode="inline"])
+  [data-chat-column] {
+  background-color: color-mix(
+    in srgb,
+    var(--translucent-content-tint) var(--content-surface-opacity),
+    transparent
+  );
+  background-image: var(--surface-grain);
+  background-size: var(--surface-grain-size);
+}
+html[data-window-translucent] [data-preview-panel-mode="inline"] {
+  background-color: color-mix(
+    in srgb,
+    var(--translucent-panel-tint) var(--panel-surface-opacity, var(--sidebar-surface-opacity)),
+    transparent
+  );
+  background-image: var(--surface-grain);
+  background-size: var(--surface-grain-size);
+  border-color: var(--separator);
+}
+/* The body's grain would show through every see-through surface as a second layer. */
+html[data-window-translucent] body {
+  background-image: none;
+}
+
+html.dark[data-window-translucent] {
+  /* About +12 over the page, like Claude's bubble. */
+  --message-surface: rgb(255 255 255 / 5%);
+}
+
+/* Text is a white (dark) or black (light) wash rather than a solid grey, so the blurred desktop
+   tints it the way the Figma's plus-lighter text picks up what is behind it. The page can't blend
+   with the desktop itself: macOS composites the window over it afterwards. */
+html.dark[data-window-translucent] [data-app-sidebar],
+html.dark[data-window-translucent] [data-sidebar-control],
+html.dark[data-window-translucent] [data-history-navigation] {
+  --accent: rgb(255 255 255 / 6%);
+  --muted: rgb(255 255 255 / 4%);
+  --foreground: rgb(255 255 255 / 86%);
+  --sidebar-foreground: rgb(255 255 255 / 86%);
+  --muted-foreground: rgb(255 255 255 / 62%);
+  --sidebar-muted-foreground: rgb(255 255 255 / 62%);
+  --secondary-label: rgb(255 255 255 / 40%);
+}
+
+html[data-window-translucent]:not(.dark) {
+  --message-surface: rgb(0 0 0 / 6%);
+}
+
+html[data-window-translucent]:not(.dark) [data-app-sidebar],
+html[data-window-translucent]:not(.dark) [data-sidebar-control],
+html[data-window-translucent]:not(.dark) [data-history-navigation] {
+  --accent: rgb(0 0 0 / 5%);
+  --muted: rgb(0 0 0 / 3%);
+  --foreground: rgb(0 0 0 / 95%);
+  --sidebar-foreground: rgb(0 0 0 / 95%);
+  --muted-foreground: rgb(0 0 0 / 76%);
+  --sidebar-muted-foreground: rgb(0 0 0 / 76%);
+  --secondary-label: rgb(0 0 0 / 45%);
+}
+
+/* Reduce motion (System Settings › Accessibility › Display) turns transitions and animations
+   off app-wide; only state changes remain. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Reduce transparency also makes the glass menus solid (the window itself: appInit.tsx). */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-opacity: 100% !important;
+    --glass-blur: 0px !important;
+  }
+}
+
+/* The composer reads clearly lighter than the surface around it in dark mode: an 8% white wash
+   over its fill (about #303030 on his page). */
+.dark [data-chat-composer-main-surface] {
+  background-image: linear-gradient(rgb(255 255 255 / 8%), rgb(255 255 255 / 8%));
+}
+
+/* Every separator line is 1px at one strength (the Figma's 0.8px line, which Chromium can only
+   draw as a whole device pixel): sidebar edge, sidebar footer, chat header, settings dividers and
+   the browser toolbar all use `separator`. */
+:root {
+  --separator: rgb(0 0 0 / 10%);
+}
+.dark {
+  --separator: rgb(255 255 255 / 12%);
+}
+
+/* Settings section tiles: a faint light edge on top and a dark hairline around, like Apple's
+   app icons. */
+[data-settings-tile] {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 25%),
+    inset 0 0 0 0.5px rgb(0 0 0 / 12%);
+}
+
+/* With no history to go to, the arrows step back behind the sidebar icons instead of matching them. */
+[data-history-navigation] button:disabled {
+  opacity: 0.4;
+}
+
+/* A footer with nothing in it (Settings' sign-in slot while signed out) draws no separator. */
+[data-slot="sidebar-footer"]:empty {
+  display: none;
+}
+
+/* With a Fast mode bolt in front of the model name, the provider logo steps aside for it. */
+[data-chat-composer-footer-controls]:has([data-fast-mode-slot])
+  [data-chat-provider-model-picker-icon] {
+  display: none;
+}
+
+/* The conversation stops 24px into the composer box (ChatView sets `--composer-cover`). */
+.messages-timeline-scroll {
+  mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - var(--composer-cover, 0px) - var(--composer-cover-overlap, 0px)),
+    transparent calc(100% - var(--composer-cover, 0px) - var(--composer-cover-overlap, 0px))
+  );
+}
+/* "Chat scrolls behind composer" off: the conversation stops at the composer's top edge. */
+[data-chat-above-composer] .messages-timeline-scroll {
+  --composer-cover-overlap: 24px;
+}
+/* The chat's scrollbar is a plain rounded thumb with no track rail (macOS draws one when scroll bars
+   always show), and it ends at the composer's top edge instead of running 24px into it. */
+.messages-timeline-scroll::-webkit-scrollbar {
+  width: calc(var(--app-scrollbar-width) + 4px);
+}
+html[data-content-translucent] .messages-timeline-under-header {
+  --under-header-visible: 0%;
+}
+.messages-timeline-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  margin-bottom: calc(var(--composer-cover, 0px) + 32px);
+}
+.messages-timeline-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  background: var(--app-scrollbar-thumb) padding-box;
+}
+.messages-timeline-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--app-scrollbar-thumb-hover) padding-box;
+}
+.messages-timeline-under-header::-webkit-scrollbar-track {
+  margin-top: var(--workspace-topbar-height);
+}
+
+/* The conversation scrolls on under the top bar, which blurs it (`[data-chat-header]`); with the
+   main area under 100% it stops at the bar's line instead (`--under-header-visible: 0`). */
+.messages-timeline-under-header {
+  --under-header-visible: 100%;
+  mask-image:
+    linear-gradient(
+      to bottom,
+      rgb(0 0 0 / var(--under-header-visible)) var(--workspace-topbar-height),
+      #000 var(--workspace-topbar-height)
+    ),
+    linear-gradient(
+      to bottom,
+      #000 calc(100% - var(--composer-cover, 0px) - var(--composer-cover-overlap, 0px)),
+      transparent calc(100% - var(--composer-cover, 0px) - var(--composer-cover-overlap, 0px))
+    );
+  mask-composite: intersect;
 }

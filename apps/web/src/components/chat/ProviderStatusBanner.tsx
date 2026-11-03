@@ -15,8 +15,20 @@ function getIncompatibleVersion(status: ServerProvider) {
     : null;
 }
 
+// The placeholder every provider reports before its first check of the session. It cleared a
+// moment later, so the banner flashed on each launch.
+function isUncheckedPlaceholder(status: ServerProvider): boolean {
+  return (
+    status.status === "warning" &&
+    !status.installed &&
+    status.version === null &&
+    status.auth.status === "unknown" &&
+    status.message?.endsWith("has not been checked in this session yet.") === true
+  );
+}
+
 export function getProviderStatusBannerKey(status: ServerProvider | null): string | null {
-  if (!status || status.status === "disabled") return null;
+  if (!status || status.status === "disabled" || isUncheckedPlaceholder(status)) return null;
   const incompatible = getIncompatibleVersion(status);
   if (incompatible) {
     return [

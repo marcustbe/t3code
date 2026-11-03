@@ -94,7 +94,6 @@ import {
 } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
 import { BackgroundActivitySettingsRow } from "./BackgroundActivitySettings";
-import { AdvancedSettings } from "./AdvancedSettings";
 import { PullRequestLinksOpenInAppSetting } from "./IntegrationsSettings";
 import { StorageCleanupSections } from "./StorageSettings";
 import { UpdateTrackSwitchDialog } from "./UpdateTrackSwitchDialog";
@@ -104,6 +103,16 @@ import { canUpdateServer } from "../ServerUpdateAction";
 import { useUpdateEverythingRun } from "../sidebar/updateEverythingRun";
 import { awaitsTrackSwitch, channelSwitchLabel } from "../sidebar/updateEverything.logic";
 import { isHostedByThisApp } from "../sidebar/useUpdateEverything";
+
+const EDGE_PADDING_KEYS = [
+  "sidebarSidePadding",
+  "windowTopPadding",
+  "sidebarBottomPadding",
+  "topBarSidePadding",
+  "browserSidePadding",
+  "browserTopPadding",
+  "browserBottomPadding",
+] as const;
 
 const RESPONSE_STREAMING_MODE_LABELS: Record<ResponseStreamingMode, string> = {
   turn: "Wait for the full response",
@@ -430,10 +439,35 @@ export function useSettingsRestore(onRestored?: () => void) {
       ? ["Contrast"]
       : []),
     ...(settings.glassOpacity !== DEFAULT_UNIFIED_SETTINGS.glassOpacity ? ["Glass opacity"] : []),
+    ...(settings.sidebarSurfaceOpacity !== DEFAULT_UNIFIED_SETTINGS.sidebarSurfaceOpacity
+      ? ["Sidebar opacity"]
+      : []),
+    ...(settings.contentSurfaceOpacity !== DEFAULT_UNIFIED_SETTINGS.contentSurfaceOpacity
+      ? ["Main area opacity"]
+      : []),
+    ...(settings.panelSurfaceOpacity !== DEFAULT_UNIFIED_SETTINGS.panelSurfaceOpacity
+      ? ["Right panel opacity"]
+      : []),
+    ...(settings.windowBlurRadius !== DEFAULT_UNIFIED_SETTINGS.windowBlurRadius
+      ? ["Background blur"]
+      : []),
+    ...(settings.backgroundGrain !== DEFAULT_UNIFIED_SETTINGS.backgroundGrain
+      ? ["Background grain"]
+      : []),
+    ...(settings.topBarBlur !== DEFAULT_UNIFIED_SETTINGS.topBarBlur ? ["Top bar blur"] : []),
+    ...(settings.composerPromptLayout !== DEFAULT_UNIFIED_SETTINGS.composerPromptLayout
+      ? ["Long prompts"]
+      : []),
+    ...(EDGE_PADDING_KEYS.some((key) => settings[key] !== DEFAULT_UNIFIED_SETTINGS[key])
+      ? ["Layout padding"]
+      : []),
     ...(settings.diffColorScheme !== DEFAULT_UNIFIED_SETTINGS.diffColorScheme
       ? ["Diff colors"]
       : []),
     ...(settings.chatWidth !== DEFAULT_UNIFIED_SETTINGS.chatWidth ? ["Chat width"] : []),
+    ...(settings.chatScrollsBehindComposer !== DEFAULT_UNIFIED_SETTINGS.chatScrollsBehindComposer
+      ? ["Chat scrolls behind composer"]
+      : []),
     ...(settings.effortDisplay !== DEFAULT_UNIFIED_SETTINGS.effortDisplay
       ? ["Effort display"]
       : []),
@@ -510,7 +544,7 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.followUpBehavior !== DEFAULT_UNIFIED_SETTINGS.followUpBehavior
       ? ["Follow-up behavior"]
       : []),
-    ...(settings.contextWindowMeterEnabled !== DEFAULT_UNIFIED_SETTINGS.contextWindowMeterEnabled
+    ...(settings.contextWindowMeterVisible !== DEFAULT_UNIFIED_SETTINGS.contextWindowMeterVisible
       ? ["Context window indicator"]
       : []),
     ...(settings.responseStreamingMode !== DEFAULT_UNIFIED_SETTINGS.responseStreamingMode
@@ -624,9 +658,24 @@ export function useSettingsRestore(onRestored?: () => void) {
       composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
       sendShortcut: DEFAULT_UNIFIED_SETTINGS.sendShortcut,
       followUpBehavior: DEFAULT_UNIFIED_SETTINGS.followUpBehavior,
-      contextWindowMeterEnabled: DEFAULT_UNIFIED_SETTINGS.contextWindowMeterEnabled,
+      contextWindowMeterVisible: DEFAULT_UNIFIED_SETTINGS.contextWindowMeterVisible,
       environmentIdentificationMode: DEFAULT_UNIFIED_SETTINGS.environmentIdentificationMode,
       glassOpacity: DEFAULT_UNIFIED_SETTINGS.glassOpacity,
+      sidebarSurfaceOpacity: DEFAULT_UNIFIED_SETTINGS.sidebarSurfaceOpacity,
+      contentSurfaceOpacity: DEFAULT_UNIFIED_SETTINGS.contentSurfaceOpacity,
+      panelSurfaceOpacity: DEFAULT_UNIFIED_SETTINGS.panelSurfaceOpacity,
+      chatScrollsBehindComposer: DEFAULT_UNIFIED_SETTINGS.chatScrollsBehindComposer,
+      windowBlurRadius: DEFAULT_UNIFIED_SETTINGS.windowBlurRadius,
+      backgroundGrain: DEFAULT_UNIFIED_SETTINGS.backgroundGrain,
+      topBarBlur: DEFAULT_UNIFIED_SETTINGS.topBarBlur,
+      composerPromptLayout: DEFAULT_UNIFIED_SETTINGS.composerPromptLayout,
+      sidebarSidePadding: DEFAULT_UNIFIED_SETTINGS.sidebarSidePadding,
+      windowTopPadding: DEFAULT_UNIFIED_SETTINGS.windowTopPadding,
+      sidebarBottomPadding: DEFAULT_UNIFIED_SETTINGS.sidebarBottomPadding,
+      topBarSidePadding: DEFAULT_UNIFIED_SETTINGS.topBarSidePadding,
+      browserSidePadding: DEFAULT_UNIFIED_SETTINGS.browserSidePadding,
+      browserTopPadding: DEFAULT_UNIFIED_SETTINGS.browserTopPadding,
+      browserBottomPadding: DEFAULT_UNIFIED_SETTINGS.browserBottomPadding,
       panelAnimationDurationMs: DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs,
       sidebarProjectGroupingMode: DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode,
       sidebarProjectSortOrder: DEFAULT_UNIFIED_SETTINGS.sidebarProjectSortOrder,
@@ -659,6 +708,8 @@ export function useSettingsRestore(onRestored?: () => void) {
       fontFamilyTerminal: DEFAULT_UNIFIED_SETTINGS.fontFamilyTerminal,
       fontSizeInterface: DEFAULT_UNIFIED_SETTINGS.fontSizeInterface,
       fontSizePrompt: DEFAULT_UNIFIED_SETTINGS.fontSizePrompt,
+      fontSizeChat: DEFAULT_UNIFIED_SETTINGS.fontSizeChat,
+      fontWeightChat: DEFAULT_UNIFIED_SETTINGS.fontWeightChat,
       fontSizeCode: DEFAULT_UNIFIED_SETTINGS.fontSizeCode,
       fontSizeTerminal: DEFAULT_UNIFIED_SETTINGS.fontSizeTerminal,
       browserDefaultViewport: DEFAULT_UNIFIED_SETTINGS.browserDefaultViewport,
@@ -748,9 +799,9 @@ export function LegacyFeaturesSection() {
         description="Shows context window usage as a circular indicator in the composer."
         control={
           <Switch
-            checked={settings.contextWindowMeterEnabled}
+            checked={settings.contextWindowMeterVisible}
             onCheckedChange={(checked) =>
-              updateSettings({ contextWindowMeterEnabled: Boolean(checked) })
+              updateSettings({ contextWindowMeterVisible: Boolean(checked) })
             }
             aria-label="Context window indicator (legacy)"
           />
@@ -1005,6 +1056,33 @@ export function GeneralSettingsPanel() {
             }
           />
         ) : null}
+        {isElectron ? (
+          <SettingsRow
+            {...searchableSetting("prevent-sleep")}
+            description="Keep the computer from going to sleep while T3 Code is open, even with nothing running."
+            resetAction={
+              settings.preventSleepWhileOpen !== DEFAULT_UNIFIED_SETTINGS.preventSleepWhileOpen ? (
+                <SettingResetButton
+                  label="keep awake"
+                  onClick={() =>
+                    updateSettings({
+                      preventSleepWhileOpen: DEFAULT_UNIFIED_SETTINGS.preventSleepWhileOpen,
+                    })
+                  }
+                />
+              ) : null
+            }
+            control={
+              <Switch
+                checked={settings.preventSleepWhileOpen}
+                onCheckedChange={(checked) =>
+                  updateSettings({ preventSleepWhileOpen: Boolean(checked) })
+                }
+                aria-label="Keep Mac awake"
+              />
+            }
+          />
+        ) : null}
       </SettingsSection>
 
       <SettingsSection id="display" title="Display">
@@ -1139,33 +1217,31 @@ export function ChatSettingsPanel() {
             </Select>
           }
         />
-        <AdvancedSettings targetIds={[searchableSetting("skills-in-slash-menu").id]}>
-          <SettingsRow
-            {...searchableSetting("skills-in-slash-menu")}
-            description="Also include skills in the / command menu. Skills always appear when you type $."
-            resetAction={
-              settings.showSkillsInSlashMenu !== DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu ? (
-                <SettingResetButton
-                  label="skills in slash menu"
-                  onClick={() =>
-                    updateSettings({
-                      showSkillsInSlashMenu: DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu,
-                    })
-                  }
-                />
-              ) : null
-            }
-            control={
-              <Switch
-                checked={settings.showSkillsInSlashMenu}
-                onCheckedChange={(checked) =>
-                  updateSettings({ showSkillsInSlashMenu: Boolean(checked) })
+        <SettingsRow
+          {...searchableSetting("skills-in-slash-menu")}
+          description="Also include skills in the / command menu. Skills always appear when you type $."
+          resetAction={
+            settings.showSkillsInSlashMenu !== DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu ? (
+              <SettingResetButton
+                label="skills in slash menu"
+                onClick={() =>
+                  updateSettings({
+                    showSkillsInSlashMenu: DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu,
+                  })
                 }
-                aria-label="Show skills in slash menu"
               />
-            }
-          />
-        </AdvancedSettings>
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.showSkillsInSlashMenu}
+              onCheckedChange={(checked) =>
+                updateSettings({ showSkillsInSlashMenu: Boolean(checked) })
+              }
+              aria-label="Show skills in slash menu"
+            />
+          }
+        />
       </SettingsSection>
 
       <SettingsSection id="follow-ups" title="Follow-ups">
@@ -1813,62 +1889,55 @@ export function ThreadsSettingsPanel() {
             )
           }
         />
-        <AdvancedSettings
-          targetIds={[
-            searchableSetting("thread-title-instructions").id,
-            searchableSetting("response-streaming").id,
-          ]}
-        >
-          <ThreadTitleInstructionsSettings />
-          <SettingsRow
-            serverScoped
-            settingKeys={["responseStreamingMode"]}
-            {...searchableSetting("response-streaming")}
-            description={
-              mixedResponseStreamingMode
-                ? "The selected targets use different streaming modes."
-                : RESPONSE_STREAMING_MODE_DESCRIPTIONS[settings.responseStreamingMode]
-            }
-            resetAction={
-              settings.responseStreamingMode !== DEFAULT_UNIFIED_SETTINGS.responseStreamingMode ? (
-                <SettingResetButton
-                  label="response streaming"
-                  onClick={() =>
-                    updateSettings({
-                      responseStreamingMode: DEFAULT_UNIFIED_SETTINGS.responseStreamingMode,
-                    })
+        <ThreadTitleInstructionsSettings />
+        <SettingsRow
+          serverScoped
+          settingKeys={["responseStreamingMode"]}
+          {...searchableSetting("response-streaming")}
+          description={
+            mixedResponseStreamingMode
+              ? "The selected targets use different streaming modes."
+              : RESPONSE_STREAMING_MODE_DESCRIPTIONS[settings.responseStreamingMode]
+          }
+          resetAction={
+            settings.responseStreamingMode !== DEFAULT_UNIFIED_SETTINGS.responseStreamingMode ? (
+              <SettingResetButton
+                label="response streaming"
+                onClick={() =>
+                  updateSettings({
+                    responseStreamingMode: DEFAULT_UNIFIED_SETTINGS.responseStreamingMode,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Select
+              value={mixedResponseStreamingMode ? null : settings.responseStreamingMode}
+              onValueChange={(value) => {
+                if (value === "turn" || value === "paragraph") {
+                  updateSettings({ responseStreamingMode: value });
+                }
+              }}
+            >
+              <SelectTrigger size="sm" className="w-full sm:w-56" aria-label="Response streaming">
+                <SelectValue>
+                  {(value: ResponseStreamingMode | null) =>
+                    value === null ? "Mixed" : RESPONSE_STREAMING_MODE_LABELS[value]
                   }
-                />
-              ) : null
-            }
-            control={
-              <Select
-                value={mixedResponseStreamingMode ? null : settings.responseStreamingMode}
-                onValueChange={(value) => {
-                  if (value === "turn" || value === "paragraph") {
-                    updateSettings({ responseStreamingMode: value });
-                  }
-                }}
-              >
-                <SelectTrigger size="sm" className="w-full sm:w-56" aria-label="Response streaming">
-                  <SelectValue>
-                    {(value: ResponseStreamingMode | null) =>
-                      value === null ? "Mixed" : RESPONSE_STREAMING_MODE_LABELS[value]
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectPopup align="end" alignItemWithTrigger={false}>
-                  <SelectItem hideIndicator value="turn">
-                    {RESPONSE_STREAMING_MODE_LABELS.turn}
-                  </SelectItem>
-                  <SelectItem hideIndicator value="paragraph">
-                    {RESPONSE_STREAMING_MODE_LABELS.paragraph}
-                  </SelectItem>
-                </SelectPopup>
-              </Select>
-            }
-          />
-        </AdvancedSettings>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                <SelectItem hideIndicator value="turn">
+                  {RESPONSE_STREAMING_MODE_LABELS.turn}
+                </SelectItem>
+                <SelectItem hideIndicator value="paragraph">
+                  {RESPONSE_STREAMING_MODE_LABELS.paragraph}
+                </SelectItem>
+              </SelectPopup>
+            </Select>
+          }
+        />
       </SettingsSection>
     </SettingsPageContainer>
   );

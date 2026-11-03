@@ -17,6 +17,10 @@ import type { EditorId } from "./editor.ts";
 import type { PreviewForwardedShortcut } from "./keybindings.ts";
 
 import type {
+  DesktopBrowserExtension,
+  DesktopChromeExtensionCandidate,
+} from "./browserExtensions.ts";
+import type {
   DesktopAppActivationRequest,
   DesktopAppActivationResponse,
 } from "./desktopAppActivation.ts";
@@ -1088,6 +1092,15 @@ export interface DesktopBridge {
   pickProjectFavicon: (initialPath?: string) => Promise<string | null>;
   pickThemeFiles: () => Promise<readonly PickedThemeFile[] | null>;
   setTheme: (theme: DesktopTheme) => Promise<void>;
+  /**
+   * macOS: clears the window's background so the desktop shows through see-through surfaces,
+   * blurred by `blurRadius` points.
+   */
+  setWindowTranslucent?: (input: { enabled: boolean; blurRadius: number }) => Promise<void>;
+  /** macOS: CSS px from the window's top and left edges to the window buttons. */
+  setWindowButtonInsets?: (input: { top: number; left: number }) => Promise<void>;
+  /** Keeps the computer from sleeping while the app is open. */
+  setPreventSleep?: (enabled: boolean) => Promise<void>;
   showContextMenu: <T extends string>(
     items: readonly ContextMenuItem<T>[],
     position?: { x: number; y: number },
@@ -1166,6 +1179,15 @@ export interface DesktopPreviewBridge {
     readonly sourceProfileDirectory: string;
     readonly targetProfileId: string;
   }) => Promise<BrowserImportResult>;
+  /** Unpacked Chrome extensions shared by every preview profile. Absent on older desktop builds. */
+  extensions?: {
+    list: () => Promise<ReadonlyArray<DesktopBrowserExtension>>;
+    /** Opens a folder picker; null when cancelled. */
+    addUnpacked: () => Promise<DesktopBrowserExtension | null>;
+    remove: (path: string) => Promise<void>;
+    listChromeCandidates: () => Promise<ReadonlyArray<DesktopChromeExtensionCandidate>>;
+    importFromChrome: (path: string) => Promise<DesktopBrowserExtension>;
+  };
   setAnnotationTheme: (theme: DesktopPreviewAnnotationTheme) => Promise<void>;
   setAnnotationSendEnabled: (tabId: string, enabled: boolean) => Promise<void>;
   /** Resolves with the annotation and attach/send intent, or null on cancellation. Rejects if activation fails. */

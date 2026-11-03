@@ -851,7 +851,7 @@ function RightPanelTab(
             render={
               <button
                 type="button"
-                className="cursor-pointer flex size-4 shrink-0 items-center justify-center rounded-sm hover:bg-muted"
+                className="cursor-pointer flex size-4 shrink-0 items-center justify-center rounded-sm hover:bg-sidebar-row-selected"
                 aria-label={audio === "muted" ? `Unmute ${title}` : `Mute ${title}`}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -930,9 +930,11 @@ function RightPanelTab(
       className={cn(
         "cursor-pointer group/tab flex h-6 max-w-36 shrink-0 items-center gap-0.5 rounded-md pr-2 pl-1.5 text-xs",
         props.ownsDesktopTitleBar && "[-webkit-app-region:no-drag]",
+        // The sidebar's see-through row grey, not the solid accent, which read as a pale block on
+        // the translucent panel.
         props.active
-          ? "bg-accent text-foreground"
-          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+          ? "bg-sidebar-row-selected text-foreground"
+          : "text-muted-foreground hover:bg-sidebar-row-selected/60 hover:text-foreground",
         isDragging && "relative z-10",
       )}
     >
@@ -1240,7 +1242,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     >
       <div
         className={cn(
-          "flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center gap-1 pl-2",
+          "flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center gap-1 pl-(--browser-side-padding)",
           props.mode === "inline" && !props.layoutControls ? "pr-28" : "pr-3",
           ownsDesktopTitleBar && "drag-region",
           ownsDesktopTitleBar && "wco:pr-(--workspace-native-controls-inset)",

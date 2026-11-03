@@ -36,6 +36,7 @@ import * as ElectronMenu from "../../electron/ElectronMenu.ts";
 import * as ElectronShell from "../../electron/ElectronShell.ts";
 import * as ElectronTheme from "../../electron/ElectronTheme.ts";
 import * as ElectronWindow from "../../electron/ElectronWindow.ts";
+import * as DesktopWindow from "../../window/DesktopWindow.ts";
 import * as Electron from "electron";
 import * as MacPermissions from "../../permissions/MacPermissions.ts";
 import { safariPermissionCheck } from "../../preview/BrowserImport/SafariPermission.ts";
@@ -261,6 +262,64 @@ export const setTheme = DesktopIpc.makeIpcMethod({
   handler: Effect.fn("desktop.ipc.window.setTheme")(function* (theme) {
     const electronTheme = yield* ElectronTheme.ElectronTheme;
     yield* electronTheme.setSource(theme);
+  }),
+});
+
+const WindowTranslucencyInput = Schema.Struct({
+  enabled: Schema.Boolean,
+  blurRadius: Schema.Number,
+});
+
+export const setWindowTranslucent = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.SET_WINDOW_TRANSLUCENT_CHANNEL,
+  payload: WindowTranslucencyInput,
+  result: Schema.Void,
+  handler: Effect.fn("desktop.ipc.window.setWindowTranslucent")(function* (input, event) {
+    const environment = yield* DesktopEnvironment.DesktopEnvironment;
+    if (environment.platform !== "darwin" || event === undefined) return;
+    yield* Effect.annotateCurrentSpan({ enabled: input.enabled, blurRadius: input.blurRadius });
+    const contents = Electron.webContents.fromId(event.sender.id);
+    const window = contents ? Electron.BrowserWindow.fromWebContents(contents) : null;
+    if (!window) return;
+    DesktopWindow.setWindowTranslucent(window, {
+      ...input,
+      blurAddonPaths: environment.isPackaged
+        ? [environment.path.join(environment.resourcesPath, "window-blur", "t3-window-blur.node")]
+        : [
+            environment.path.join(
+              environment.rootDir,
+              "native/window-blur/build/t3-window-blur.node",
+            ),
+          ],
+    });
+  }),
+});
+
+const WindowButtonInsetsInput = Schema.Struct({
+  top: Schema.Number,
+  left: Schema.Number,
+});
+
+export const setWindowButtonInsets = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.SET_WINDOW_BUTTON_INSETS_CHANNEL,
+  payload: WindowButtonInsetsInput,
+  result: Schema.Void,
+  handler: Effect.fn("desktop.ipc.window.setWindowButtonInsets")(function* (input, event) {
+    const environment = yield* DesktopEnvironment.DesktopEnvironment;
+    if (environment.platform !== "darwin" || event === undefined) return;
+    const contents = Electron.webContents.fromId(event.sender.id);
+    const window = contents ? Electron.BrowserWindow.fromWebContents(contents) : null;
+    if (window) DesktopWindow.setWindowButtonInsets(window, input);
+  }),
+});
+
+export const setPreventSleep = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.SET_PREVENT_SLEEP_CHANNEL,
+  payload: Schema.Boolean,
+  result: Schema.Void,
+  handler: Effect.fn("desktop.ipc.window.setPreventSleep")(function* (enabled) {
+    yield* Effect.annotateCurrentSpan({ enabled });
+    DesktopWindow.setPreventSleep(enabled);
   }),
 });
 

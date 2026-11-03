@@ -56,6 +56,7 @@ import { getTriggerDisplayModelName } from "./providerIconUtils";
 import { ProviderInstanceIcon, providerTextColor } from "./ProviderInstanceIcon";
 import { cn } from "~/lib/utils";
 import { TimelineSystemDivider } from "./TimelineSystemDivider";
+import { isMessageVersionThread, useMessageVersionStore } from "../../messageVersionStore";
 import { subagentResumedSince } from "./V2LifecycleRow.logic";
 import { Button, InlineButton } from "../ui/button";
 import { T3Wordmark } from "../T3Wordmark";
@@ -70,6 +71,11 @@ export function V2LifecycleRow(props: {
   readonly onOpenThread: (threadId: ThreadId) => void;
 }) {
   const { item } = props;
+  const editedVersion = useMessageVersionStore(
+    (state) =>
+      item.type === "fork" &&
+      isMessageVersionThread(state.groups, props.environmentId, item.targetThreadId),
+  );
   if (item.type === "run_interrupt_result") {
     return (
       <TimelineSystemDivider label="Run interrupted" detail={item.message} icon={CircleStopIcon} />
@@ -85,6 +91,8 @@ export function V2LifecycleRow(props: {
     );
   }
   if (item.type === "fork") {
+    // An edited message forks the chat behind the scenes; the version switcher shows it instead.
+    if (editedVersion) return null;
     const relatedThreadId = item.source.type === "run" ? item.source.threadId : item.targetThreadId;
     return (
       <TimelineSystemDivider

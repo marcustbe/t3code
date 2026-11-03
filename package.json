@@ -24,6 +24,7 @@
     "build:marketing": "vp run --filter @t3tools/marketing build",
     "build:desktop": "vp run --filter @t3tools/desktop --filter t3 build",
     "build:resource-monitor": "cargo build --locked --release --manifest-path native/resource-monitor/Cargo.toml",
+    "build:window-blur": "mkdir -p native/window-blur/build && clang -shared -undefined dynamic_lookup -O2 -mmacosx-version-min=12.0 -I\"$(dirname $(dirname $(which node)))/include/node\" -framework CoreGraphics -framework CoreFoundation -lobjc -o native/window-blur/build/t3-window-blur.node native/window-blur/window_blur.c",
     "typecheck": "vp run -r --cache --concurrency-limit 4 typecheck",
     "tc": "vp run -r --cache --concurrency-limit 4 typecheck",
     "check:changed": "node scripts/check-changed.ts",

@@ -7,6 +7,7 @@ import { RESIZABLE_WIDTH_PROPERTY } from "~/hooks/useResizableWidth";
 import { workspaceAreaProps } from "../../lib/workspaceFocus";
 import { cn } from "~/lib/utils";
 
+import { PREVIEW_WHITE_SURFACE_CLASS } from "./previewConstants";
 import { RightPanelResizeHandle } from "./RightPanelResizeHandle";
 
 export type PreviewPanelMode = "inline" | "sheet" | "sidebar" | "embedded";
@@ -122,11 +123,12 @@ function PreviewPanelShellFrame(
       data-workspace-unavailable={collapsible && !open ? "true" : undefined}
       className={cn(
         "relative flex h-full min-h-0 min-w-0 max-w-full flex-col self-stretch bg-background",
+        PREVIEW_WHITE_SURFACE_CLASS,
         isInline
           ? maximized
             ? // Maximizing meets the sidebar border or window edge; omit the duplicate border.
               "flex-1"
-            : "shrink-0 border-l border-border"
+            : "shrink-0 border-l border-separator"
           : "w-full",
         collapsible &&
           "[[data-panel-animations=true]_&]:transition-[width] [[data-panel-animations=true]_&]:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:ease-out",

@@ -23,6 +23,10 @@ const inputGroupVariants = cva(
           "dropdown-glass rounded-2xl has-[input:focus-visible,textarea:focus-visible]:ring-0 has-[input:focus-visible,textarea:focus-visible]:border-[color-mix(in_srgb,var(--contrast-foreground)_18%,transparent)]",
         ghost:
           "border-transparent bg-transparent shadow-none hover:bg-muted/40 has-[input:focus-visible,textarea:focus-visible]:bg-background",
+        // Ghost at rest; while typing a grey fill, thin primary border and a halo outside it.
+        filled:
+          // oxlint-disable-next-line t3code/no-outset-state-indicators -- the design asks for the halo outside the border; callers leave 2px of room around it
+          "border-transparent bg-transparent shadow-none hover:bg-foreground/5 has-[input:focus-visible,textarea:focus-visible]:border-primary has-[input:focus-visible,textarea:focus-visible]:bg-foreground/5 has-[input:focus-visible,textarea:focus-visible]:ring-0 has-[input:focus-visible,textarea:focus-visible]:outline-2 has-[input:focus-visible,textarea:focus-visible]:outline-offset-0 has-[input:focus-visible,textarea:focus-visible]:outline-primary/30",
       },
     },
   },

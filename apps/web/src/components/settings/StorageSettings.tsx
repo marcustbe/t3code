@@ -31,7 +31,6 @@ import {
 } from "../ui/number-field";
 import { SettingResetButton, SettingsRow, SettingsSection } from "./settingsLayout";
 import { DatabaseStorageNotice } from "./DatabaseStorageNotice";
-import { AdvancedSettings } from "./AdvancedSettings";
 import { FoldedSettingsSection } from "./FoldedSettingsSection";
 import { SettingsScopeNotice } from "./SettingsScopeNotice";
 import { SettingsGroup } from "./SettingsGroup";
@@ -591,97 +590,92 @@ export function WorktreeCleanupSection() {
                 />
               }
             />
-            <AdvancedSettings
-              // The keep-when search result lands on this section, not its row.
-              targetIds={["storage-worktrees", searchableSetting("storage-worktree-keep-when").id]}
-            >
-              {connectedEnvironments.length > 0 &&
-                connectedEnvironments.every(
-                  (environment) =>
-                    environment.serverConfig?.environment.capabilities.settledWorktreeCleanup ===
-                    true,
-                ) && (
-                  <SettingsRow
-                    title="Delete settled worktrees"
-                    status={[
-                      ruleStatus("worktreeSettledAfterDays"),
-                      environments.length > connectedEnvironments.length
-                        ? "Offline machines will not get this setting"
-                        : undefined,
-                    ]
-                      .filter(Boolean)
-                      .join(". ")}
-                    description="Remove worktrees this many days after their thread settles. Set 0 days to remove them at the next cleanup. Branches and thread history are kept."
-                    serverScoped={!isProjectScope}
-                    control={
-                      <RetentionControl
-                        label="Delete settled worktrees"
-                        value={settings.worktreeSettledAfterDays}
-                        minimum={0}
-                        onChange={(worktreeSettledAfterDays) =>
-                          updateWorktree({ worktreeSettledAfterDays })
-                        }
-                      />
-                    }
-                  />
-                )}
-              <SettingsRow
-                title="Delete unchanged worktrees"
-                status={ruleStatus("worktreeUnchanged")}
-                description="Remove worktrees with no commits beyond the default branch."
-                serverScoped={!isProjectScope}
-                control={
-                  <Switch
-                    aria-label="Delete unchanged worktrees"
-                    checked={settings.worktreeUnchanged}
-                    onCheckedChange={(worktreeUnchanged) => updateWorktree({ worktreeUnchanged })}
-                  />
-                }
-              />
-              {connectedEnvironments.every(
+            {connectedEnvironments.length > 0 &&
+              connectedEnvironments.every(
                 (environment) =>
-                  environment.serverConfig?.environment.capabilities.storageCleanupRun === true,
+                  environment.serverConfig?.environment.capabilities.settledWorktreeCleanup ===
+                  true,
               ) && (
                 <SettingsRow
-                  {...searchableSetting("storage-worktree-keep-when")}
-                  status={ruleStatus("worktreeKeepWhen")}
-                  description={
-                    settings.worktreeKeepWhen === "any-local-files"
-                      ? "Includes ignored files, except node_modules."
-                      : settings.worktreeKeepWhen === "tracked-changes"
-                        ? "Deletes untracked and ignored files, including .env."
-                        : "Keeps edits and untracked files. Deletes ignored files, including .env."
-                  }
+                  title="Delete settled worktrees"
+                  status={[
+                    ruleStatus("worktreeSettledAfterDays"),
+                    environments.length > connectedEnvironments.length
+                      ? "Offline machines will not get this setting"
+                      : undefined,
+                  ]
+                    .filter(Boolean)
+                    .join(". ")}
+                  description="Remove worktrees this many days after their thread settles. Set 0 days to remove them at the next cleanup. Branches and thread history are kept."
                   serverScoped={!isProjectScope}
                   control={
-                    <Select
-                      value={ruleStatus("worktreeKeepWhen") ? null : settings.worktreeKeepWhen}
-                      onValueChange={(next) => {
-                        if (
-                          next === "any-local-files" ||
-                          next === "uncommitted-changes" ||
-                          next === "tracked-changes"
-                        )
-                          updateWorktree({ worktreeKeepWhen: next });
-                      }}
-                    >
-                      <SelectTrigger size="sm" aria-label="Keep worktrees with local changes">
-                        <SelectValue>
-                          {ruleStatus("worktreeKeepWhen")
-                            ? "Mixed"
-                            : KEEP_WHEN_LABELS[settings.worktreeKeepWhen]}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectPopup align="end" alignItemWithTrigger={false}>
-                        <SelectItem value="any-local-files">Any local files</SelectItem>
-                        <SelectItem value="uncommitted-changes">Uncommitted changes</SelectItem>
-                        <SelectItem value="tracked-changes">Edited tracked files</SelectItem>
-                      </SelectPopup>
-                    </Select>
+                    <RetentionControl
+                      label="Delete settled worktrees"
+                      value={settings.worktreeSettledAfterDays}
+                      minimum={0}
+                      onChange={(worktreeSettledAfterDays) =>
+                        updateWorktree({ worktreeSettledAfterDays })
+                      }
+                    />
                   }
                 />
               )}
-            </AdvancedSettings>
+            <SettingsRow
+              title="Delete unchanged worktrees"
+              status={ruleStatus("worktreeUnchanged")}
+              description="Remove worktrees with no commits beyond the default branch."
+              serverScoped={!isProjectScope}
+              control={
+                <Switch
+                  aria-label="Delete unchanged worktrees"
+                  checked={settings.worktreeUnchanged}
+                  onCheckedChange={(worktreeUnchanged) => updateWorktree({ worktreeUnchanged })}
+                />
+              }
+            />
+            {connectedEnvironments.every(
+              (environment) =>
+                environment.serverConfig?.environment.capabilities.storageCleanupRun === true,
+            ) && (
+              <SettingsRow
+                {...searchableSetting("storage-worktree-keep-when")}
+                status={ruleStatus("worktreeKeepWhen")}
+                description={
+                  settings.worktreeKeepWhen === "any-local-files"
+                    ? "Includes ignored files, except node_modules."
+                    : settings.worktreeKeepWhen === "tracked-changes"
+                      ? "Deletes untracked and ignored files, including .env."
+                      : "Keeps edits and untracked files. Deletes ignored files, including .env."
+                }
+                serverScoped={!isProjectScope}
+                control={
+                  <Select
+                    value={ruleStatus("worktreeKeepWhen") ? null : settings.worktreeKeepWhen}
+                    onValueChange={(next) => {
+                      if (
+                        next === "any-local-files" ||
+                        next === "uncommitted-changes" ||
+                        next === "tracked-changes"
+                      )
+                        updateWorktree({ worktreeKeepWhen: next });
+                    }}
+                  >
+                    <SelectTrigger size="sm" aria-label="Keep worktrees with local changes">
+                      <SelectValue>
+                        {ruleStatus("worktreeKeepWhen")
+                          ? "Mixed"
+                          : KEEP_WHEN_LABELS[settings.worktreeKeepWhen]}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectPopup align="end" alignItemWithTrigger={false}>
+                      <SelectItem value="any-local-files">Any local files</SelectItem>
+                      <SelectItem value="uncommitted-changes">Uncommitted changes</SelectItem>
+                      <SelectItem value="tracked-changes">Edited tracked files</SelectItem>
+                    </SelectPopup>
+                  </Select>
+                }
+              />
+            )}
           </>
         )}
       </>

@@ -1,5 +1,7 @@
 import { type PointerEvent, useState } from "react";
 
+import { shieldEmbeddedContent } from "../browser/guestPointerShield";
+
 export interface ResizeBounds {
   readonly min: number;
   readonly max: number;
@@ -29,6 +31,8 @@ interface ActiveDrag<T extends HTMLElement> {
   moved: boolean;
   frame: number | null;
   onBlur: () => void;
+  onWindowPointer: (event: globalThis.PointerEvent) => void;
+  releaseShield: () => void;
 }
 
 function createResizeDrag<T extends HTMLElement>() {
@@ -49,6 +53,10 @@ function createResizeDrag<T extends HTMLElement>() {
     if (!active) return;
     if (active.frame !== null) cancelAnimationFrame(active.frame);
     window.removeEventListener("blur", active.onBlur);
+    window.removeEventListener("pointermove", active.onWindowPointer, true);
+    window.removeEventListener("pointerup", active.onWindowPointer, true);
+    window.removeEventListener("pointercancel", active.onWindowPointer, true);
+    active.releaseShield();
     if (commit) flush();
     // Release can synchronously dispatch lostpointercapture.
     drag = null;
@@ -80,7 +88,9 @@ function createResizeDrag<T extends HTMLElement>() {
       flush();
     },
     begin(event: PointerEvent<T>, start: (event: PointerEvent<T>) => ResizeSession | null) {
-      if (event.button !== 0 || drag) return;
+      if (event.button !== 0) return;
+      // A drag that never saw its release must not block the next one.
+      if (drag) finish(true);
       const session = start(event);
       if (!session) return;
       try {
@@ -93,7 +103,18 @@ function createResizeDrag<T extends HTMLElement>() {
       event.stopPropagation();
       // Leaving the window mid-drag commits where the pointer was.
       const onBlur = () => finish(true);
+      const pointerId = event.pointerId;
+      // Backstop when capture is lost silently: any release, or a move with no button held, ends it.
+      const onWindowPointer = (windowEvent: globalThis.PointerEvent) => {
+        if (windowEvent.pointerId !== pointerId) return;
+        if (windowEvent.type === "pointermove" && (windowEvent.buttons & 1) !== 0) return;
+        if (windowEvent.type !== "pointercancel" && drag) drag.pendingX = windowEvent.clientX;
+        finish(windowEvent.type !== "pointercancel");
+      };
       window.addEventListener("blur", onBlur);
+      window.addEventListener("pointermove", onWindowPointer, true);
+      window.addEventListener("pointerup", onWindowPointer, true);
+      window.addEventListener("pointercancel", onWindowPointer, true);
       drag = {
         session,
         target: event.currentTarget,
@@ -104,6 +125,8 @@ function createResizeDrag<T extends HTMLElement>() {
         moved: false,
         frame: null,
         onBlur,
+        onWindowPointer,
+        releaseShield: shieldEmbeddedContent(),
       };
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";

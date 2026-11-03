@@ -77,6 +77,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   keybindings?: ResolvedKeybindingsConfig;
   modelOptionsByInstance: ReadonlyMap<ProviderInstanceId, ReadonlyArray<ModelEsque>>;
   activeProviderIconClassName?: string;
+  /** Sizes the provider icon box and glyph together, over the default 16px. */
+  providerIconClassName?: string;
   instanceIndicatorBackground?: string;
   size?: ComposerControlSize;
   compact?: boolean;
@@ -242,8 +244,12 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                 acpRegistryAgentId={activeEntry.acpRegistryAgentId}
                 acpRegistryIconUrl={activeEntry.acpRegistryIconUrl}
                 showBadge={showInstanceBadge}
-                className="size-4"
-                iconClassName={cn("size-4", props.activeProviderIconClassName)}
+                className={cn("size-4", props.providerIconClassName)}
+                iconClassName={cn(
+                  "size-4",
+                  props.providerIconClassName,
+                  props.activeProviderIconClassName,
+                )}
                 indicatorBackground={props.instanceIndicatorBackground ?? "var(--contrast-input)"}
                 badgeClassName={cn(
                   "right-[-0.125rem] bottom-[-0.125rem] h-3 min-w-3 px-0.5 text-5xs",

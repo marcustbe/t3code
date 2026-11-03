@@ -14,3 +14,7 @@ export const PREVIEW_ERROR_CODE_MESSAGES: Readonly<Record<string, string>> = Obj
   ERR_CERT_DATE_INVALID: "Certificate is expired or not yet valid",
   ERR_TOO_MANY_REDIRECTS: "Too many redirects",
 });
+
+/** Pure white in the default light theme; dark, custom themes and the translucent window keep theirs. */
+export const PREVIEW_WHITE_SURFACE_CLASS =
+  "[html:not(.dark):not([data-theme-id]):not([data-window-translucent])_&]:bg-white";

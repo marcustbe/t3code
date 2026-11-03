@@ -25,6 +25,8 @@ import {
   shouldRenderTraitsControls,
   TraitsMenuContent,
   TraitsPicker,
+  FastModeToggle,
+  hasFastModeTrait,
   type PromptUltrathink,
 } from "./TraitsPicker";
 
@@ -294,4 +296,32 @@ export function renderProviderTraitsMenuContent(input: TraitsRenderInput): React
 
 export function renderProviderTraitsPicker(input: TraitsRenderInput): ReactNode {
   return renderTraitsControl(TraitsPicker, input);
+}
+
+/** The composer's Fast mode bolt, or null when the model has no Fast mode. */
+export function renderFastModeToggle(input: TraitsRenderInput & { disabled?: boolean }): ReactNode {
+  const { provider, instanceId, threadRef, draftId, model, models, planModeEnabled, size } = input;
+  if (threadRef === undefined && draftId === undefined) return null;
+  const { selections: modelOptions } = resolveComposerOptionSelections(
+    models,
+    model,
+    provider,
+    input.modelOptions,
+    planModeEnabled,
+  );
+  if (!hasFastModeTrait({ provider, models, model, modelOptions, planModeEnabled })) return null;
+  return (
+    <FastModeToggle
+      provider={provider}
+      {...(instanceId ? { instanceId } : {})}
+      models={models}
+      model={model}
+      modelOptions={modelOptions}
+      planModeEnabled={planModeEnabled}
+      {...(threadRef ? { threadRef } : {})}
+      {...(draftId ? { draftId } : {})}
+      {...(size !== undefined ? { size } : {})}
+      {...(input.disabled !== undefined ? { disabled: input.disabled } : {})}
+    />
+  );
 }

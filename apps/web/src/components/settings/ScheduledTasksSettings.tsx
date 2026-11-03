@@ -11,7 +11,7 @@ import {
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
-import { type ReactNode, useRef, useState } from "react";
+import { type MouseEvent as ReactMouseEvent, type ReactNode, useRef, useState } from "react";
 import type {
   EnvironmentId,
   ModelSelection,
@@ -51,7 +51,7 @@ import { providerInstanceEntriesFor } from "../../providerInstances";
 import { usePrimaryCloudLinkState } from "../../cloud/primaryCloudLinkState";
 import { requestConfirmDialog } from "../../confirmDialog";
 import { webhookAddress } from "@t3tools/client-runtime/webhook-address";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
 import { useNowMinute } from "../../hooks/useNowMinute";
 import {
@@ -386,10 +386,19 @@ export function ScheduledTasksSettings(target: {
     setOpenedLinkTaskId(target.taskId);
     if (editor === null) setEditor({ environmentId: linkedEnvironmentId, task: linkedTask });
   }
-  const navigate = useNavigate({ from: "/settings/scheduled-tasks" });
+  const navigate = useNavigate();
+  const onRoutinesPage = useLocation({ select: (location) => location.pathname === "/routines" });
   const closeEditor = () => {
     setEditor(null);
     if (target.taskId === undefined) return;
+    if (onRoutinesPage) {
+      void navigate({
+        to: "/routines",
+        search: ({ taskId: _closed, ...rest }) => rest,
+        replace: true,
+      });
+      return;
+    }
     void navigate({
       to: "/settings/scheduled-tasks",
       search: ({ taskId: _closed, ...rest }) => rest,
@@ -411,7 +420,9 @@ export function ScheduledTasksSettings(target: {
   return (
     <SettingsPageContainer>
       <SettingsSection
-        title="Scheduled tasks"
+        title={onRoutinesPage ? "Routines" : "Scheduled tasks"}
+        // The Routines page names itself in its breadcrumb, so the list drops the repeat.
+        titleVisuallyHidden={onRoutinesPage}
         variant="plain"
         headerAction={
           <Button
@@ -729,8 +740,18 @@ function ScheduledTaskRow({
       );
     }
   };
+  // A click anywhere on the task's grey card edits it, except on its own controls (and clicks
+  // that bubble through React from its menu or dialogs, which sit outside it in the DOM).
+  const handleRowClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (!(target instanceof Element) || !event.currentTarget.contains(target)) return;
+    if (target.closest("button, a, input, [role=switch]")) return;
+    onEdit();
+  };
   return (
     <SettingsRow
+      className="cursor-pointer"
+      onClick={handleRowClick}
       title={task.title}
       description={<span className="line-clamp-2">{task.prompt}</span>}
       status={

@@ -17,12 +17,11 @@ export function SettingsGroup({
       {...props}
       className={cn(
         "relative overflow-visible text-foreground",
-        variant === "grouped"
-          ? "rounded-xl border border-border/60 bg-card/40 shadow-xs/5"
-          : "space-y-1",
+        variant === "grouped" ? "rounded-xl bg-foreground/[3.5%]" : "space-y-1",
+        // Dividers stop at the rows' text inset instead of running edge to edge.
         variant === "grouped" &&
           divided &&
-          "[&>*+*]:border-t [&>*+*]:border-border/50 [&>[data-slot=settings-row]]:rounded-none",
+          "[&>*+*]:relative [&>*+*]:before:pointer-events-none [&>*+*]:before:absolute [&>*+*]:before:inset-x-3 [&>*+*]:before:top-0 [&>*+*]:before:h-px [&>*+*]:before:bg-separator sm:[&>*+*]:before:inset-x-4 [&>[data-slot=settings-row]]:rounded-none",
         className,
       )}
     />

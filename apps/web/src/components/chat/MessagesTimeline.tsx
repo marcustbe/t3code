@@ -71,6 +71,7 @@ import { useAssistantCitationTarget } from "./useAssistantCitationTarget";
 import { worktreeSetupAgentStarted } from "@t3tools/client-runtime/worktree-setup";
 import { resolveCitationPhase, type CitedHistory } from "./citationProcedure";
 import {
+  resolveFinishedReplyStartIndex,
   resolveTimelineIsAtEnd,
   resolveTimelineMinimapHasPersistentGutter,
   resolveTimelineMinimapCurrentIndex,
@@ -102,7 +103,7 @@ import {
   type WorkGroupViewState,
   type TimelineRow,
 } from "./timelineRowContext";
-import { TimelineRowTimestamp, ActivityShimmerOverlay } from "./TimelineRowParts";
+import { ActivityShimmerOverlay } from "./TimelineRowParts";
 import {
   WorkGroupSection,
   WorkingTimelineRow,
@@ -129,6 +130,7 @@ import {
 import { useThreadFindPositionReader } from "./useThreadFindPositionReader";
 import { ThreadActivityAnnouncer } from "./ThreadActivityAnnouncer";
 import { useStableHandoffRuns, useIncrementalTimelineRows, useStableRows } from "./useTimelineRows";
+import type { MessageEditInput, MessageVersionSwitch } from "./useMessageVersions";
 
 function timelineListStateFor(identity: string): {
   readonly identity: string;
@@ -148,7 +150,7 @@ function timelineListStateFor(identity: string): {
 
 const TIMELINE_LIST_HEADER = <div className="h-3 sm:h-4" />;
 const TIMELINE_LIST_FADE_HEADER = (
-  <div className="h-[var(--workspace-titlebar-scroll-fade-height)]" />
+  <div className="h-[calc(var(--workspace-topbar-height)+var(--workspace-titlebar-scroll-fade-height))]" />
 );
 function TimelineListFooter({
   composerInset,
@@ -263,6 +265,8 @@ interface MessagesTimelineProps {
     readonly sourceThreadId: ThreadId;
     readonly runId: RunId;
   }) => Promise<void>;
+  onEditMessage?: (input: MessageEditInput) => Promise<boolean>;
+  onSwitchMessageVersion?: (input: MessageVersionSwitch) => Promise<void>;
   supportsConversationRollback: boolean;
   threadStartCheckpointReady?: boolean;
   availableRevertTurnCounts?: ReadonlySet<number> | undefined;
@@ -294,8 +298,6 @@ interface MessagesTimelineProps {
   onFooterGrow?: () => void;
   findOpen?: boolean;
   hideEmptyPlaceholder?: boolean;
-  /** Composer space to center the empty state against; held steady through collapse. */
-  emptyPlaceholderInset: number;
   topFadeEnabled?: boolean;
   historyControls?: MessagesTimelineHistoryControls | undefined;
   findExpanded?: boolean;
@@ -362,6 +364,8 @@ const ConversationTimeline = memo(function ConversationTimeline({
   parentThreadLink = null,
   workflowOpening = null,
   onForkFromRun,
+  onEditMessage,
+  onSwitchMessageVersion,
   supportsConversationRollback,
   threadStartCheckpointReady = false,
   availableRevertTurnCounts,
@@ -389,7 +393,6 @@ const ConversationTimeline = memo(function ConversationTimeline({
   onViewportAttach,
   onFooterGrow,
   hideEmptyPlaceholder = false,
-  emptyPlaceholderInset,
   topFadeEnabled = false,
   historyControls,
 }: MessagesTimelineProps) {
@@ -1041,6 +1044,8 @@ const ConversationTimeline = memo(function ConversationTimeline({
     turnItemSource,
     workflowOpening,
     onForkFromRun,
+    onEditMessage,
+    onSwitchMessageVersion,
     onToggleTurnFold,
     onToggleAttemptFold,
     onToggleWorkGroup,
@@ -1169,6 +1174,36 @@ const ConversationTimeline = memo(function ConversationTimeline({
     };
   });
 
+  // A reply that finishes while the end is followed leaves the view at its last line; take the
+  // reader back to where it starts. Two frames let the finished rows lay out first.
+  const showFinishedReplyStart = useStableCallback(() => {
+    const list = listRef.current;
+    const scrollNode = list?.getScrollableNode() as HTMLElement | null | undefined;
+    if (!list || !scrollNode || !liveFollowEnabled || anchoredEndSpace || awaitingUser) return;
+    // The list runs up under the chat header by its negative top margin.
+    const headerOverlap = Math.max(0, -parseFloat(getComputedStyle(scrollNode).marginTop) || 0);
+    const index = resolveFinishedReplyStartIndex(rows, list.getState(), headerOverlap);
+    if (index === null) return;
+    navigateTimeline();
+    void list.scrollToIndex({
+      index,
+      animated: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      viewPosition: 0,
+      viewOffset: headerOverlap + CHAT_TIMELINE_ANCHOR_OFFSET,
+    });
+  });
+  const workingRef = useRef({ key: listIdentityKey, isWorking });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scrolls LegendList to a reply's start once its run finishes
+  useEffect(() => {
+    const previous = workingRef.current;
+    workingRef.current = { key: listIdentityKey, isWorking };
+    if (previous.key !== listIdentityKey || !previous.isWorking || isWorking) return;
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(showFinishedReplyStart);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isWorking, listIdentityKey, showFinishedReplyStart]);
+
   useThreadFindPositionReader({
     threadKey: listIdentityKey,
     navigate: navigateTimeline,
@@ -1279,12 +1314,8 @@ const ConversationTimeline = memo(function ConversationTimeline({
     return (
       <>
         {activityAnnouncer}
-        <div
-          className="flex h-full items-center justify-center ps-(--chat-lane-inset-start) pe-(--chat-lane-inset-end)"
-          style={{ paddingBottom: emptyPlaceholderInset }}
-        >
-          <p className="text-sm text-muted-foreground">Send a message to start the conversation.</p>
-        </div>
+        {/* An empty chat stays empty: the composer below is the only prompt. */}
+        <div className="h-full" />
       </>
     );
   }
@@ -1347,7 +1378,9 @@ const ConversationTimeline = memo(function ConversationTimeline({
               onItemSizeChanged={handleItemSizeChanged}
               className={cn(
                 "messages-timeline-scroll scrollbar-gutter-both h-full min-h-0 overflow-x-hidden overscroll-y-contain [overflow-anchor:none]",
-                topFadeEnabled && "topbar-scroll-fade",
+                // Scrolls up under the translucent chat header instead of fading out below it.
+                topFadeEnabled &&
+                  "messages-timeline-under-header -mt-[var(--workspace-topbar-height)] h-[calc(100%+var(--workspace-topbar-height))]",
               )}
               ListHeaderComponent={listHeader}
               ListFooterComponent={timelineListFooter}
@@ -1659,11 +1692,6 @@ function TurnFoldTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "turn-
           </span>
           <MorphIcon className="size-3.5" icon={row.expanded ? ChevronDown : ChevronRight} />
         </button>
-        <TimelineRowTimestamp
-          createdAt={row.createdAt}
-          timestampFormat={ctx.timestampFormat}
-          className="ms-auto"
-        />
       </div>
       {loading ? <WorkHistorySkeleton /> : null}
     </div>

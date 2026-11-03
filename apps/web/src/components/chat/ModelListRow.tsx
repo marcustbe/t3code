@@ -41,6 +41,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
   const row = (
     <ComboboxItem
       hideIndicator
+      emphasizeActive
       index={props.index}
       value={modelPickerModelKey(props.instanceId, props.slug)}
       disabled={Boolean(props.disabledReason)}

@@ -18,7 +18,8 @@ export function PanelTabCloseButton({
   const button = (
     <button
       type="button"
-      className="cursor-pointer group/close relative flex size-4 shrink-0 items-center justify-center rounded-sm hover:bg-muted"
+      // The row grey stacks on the tab's own grey, so the square reads darker; `muted` was near-white.
+      className="cursor-pointer group/close relative flex size-4 shrink-0 items-center justify-center rounded-sm hover:bg-sidebar-row-selected"
       aria-label={label}
       onClick={onClick}
     >

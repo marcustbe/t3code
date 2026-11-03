@@ -112,7 +112,6 @@ function timelineFor() {
       onAnchorReady={() => {}}
       onAnchorSizeChanged={() => {}}
       contentInsetEndAdjustment={0}
-      emptyPlaceholderInset={0}
       liveFollowEnabled
       onIsAtEndChange={() => {}}
       {...versionedProps}

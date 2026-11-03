@@ -199,6 +199,7 @@ export function PolicyTooltip({ children }: { readonly children: string }) {
 export function SettingsSection({
   title,
   hideTitle = false,
+  titleVisuallyHidden = false,
   icon,
   titleAction,
   headerAction,
@@ -209,6 +210,8 @@ export function SettingsSection({
 }: ComponentPropsWithoutRef<"section"> & {
   title: string;
   hideTitle?: boolean;
+  /** Keeps the header row (and its action) but hides the title text from sight. */
+  titleVisuallyHidden?: boolean;
   icon?: ReactNode;
   titleAction?: ReactNode;
   headerAction?: ReactNode;
@@ -232,7 +235,12 @@ export function SettingsSection({
           className="flex min-h-7 items-start justify-between gap-4 px-3 sm:px-4"
         >
           <div className="flex min-w-0 items-center gap-1">
-            <h2 className="flex min-h-7 items-center gap-2 text-base font-semibold text-foreground">
+            <h2
+              className={cn(
+                "flex min-h-7 items-center gap-2 text-base font-semibold text-foreground",
+                titleVisuallyHidden && "sr-only",
+              )}
+            >
               {icon}
               {title}
             </h2>
@@ -464,7 +472,8 @@ export function SettingsRow({
         className,
       )}
     >
-      <div className="flex flex-col gap-3 @min-[32rem]/settings-row:grid @min-[32rem]/settings-row:grid-cols-[minmax(0,1fr)_minmax(10rem,auto)] @min-[32rem]/settings-row:items-center @min-[32rem]/settings-row:gap-8">
+      {/* At least a select's height, so rows with a switch match rows with a select. */}
+      <div className="flex flex-col gap-3 @min-[32rem]/settings-row:grid @min-[32rem]/settings-row:min-h-8 @min-[32rem]/settings-row:grid-cols-[minmax(0,1fr)_minmax(10rem,auto)] @min-[32rem]/settings-row:items-center @min-[32rem]/settings-row:gap-8">
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex min-h-5 items-center gap-1.5">
             <h3 className="text-sm font-medium text-foreground">{title}</h3>

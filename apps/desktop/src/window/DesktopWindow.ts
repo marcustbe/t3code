@@ -7,6 +7,7 @@ import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 
 import * as Electron from "electron";
+import { setWindowBackgroundBlur } from "./WindowBlur.ts";
 
 import { type DesktopSnapShotEvent, DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
 
@@ -36,21 +37,49 @@ import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts";
 import { makeQuitShortcutHandler } from "./QuitHold.ts";
 import { copyContextMenuImage } from "./ContextMenuImage.ts";
+import { saveDiagnosticsReport, trackDiagnostics } from "./DiagnosticsReport.ts";
 
 const TITLEBAR_HEIGHT = 40;
-// Match --workspace-topbar-height in apps/web/src/index.css; native macOS buttons stay 14 points at any zoom.
-const MACOS_WORKSPACE_TOPBAR_HEIGHT = 52;
-const MACOS_WINDOW_BUTTON_RADIUS = 7;
+// Window buttons sit `top` CSS px from the top and `left` CSS px in (the red button's left edge on
+// the sidebar icons' left edge), scaled by zoom because native points ignore it. Both come from
+// Settings › Appearance; the preload sizes the top bar to inset + 14 + inset, like Claude's.
+const DEFAULT_WINDOW_BUTTON_INSETS = { top: 18, left: 12 };
+// Lucide icons draw their ink 1.5 CSS px inside the 16px box; the red button lines up with the ink.
+const ICON_INK_INSET = 1.5;
+const DEFAULT_WINDOW_BUTTON_INSETS_POINT = {
+  x: Math.round(DEFAULT_WINDOW_BUTTON_INSETS.left + ICON_INK_INSET),
+  y: DEFAULT_WINDOW_BUTTON_INSETS.top,
+};
+const windowButtonInsets = new WeakMap<Electron.BrowserWindow, { top: number; left: number }>();
 
 function syncMacosWindowButtons(window: Electron.BrowserWindow): void {
   if (window.isDestroyed() || window.isFullScreen()) return;
+  const zoom = window.webContents.getZoomFactor();
+  const insets = windowButtonInsets.get(window) ?? DEFAULT_WINDOW_BUTTON_INSETS;
   window.setWindowButtonPosition({
-    x: 16,
-    y: Math.round(
-      (MACOS_WORKSPACE_TOPBAR_HEIGHT * window.webContents.getZoomFactor()) / 2 -
-        MACOS_WINDOW_BUTTON_RADIUS,
-    ),
+    x: Math.round((insets.left + ICON_INK_INSET) * zoom),
+    y: Math.round(insets.top * zoom),
   });
+}
+
+export function setWindowButtonInsets(
+  window: Electron.BrowserWindow,
+  insets: { readonly top: number; readonly left: number },
+): void {
+  windowButtonInsets.set(window, { top: insets.top, left: insets.left });
+  syncMacosWindowButtons(window);
+}
+
+let preventSleepBlockerId: number | null = null;
+
+/** Holds a power-save blocker while enabled, so the Mac doesn't idle-sleep with the app open. */
+export function setPreventSleep(enabled: boolean): void {
+  if (enabled && preventSleepBlockerId === null) {
+    preventSleepBlockerId = Electron.powerSaveBlocker.start("prevent-app-suspension");
+  } else if (!enabled && preventSleepBlockerId !== null) {
+    Electron.powerSaveBlocker.stop(preventSleepBlockerId);
+    preventSleepBlockerId = null;
+  }
 }
 
 const TITLEBAR_COLOR = "#01000000"; // #00000000 does not work correctly on Linux
@@ -87,7 +116,11 @@ export type DesktopWindowError =
   | PreviewManager.PreviewManagerError;
 
 export type MainWindowZoomDirection = "in" | "out" | "reset";
-export type MainWindowContentsCommand = "reload" | "forceReload" | "toggleDevTools";
+export type MainWindowContentsCommand =
+  | "reload"
+  | "forceReload"
+  | "toggleDevTools"
+  | "saveDiagnostics";
 
 export class DesktopWindow extends Context.Service<
   DesktopWindow,
@@ -132,7 +165,7 @@ function getIconOption(
 }
 
 function getInitialWindowBackgroundColor(shouldUseDarkColors: boolean): string {
-  return shouldUseDarkColors ? "#000000" : "#ffffff";
+  return shouldUseDarkColors ? "#141414" : "#ffffff";
 }
 
 type DisplayBounds = Pick<Electron.Rectangle, "x" | "y" | "width" | "height">;
@@ -231,10 +264,7 @@ function getWindowTitleBarOptions(
   if (platform === "darwin") {
     return {
       titleBarStyle: "hiddenInset",
-      trafficLightPosition: {
-        x: 16,
-        y: MACOS_WORKSPACE_TOPBAR_HEIGHT / 2 - MACOS_WINDOW_BUTTON_RADIUS,
-      },
+      trafficLightPosition: DEFAULT_WINDOW_BUTTON_INSETS_POINT,
     };
   }
 
@@ -248,6 +278,54 @@ function getWindowTitleBarOptions(
   };
 }
 
+// Windows showing the desktop through; their background stays clear so the web app's surface
+// opacity alone decides how much shows. (macOS vibrancy was tried first: its material is mostly
+// opaque on its own, so lowering the opacity only darkened it.)
+const translucentWindows = new WeakSet<Electron.BrowserWindow>();
+const TRANSLUCENT_WINDOW_BACKGROUND = "#00000000";
+
+const windowBlurs = new WeakMap<
+  Electron.BrowserWindow,
+  { readonly radius: number; readonly addonPaths: ReadonlyArray<string> }
+>();
+
+// Fullscreen changes the window's corner radius, which the blur has to match again.
+function refreshWindowBackgroundBlur(window: Electron.BrowserWindow): void {
+  const blur = windowBlurs.get(window);
+  if (blur && blur.radius > 0) setWindowBackgroundBlur(window, blur.radius, blur.addonPaths);
+}
+
+/**
+ * Lets the desktop show through the window while the web app draws see-through surfaces, blurred
+ * by `blurRadius` points (`blurAddonPaths` locate native/window-blur).
+ */
+export function setWindowTranslucent(
+  window: Electron.BrowserWindow,
+  input: {
+    readonly enabled: boolean;
+    readonly blurRadius: number;
+    readonly blurAddonPaths: ReadonlyArray<string>;
+  },
+): void {
+  if (window.isDestroyed()) return;
+  if (translucentWindows.has(window) !== input.enabled) {
+    if (input.enabled) {
+      translucentWindows.add(window);
+      window.setBackgroundColor(TRANSLUCENT_WINDOW_BACKGROUND);
+    } else {
+      translucentWindows.delete(window);
+      window.setBackgroundColor(
+        getInitialWindowBackgroundColor(Electron.nativeTheme.shouldUseDarkColors),
+      );
+    }
+  }
+  const blurRadius = input.enabled ? input.blurRadius : 0;
+  if ((windowBlurs.get(window)?.radius ?? 0) !== blurRadius) {
+    windowBlurs.set(window, { radius: blurRadius, addonPaths: input.blurAddonPaths });
+    setWindowBackgroundBlur(window, blurRadius, input.blurAddonPaths);
+  }
+}
+
 function syncWindowAppearance(
   window: Electron.BrowserWindow,
   shouldUseDarkColors: boolean,
@@ -258,7 +336,11 @@ function syncWindowAppearance(
       return;
     }
 
-    window.setBackgroundColor(getInitialWindowBackgroundColor(shouldUseDarkColors));
+    window.setBackgroundColor(
+      translucentWindows.has(window)
+        ? TRANSLUCENT_WINDOW_BACKGROUND
+        : getInitialWindowBackgroundColor(shouldUseDarkColors),
+    );
     const { titleBarOverlay } = getWindowTitleBarOptions(shouldUseDarkColors, platform);
     if (typeof titleBarOverlay === "object") {
       window.setTitleBarOverlay(titleBarOverlay);
@@ -378,7 +460,11 @@ export const make = Effect.gen(function* () {
       minHeight: 620,
       show: false,
       autoHideMenuBar: true,
-      ...(environment.platform === "darwin" ? { disableAutoHideCursor: true } : {}),
+      // Transparent (macOS) so Settings › Appearance can let the desktop show through; the window
+      // stays solid behind the page until a surface opacity is lowered.
+      ...(environment.platform === "darwin"
+        ? { disableAutoHideCursor: true, transparent: true }
+        : {}),
       backgroundColor: getInitialWindowBackgroundColor(shouldUseDarkColors),
       ...iconOption,
       title: environment.displayName,
@@ -652,6 +738,7 @@ export const make = Effect.gen(function* () {
         event.preventDefault();
       }
     });
+    trackDiagnostics(window);
     window.webContents.on("input-event", (_event, input) => {
       if (input.type === "gestureScrollBegin") {
         window.webContents.send(TRACKPAD_SCROLL_BEGIN_CHANNEL);
@@ -679,10 +766,12 @@ export const make = Effect.gen(function* () {
 
     if (environment.platform === "darwin") {
       window.on("enter-full-screen", () => {
+        refreshWindowBackgroundBlur(window);
         window.webContents.send(WINDOW_FULLSCREEN_STATE_CHANNEL, true);
       });
       window.on("leave-full-screen", () => {
         syncMacosWindowButtons(window);
+        refreshWindowBackgroundBlur(window);
         window.webContents.send(WINDOW_FULLSCREEN_STATE_CHANNEL, false);
       });
     }
@@ -1021,7 +1110,9 @@ export const make = Effect.gen(function* () {
       const webContents = window.value.webContents;
       if (command === "reload") webContents.reload();
       else if (command === "forceReload") webContents.reloadIgnoringCache();
-      else webContents.toggleDevTools();
+      else if (command === "saveDiagnostics") {
+        yield* Effect.promise(() => saveDiagnosticsReport(window.value));
+      } else webContents.toggleDevTools();
     }),
     syncAppearance: Effect.gen(function* () {
       const shouldUseDarkColors = yield* electronTheme.shouldUseDarkColors;

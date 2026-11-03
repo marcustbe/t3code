@@ -111,7 +111,6 @@ import {
   SettingsSection,
 } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
-import { AdvancedSettings } from "./AdvancedSettings";
 import { useSettingsScope } from "./SettingsScopeContext";
 import { BrowserImportWizard, type WizardTarget } from "./BrowserImportWizard";
 import type { ImportOutcome } from "./browserImportWizard.logic";
@@ -1563,19 +1562,11 @@ export function BrowserSettingsPanel() {
         </SettingsUnavailableGroup>
         {/* Not desktop-only: web clients search from server-run browser tabs too. */}
         <BrowserSearchEngineSetting />
-        <AdvancedSettings
-          targetIds={[
-            searchableSetting("browser-default-viewport").id,
-            searchableSetting("browser-default-zoom").id,
-            searchableSetting("browser-default-appearance").id,
-          ]}
-        >
-          <SettingsUnavailableGroup message={desktopOnlyMessage}>
-            <BrowserViewportSetting disabled={desktopOnly} />
-            <BrowserZoomSetting disabled={desktopOnly} />
-            <BrowserAppearanceSetting disabled={desktopOnly} />
-          </SettingsUnavailableGroup>
-        </AdvancedSettings>
+        <SettingsUnavailableGroup message={desktopOnlyMessage}>
+          <BrowserViewportSetting disabled={desktopOnly} />
+          <BrowserZoomSetting disabled={desktopOnly} />
+          <BrowserAppearanceSetting disabled={desktopOnly} />
+        </SettingsUnavailableGroup>
       </SettingsSection>
       <SettingsSection id="browser-recordings" title="Recordings">
         <SettingsUnavailableGroup message={desktopOnlyMessage}>

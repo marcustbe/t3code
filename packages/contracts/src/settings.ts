@@ -133,6 +133,50 @@ export const GlassOpacity = Schema.Int.check(
 export type GlassOpacity = typeof GlassOpacity.Type;
 const DEFAULT_GLASS_OPACITY: GlassOpacity = 80;
 
+/** How solid the sidebar and the main area are; under 100 the desktop shows through (macOS). */
+export const MIN_WINDOW_SURFACE_OPACITY = 0;
+export const MAX_WINDOW_SURFACE_OPACITY = 100;
+export const WindowSurfaceOpacity = Schema.Int.check(
+  Schema.isBetween({
+    minimum: MIN_WINDOW_SURFACE_OPACITY,
+    maximum: MAX_WINDOW_SURFACE_OPACITY,
+  }),
+);
+export type WindowSurfaceOpacity = typeof WindowSurfaceOpacity.Type;
+const DEFAULT_WINDOW_SURFACE_OPACITY: WindowSurfaceOpacity = 100;
+
+/** Points of blur on the desktop behind see-through surfaces (macOS). */
+export const MIN_WINDOW_BLUR_RADIUS = 0;
+// Past the window server's 60-point limit the desktop app blurs with a backdrop layer instead.
+export const MAX_WINDOW_BLUR_RADIUS = 200;
+export const WindowBlurRadius = Schema.Int.check(
+  Schema.isBetween({ minimum: MIN_WINDOW_BLUR_RADIUS, maximum: MAX_WINDOW_BLUR_RADIUS }),
+);
+export type WindowBlurRadius = typeof WindowBlurRadius.Type;
+const DEFAULT_WINDOW_BLUR_RADIUS: WindowBlurRadius = 50;
+
+/** Strength of the noise texture over the app's surfaces, in percent of upstream's grain. */
+export const MAX_BACKGROUND_GRAIN = 200;
+export const BackgroundGrain = Schema.Int.check(
+  Schema.isBetween({ minimum: 0, maximum: MAX_BACKGROUND_GRAIN }),
+);
+
+/** CSS px of blur under the chat's top bar. */
+export const MAX_TOP_BAR_BLUR = 64;
+export const TopBarBlur = Schema.Int.check(
+  Schema.isBetween({ minimum: 0, maximum: MAX_TOP_BAR_BLUR }),
+);
+
+/** CSS px from a window edge to the icons and text that sit along it. */
+export const MIN_EDGE_PADDING = 0;
+export const MAX_EDGE_PADDING = 40;
+export const EdgePadding = Schema.Int.check(
+  Schema.isBetween({ minimum: MIN_EDGE_PADDING, maximum: MAX_EDGE_PADDING }),
+);
+
+export const ComposerPromptLayout = Schema.Literals(["stack", "inline"]);
+export type ComposerPromptLayout = typeof ComposerPromptLayout.Type;
+
 export const MIN_APPEARANCE_CONTRAST = 50;
 export const MAX_APPEARANCE_CONTRAST = 200;
 export const AppearanceContrast = Schema.Int.check(
@@ -166,6 +210,22 @@ export const PromptFontSize = Schema.Int.check(
 );
 export type PromptFontSize = typeof PromptFontSize.Type;
 export const DEFAULT_PROMPT_FONT_SIZE: PromptFontSize = 14;
+
+export const MIN_CHAT_FONT_SIZE = 12;
+export const MAX_CHAT_FONT_SIZE = 22;
+export const ChatFontSize = Schema.Int.check(
+  Schema.isBetween({ minimum: MIN_CHAT_FONT_SIZE, maximum: MAX_CHAT_FONT_SIZE }),
+);
+export type ChatFontSize = typeof ChatFontSize.Type;
+export const DEFAULT_CHAT_FONT_SIZE: ChatFontSize = 15;
+
+export const MIN_CHAT_FONT_WEIGHT = 300;
+export const MAX_CHAT_FONT_WEIGHT = 600;
+export const ChatFontWeight = Schema.Int.check(
+  Schema.isBetween({ minimum: MIN_CHAT_FONT_WEIGHT, maximum: MAX_CHAT_FONT_WEIGHT }),
+);
+export type ChatFontWeight = typeof ChatFontWeight.Type;
+export const DEFAULT_CHAT_FONT_WEIGHT: ChatFontWeight = 450;
 
 export const MIN_CODE_FONT_SIZE = 10;
 export const MAX_CODE_FONT_SIZE = 18;
@@ -426,12 +486,56 @@ export const ClientSettingsSchema = Schema.Struct({
   glassOpacity: GlassOpacity.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_GLASS_OPACITY)),
   ),
+  sidebarShowPullRequests: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  // The Settled shelf header shows how many chats it holds.
+  sidebarShowSettledCount: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  // Sidebar chat rows drop the project name and show only its icon, before the chat title.
+  sidebarProjectIconOnly: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  sidebarSurfaceOpacity: WindowSurfaceOpacity.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_WINDOW_SURFACE_OPACITY)),
+  ),
+  contentSurfaceOpacity: WindowSurfaceOpacity.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_WINDOW_SURFACE_OPACITY)),
+  ),
+  // The right panel's own opacity, separate from the left sidebar's.
+  panelSurfaceOpacity: WindowSurfaceOpacity.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_WINDOW_SURFACE_OPACITY)),
+  ),
+  windowBlurRadius: WindowBlurRadius.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_WINDOW_BLUR_RADIUS)),
+  ),
+  backgroundGrain: BackgroundGrain.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
+  topBarBlur: TopBarBlur.pipe(Schema.withDecodingDefault(Effect.succeed(16))),
+  // Glyph distance from the edges: the sidebar's sides (its icons), the window top (window buttons,
+  // which also set the top bar's height), the sidebar's bottom (footer icons), the main top bar's
+  // sides, and the browser panel's sides, top and bottom.
+  sidebarSidePadding: EdgePadding.pipe(Schema.withDecodingDefault(Effect.succeed(12))),
+  windowTopPadding: EdgePadding.pipe(Schema.withDecodingDefault(Effect.succeed(18))),
+  sidebarBottomPadding: EdgePadding.pipe(Schema.withDecodingDefault(Effect.succeed(12))),
+  topBarSidePadding: EdgePadding.pipe(Schema.withDecodingDefault(Effect.succeed(16))),
+  browserSidePadding: EdgePadding.pipe(Schema.withDecodingDefault(Effect.succeed(8))),
+  browserTopPadding: EdgePadding.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
+  browserBottomPadding: EdgePadding.pipe(Schema.withDecodingDefault(Effect.succeed(8))),
+  // "inline" keeps a long prompt between + and send instead of moving it above them.
+  composerPromptLayout: ComposerPromptLayout.pipe(
+    Schema.withDecodingDefault(Effect.succeed("stack" as const)),
+  ),
+  // Desktop: keeps the Mac from sleeping while the app is open, idle or not.
+  preventSleepWhileOpen: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   fontSizeInterface: InterfaceFontSize.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_INTERFACE_FONT_SIZE)),
   ),
   fontSizePrompt: PromptFontSize.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_PROMPT_FONT_SIZE)),
   ),
+  fontSizeChat: ChatFontSize.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_CHAT_FONT_SIZE)),
+  ),
+  fontWeightChat: ChatFontWeight.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_CHAT_FONT_WEIGHT)),
+  ),
+  // Off keeps the conversation above the composer instead of running into its box.
+  chatScrollsBehindComposer: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   fontSizeCode: CodeFontSize.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_CODE_FONT_SIZE)),
   ),
@@ -464,7 +568,8 @@ export const ClientSettingsSchema = Schema.Struct({
   pullRequestLinksOpenInApp: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
 
   planModeEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
-  contextWindowMeterEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  // Replaced contextWindowMeterEnabled (default off) so the ring shows for everyone who had it off.
+  contextWindowMeterVisible: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   composerRichTextEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   sendShortcut: Schema.Literals(["enter", "mod-enter-multiline", "mod-enter"]).pipe(
     Schema.withDecodingDefault(Effect.succeed("enter")),
@@ -1747,9 +1852,30 @@ export const ClientSettingsPatch = Schema.Struct({
   diffLayout: Schema.optionalKey(DiffLayout),
   environmentIdentificationMode: Schema.optionalKey(EnvironmentIdentificationMode),
   glassOpacity: Schema.optionalKey(GlassOpacity),
+  sidebarShowPullRequests: Schema.optionalKey(Schema.Boolean),
+  sidebarShowSettledCount: Schema.optionalKey(Schema.Boolean),
+  sidebarProjectIconOnly: Schema.optionalKey(Schema.Boolean),
+  sidebarSurfaceOpacity: Schema.optionalKey(WindowSurfaceOpacity),
+  contentSurfaceOpacity: Schema.optionalKey(WindowSurfaceOpacity),
+  panelSurfaceOpacity: Schema.optionalKey(WindowSurfaceOpacity),
+  windowBlurRadius: Schema.optionalKey(WindowBlurRadius),
+  backgroundGrain: Schema.optionalKey(BackgroundGrain),
+  topBarBlur: Schema.optionalKey(TopBarBlur),
+  sidebarSidePadding: Schema.optionalKey(EdgePadding),
+  windowTopPadding: Schema.optionalKey(EdgePadding),
+  sidebarBottomPadding: Schema.optionalKey(EdgePadding),
+  topBarSidePadding: Schema.optionalKey(EdgePadding),
+  browserSidePadding: Schema.optionalKey(EdgePadding),
+  browserTopPadding: Schema.optionalKey(EdgePadding),
+  browserBottomPadding: Schema.optionalKey(EdgePadding),
+  composerPromptLayout: Schema.optionalKey(ComposerPromptLayout),
+  preventSleepWhileOpen: Schema.optionalKey(Schema.Boolean),
   onboardingCompletedAt: Schema.optionalKey(Schema.NullOr(Schema.String)),
   fontSizeInterface: Schema.optionalKey(InterfaceFontSize),
   fontSizePrompt: Schema.optionalKey(PromptFontSize),
+  fontSizeChat: Schema.optionalKey(ChatFontSize),
+  fontWeightChat: Schema.optionalKey(ChatFontWeight),
+  chatScrollsBehindComposer: Schema.optionalKey(Schema.Boolean),
   fontSizeCode: Schema.optionalKey(CodeFontSize),
   fontSizeTerminal: Schema.optionalKey(TerminalFontSize),
   fontFamilyCode: Schema.optionalKey(FontFamilyPreference),
@@ -1765,7 +1891,7 @@ export const ClientSettingsPatch = Schema.Struct({
   ),
   pullRequestLinksOpenInApp: Schema.optionalKey(Schema.Boolean),
   planModeEnabled: Schema.optionalKey(Schema.Boolean),
-  contextWindowMeterEnabled: Schema.optionalKey(Schema.Boolean),
+  contextWindowMeterVisible: Schema.optionalKey(Schema.Boolean),
   composerRichTextEnabled: Schema.optionalKey(Schema.Boolean),
   sendShortcut: Schema.optionalKey(Schema.Literals(["enter", "mod-enter-multiline", "mod-enter"])),
   followUpBehavior: Schema.optionalKey(Schema.Literals(["queue", "steer"])),

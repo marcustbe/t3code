@@ -13,6 +13,9 @@ import {
   DesktopPreviewSetZoomFactorInputSchema,
   BrowserImportResult,
   BrowserImportSource,
+  DesktopBrowserExtension,
+  DesktopBrowserExtensionPathInput,
+  DesktopChromeExtensionCandidate,
   DesktopPreviewClearDataInputSchema,
   DesktopPreviewImportCookiesInputSchema,
   DesktopPreviewCreateTabInputSchema,
@@ -30,7 +33,9 @@ import * as Schema from "effect/Schema";
 import * as Option from "effect/Option";
 import * as NodeURL from "node:url";
 
+import * as ElectronDialog from "../../electron/ElectronDialog.ts";
 import * as ElectronWindow from "../../electron/ElectronWindow.ts";
+import * as BrowserExtensions from "../../preview/BrowserExtensions.ts";
 import * as BrowserImport from "../../preview/BrowserImport/BrowserImport.ts";
 import * as PreviewManager from "../../preview/Manager.ts";
 import { normalizeCaptureFailure } from "../../preview/captureErrors.ts";
@@ -300,12 +305,67 @@ const getPreviewConfig = DesktopIpc.makeIpcMethod({
     const manager = yield* PreviewManager.PreviewManager;
     const { scope, persistent, namespace } = resolvePartitionScope(environmentId, profileId);
     // Session creation installs UA and permission handlers before a guest can attach.
-    yield* manager.getBrowserSession(scope, persistent, namespace);
+    const session = yield* manager.getBrowserSession(scope, persistent, namespace);
+    // Content scripts register before the guest's first navigation.
+    yield* (yield* BrowserExtensions.BrowserExtensions).attach(session);
     return {
       partition: yield* manager.getBrowserPartition(scope, persistent, namespace),
       webPreferences: PREVIEW_WEBVIEW_PREFERENCES,
       preloadUrl: NodeURL.pathToFileURL(`${__dirname}/preview-pick-preload.cjs`).href,
     };
+  }),
+});
+
+const listExtensions = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.PREVIEW_EXTENSIONS_LIST_CHANNEL,
+  payload: Schema.Void,
+  result: Schema.Array(DesktopBrowserExtension),
+  handler: Effect.fn("desktop.ipc.preview.listExtensions")(function* () {
+    return yield* (yield* BrowserExtensions.BrowserExtensions).list;
+  }),
+});
+
+const addUnpackedExtension = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.PREVIEW_EXTENSIONS_ADD_UNPACKED_CHANNEL,
+  payload: Schema.Void,
+  result: Schema.NullOr(DesktopBrowserExtension),
+  handler: Effect.fn("desktop.ipc.preview.addUnpackedExtension")(function* () {
+    const dialog = yield* ElectronDialog.ElectronDialog;
+    const electronWindow = yield* ElectronWindow.ElectronWindow;
+    // The renderer never names the folder: only one the user picked here can be loaded.
+    const picked = yield* dialog.pickFolder({
+      owner: yield* electronWindow.focusedMainOrFirst,
+      defaultPath: Option.none(),
+    });
+    if (Option.isNone(picked)) return null;
+    return yield* (yield* BrowserExtensions.BrowserExtensions).add(picked.value);
+  }),
+});
+
+const removeExtension = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.PREVIEW_EXTENSIONS_REMOVE_CHANNEL,
+  payload: DesktopBrowserExtensionPathInput,
+  result: Schema.Void,
+  handler: Effect.fn("desktop.ipc.preview.removeExtension")(function* ({ path }) {
+    yield* (yield* BrowserExtensions.BrowserExtensions).remove(path);
+  }),
+});
+
+const listChromeExtensionCandidates = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.PREVIEW_EXTENSIONS_CHROME_CANDIDATES_CHANNEL,
+  payload: Schema.Void,
+  result: Schema.Array(DesktopChromeExtensionCandidate),
+  handler: Effect.fn("desktop.ipc.preview.listChromeExtensionCandidates")(function* () {
+    return yield* (yield* BrowserExtensions.BrowserExtensions).listChromeCandidates;
+  }),
+});
+
+const importChromeExtension = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.PREVIEW_EXTENSIONS_IMPORT_CHROME_CHANNEL,
+  payload: DesktopBrowserExtensionPathInput,
+  result: DesktopBrowserExtension,
+  handler: Effect.fn("desktop.ipc.preview.importChromeExtension")(function* ({ path }) {
+    return yield* (yield* BrowserExtensions.BrowserExtensions).importFromChrome(path);
   }),
 });
 
@@ -436,6 +496,11 @@ export const methods = [
   clearCookies,
   clearCache,
   getPreviewConfig,
+  listExtensions,
+  addUnpackedExtension,
+  removeExtension,
+  listChromeExtensionCandidates,
+  importChromeExtension,
   setAnnotationTheme,
   setAnnotationSendEnabled,
   pickElement,

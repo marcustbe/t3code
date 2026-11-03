@@ -149,11 +149,3 @@ export function selectThreadPreviewMiniPlayer(
   if (!ref) return null;
   return byThreadKey[scopedThreadKey(ref)] ?? null;
 }
-
-export function selectThreadPreviewMiniPlayerTabId(
-  byThreadKey: Record<string, PreviewMiniPlayerState>,
-  ref: ScopedThreadRef | null | undefined,
-): string | null {
-  const source = selectThreadPreviewMiniPlayer(byThreadKey, ref)?.source;
-  return source?.kind === "browser" ? source.tabId : null;
-}

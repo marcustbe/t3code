@@ -26,6 +26,27 @@ const provider: ServerProvider = {
   },
 };
 
+describe("unchecked providers", () => {
+  it("shows no banner for the placeholder sent before the first check", () => {
+    const { compatibilityAdvisory: _advisory, ...base } = provider;
+    const unchecked: ServerProvider = {
+      ...base,
+      installed: false,
+      version: null,
+      status: "warning",
+      auth: { status: "unknown" },
+      message: "Claude provider status has not been checked in this session yet.",
+    };
+    expect(getProviderStatusBannerKey(unchecked)).toBeNull();
+    expect(
+      getProviderStatusBannerKey({
+        ...unchecked,
+        message: "Could not verify Claude authentication.",
+      }),
+    ).not.toBeNull();
+  });
+});
+
 describe("compatibility banners", () => {
   it("shows and dismisses a warning on a healthy provider, then clears it after policy relaxation", () => {
     expect(shouldShowProviderStatusBanner(provider, null)).toBe(true);

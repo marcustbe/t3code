@@ -9,7 +9,7 @@ import type {
   ThreadPullRequestLink,
 } from "@t3tools/contracts";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, use } from "react";
 import type { ComposerImageAttachment, DraftId } from "../../composerDraftStore";
 import type { ShortcutMatchContext } from "../../keybindings";
 import { type RightPanelSurface, useRightPanelStore } from "../../rightPanelStore";
@@ -19,6 +19,7 @@ import {
 } from "../PersistentThreadTerminals";
 import { pullRequestPanelContext } from "../pullRequest/pullRequestDetail.logic";
 import { PullRequestDetailPanel } from "../pullRequest/PullRequestDetailPanel";
+import { BackgroundThreadContext } from "./backgroundThread";
 import { PullRequestDetailGhost } from "../pullRequest/PullRequestGhosts";
 import { PullRequestsUnavailableState } from "../pullRequest/PullRequestsUnavailableState";
 import { ThreadPullRequestsPanel } from "../pullRequest/ThreadPullRequestsPanel";
@@ -77,6 +78,8 @@ export function RightPanelSurfaceContent(props: {
   readonly files: RightPanelFileProps;
 }) {
   const { surface, threadRef, visible } = props;
+  // The browser draws on top of the page, so it hides while the thread sits behind Settings or Usage.
+  const backgroundThread = use(BackgroundThreadContext);
   if (surface === null) return null;
   switch (surface.kind) {
     case "preview":
@@ -87,7 +90,7 @@ export function RightPanelSurfaceContent(props: {
             threadRef={threadRef}
             tabId={surface.resourceId}
             configuredUrls={props.configuredPreviewUrls}
-            visible={visible}
+            visible={visible && !backgroundThread}
             onSendAnnotation={props.onSendAnnotation}
           />
         </Suspense>

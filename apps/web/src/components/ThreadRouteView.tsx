@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import ChatView from "./ChatView";
 import { BackgroundThreadContext } from "./chat/backgroundThread";
 import { SidebarInset } from "./ui/sidebar";
+import { cn } from "../lib/utils";
 import { useComposerDraftStore } from "../composerDraftStore";
 import { useSidebarPendingFileDropStore } from "../sidebarPendingFileDropStore";
 import { useEnvironmentThreadRefs, useQuietThreadShell } from "../state/entities";
@@ -18,17 +19,18 @@ import {
 } from "../threadRoutes";
 
 /**
- * Unkeyed so navigating between server threads reuses one ChatView. Rendered by the `_chat`
- * layout, since an element only survives a route swap when the same parent renders it. Draft
- * promotion runs in the draft store; this only follows the redirect it leaves behind.
- * `background` keeps the thread mounted, inert and in place under Settings or Usage.
+ * Unkeyed so server threads reuse one ChatView; rendered by the `_chat` layout so it survives route
+ * swaps. `background` keeps it mounted and inert under Settings or Usage; `concealed` also takes it
+ * out of the layout, keeping its scroll position.
  */
 export function ThreadRouteView({
   target,
   background = false,
+  concealed = false,
 }: {
   target: ThreadRouteTarget;
   background?: boolean;
+  concealed?: boolean;
 }) {
   const navigate = useNavigate();
   const draftId = target.kind === "draft" ? target.draftId : null;
@@ -150,7 +152,11 @@ export function ThreadRouteView({
 
   return (
     <SidebarInset
-      className="h-svh min-h-0 overflow-hidden overscroll-y-none md:h-dvh"
+      className={cn(
+        "h-svh min-h-0 overflow-hidden overscroll-y-none md:h-dvh",
+        concealed &&
+          "invisible absolute inset-y-0 right-0 w-[calc(100%-var(--sidebar-width))] group-data-[sidebar-state=collapsed]/sidebar-wrapper:w-full",
+      )}
       inert={background}
     >
       <BackgroundThreadContext value={background}>{view}</BackgroundThreadContext>

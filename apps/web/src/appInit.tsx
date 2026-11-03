@@ -4,6 +4,7 @@ import { createBrowserHistory, createHashHistory } from "@tanstack/react-router"
 
 import { applyAppearanceContrast } from "./appearanceContrast";
 import { applyAppearanceFontVariables } from "./appearanceFonts";
+import { applyAppearanceLayout } from "./appearanceLayout";
 import { startElectronBrowserHost } from "./browser/ElectronBrowserHost";
 import { startBrowserProfileReporting } from "./browser/BrowserProfileReporter";
 import { startPreviewTitleRecording } from "./browserHistoryStore";
@@ -23,6 +24,7 @@ import { startGuideRunNotifications } from "./components/pullRequest/guide/PullR
 import { APP_BASE_NAME, APP_DISPLAY_NAME, APP_STAGE_LABEL } from "./branding";
 import { resolveServerBackedAppDisplayName } from "./branding.logic";
 import { isElectron } from "./env";
+import { isMacPlatform } from "./lib/utils";
 import {
   subscribeComposerDraftModelReconciliation,
   subscribeDraftThreadPromotion,
@@ -54,6 +56,42 @@ import { registerOpenFavoriteEditorCommand } from "./components/chat/OpenInPicke
 import { environmentThreadShells } from "./state/threads";
 import { resolveThreadRouteTarget } from "./threadRoutes";
 
+// Only the macOS desktop app can show the desktop through the window.
+const WINDOW_TRANSLUCENCY_SUPPORTED = isElectron && isMacPlatform(navigator.platform);
+
+if (isMacPlatform(navigator.platform)) {
+  document.documentElement.dataset.nativeScrollbars = "true";
+}
+
+// macOS "Reduce transparency" (Accessibility › Display) keeps the window solid whatever the
+// opacity sliders say.
+const reducedTransparencyQuery = window.matchMedia("(prefers-reduced-transparency: reduce)");
+
+/** See-through surfaces: the CSS tints them, the desktop app clears and blurs the window behind. */
+function applyWindowTranslucency(root: HTMLElement, settings: ClientSettings): void {
+  const reduced = reducedTransparencyQuery.matches;
+  const sidebarOpacity = reduced ? 100 : settings.sidebarSurfaceOpacity;
+  const contentOpacity = reduced ? 100 : settings.contentSurfaceOpacity;
+  const panelOpacity = reduced ? 100 : settings.panelSurfaceOpacity;
+  root.style.setProperty("--sidebar-surface-opacity", `${sidebarOpacity}%`);
+  root.style.setProperty("--content-surface-opacity", `${contentOpacity}%`);
+  root.style.setProperty("--panel-surface-opacity", `${panelOpacity}%`);
+  const translucent =
+    WINDOW_TRANSLUCENCY_SUPPORTED &&
+    (sidebarOpacity < 100 || contentOpacity < 100 || panelOpacity < 100);
+  if (translucent) {
+    root.dataset.windowTranslucent = "true";
+  } else {
+    delete root.dataset.windowTranslucent;
+  }
+  // The main area itself is see-through, so the chat's top bar can't blur (index.css).
+  root.toggleAttribute("data-content-translucent", translucent && contentOpacity < 100);
+  void window.desktopBridge?.setWindowTranslucent?.({
+    enabled: translucent,
+    blurRadius: settings.windowBlurRadius,
+  });
+}
+
 /** Writes appearance settings onto the document, touching only the groups that changed. */
 function startClientAppearance(): void {
   const root = document.documentElement;
@@ -80,11 +118,37 @@ function startClientAppearance(): void {
       }
     }
     if (
+      previous?.sidebarSurfaceOpacity !== settings.sidebarSurfaceOpacity ||
+      previous.contentSurfaceOpacity !== settings.contentSurfaceOpacity ||
+      previous.panelSurfaceOpacity !== settings.panelSurfaceOpacity ||
+      previous.windowBlurRadius !== settings.windowBlurRadius
+    ) {
+      applyWindowTranslucency(root, settings);
+    }
+    if (
+      previous?.backgroundGrain !== settings.backgroundGrain ||
+      previous.topBarBlur !== settings.topBarBlur ||
+      previous.sidebarSidePadding !== settings.sidebarSidePadding ||
+      previous.windowTopPadding !== settings.windowTopPadding ||
+      previous.sidebarBottomPadding !== settings.sidebarBottomPadding ||
+      previous.topBarSidePadding !== settings.topBarSidePadding ||
+      previous.browserSidePadding !== settings.browserSidePadding ||
+      previous.browserTopPadding !== settings.browserTopPadding ||
+      previous.browserBottomPadding !== settings.browserBottomPadding
+    ) {
+      applyAppearanceLayout(root, settings);
+    }
+    if (previous?.preventSleepWhileOpen !== settings.preventSleepWhileOpen) {
+      void window.desktopBridge?.setPreventSleep?.(settings.preventSleepWhileOpen);
+    }
+    if (
       previous?.fontFamilySans !== settings.fontFamilySans ||
       previous.fontFamilyCode !== settings.fontFamilyCode ||
       previous.fontFamilyComposer !== settings.fontFamilyComposer ||
       previous.fontSizeInterface !== settings.fontSizeInterface ||
       previous.fontSizePrompt !== settings.fontSizePrompt ||
+      previous.fontSizeChat !== settings.fontSizeChat ||
+      previous.fontWeightChat !== settings.fontWeightChat ||
       previous.fontSizeCode !== settings.fontSizeCode ||
       previous.fontSmoothing !== settings.fontSmoothing
     ) {
@@ -94,12 +158,17 @@ function startClientAppearance(): void {
         composer: settings.fontFamilyComposer,
         sizeInterface: settings.fontSizeInterface,
         sizePrompt: settings.fontSizePrompt,
+        sizeChat: settings.fontSizeChat,
+        weightChat: settings.fontWeightChat,
         sizeCode: settings.fontSizeCode,
         smoothing: settings.fontSmoothing,
       });
     }
   };
   subscribeClientSettings(apply);
+  reducedTransparencyQuery.addEventListener("change", () =>
+    applyWindowTranslucency(root, getClientSettings()),
+  );
   apply();
 }
 

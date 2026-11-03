@@ -136,7 +136,7 @@ const DEFAULT_ANNOTATION_THEME: DesktopPreviewAnnotationTheme = {
   foreground: "oklch(0.269 0 0)",
   popover: "white",
   popoverForeground: "oklch(0.269 0 0)",
-  primary: "oklch(0.488 0.217 264)",
+  primary: "#0077f9",
   primaryForeground: "white",
   muted: "rgb(0 0 0 / 4%)",
   mutedForeground: "oklch(0.556 0 0)",
@@ -144,7 +144,7 @@ const DEFAULT_ANNOTATION_THEME: DesktopPreviewAnnotationTheme = {
   accentForeground: "oklch(0.269 0 0)",
   border: "rgb(0 0 0 / 8%)",
   input: "rgb(0 0 0 / 10%)",
-  ring: "oklch(0.488 0.217 264)",
+  ring: "#0077f9",
   fontSans: "system-ui, sans-serif",
   fontMono: "ui-monospace, monospace",
 };
@@ -507,9 +507,24 @@ const isPreviewInputSignal = (value: unknown): value is PreviewInputSignal => {
   );
 };
 
+const SiteZoomStore = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Number));
+const decodeSiteZoomStore = Schema.decodeEffect(SiteZoomStore);
+const encodeSiteZoomStore = Schema.encodeEffect(SiteZoomStore);
+
+/** The site a zoom belongs to, like Chrome: the host of an http(s) page, none for other schemes. */
+const zoomSiteOf = (url: string): string | null => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.host : null;
+  } catch {
+    return null;
+  }
+};
+
 const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function* (
   artifactDirectory: string,
   pictureInPicturePreloadPath: string,
+  stateDirectory: string,
 ) {
   const fileSystem = yield* FileSystem.FileSystem;
   const rendererHistory = yield* DesktopRendererHistory.DesktopRendererHistory;
@@ -528,6 +543,23 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
   const annotationSendEnabled = new Map<string, boolean>();
   const mainWindowRef = yield* Ref.make<Option.Option<BrowserWindow>>(Option.none());
   const tabsRef = yield* SynchronizedRef.make<ReadonlyMap<string, PreviewTabState>>(new Map());
+  // Zoom is remembered per site like Chrome's: zooming saves it for the page's host, and a tab
+  // landing on that host takes it back; other sites open at the tab's default zoom.
+  const siteZoomPath = path.join(stateDirectory, "browser-site-zoom.json");
+  const siteZoom = new Map<string, number>(
+    Object.entries(
+      yield* fileSystem.readFileString(siteZoomPath).pipe(
+        Effect.flatMap(decodeSiteZoomStore),
+        Effect.orElseSucceed((): Readonly<Record<string, number>> => ({})),
+      ),
+    ),
+  );
+  const tabDefaultZoom = new Map<string, number>();
+  const saveSiteZoom = fileSystem.makeDirectory(stateDirectory, { recursive: true }).pipe(
+    Effect.andThen(Effect.suspend(() => encodeSiteZoomStore(Object.fromEntries(siteZoom)))),
+    Effect.flatMap((json) => fileSystem.writeFileString(siteZoomPath, json)),
+    Effect.catch((error) => Effect.logWarning("Could not save browser site zoom.", { error })),
+  );
   const attachedRef = yield* Ref.make<ReadonlyMap<number, ManagedListeners>>(new Map());
   const listenersRef = yield* Ref.make<ReadonlySet<Listener>>(new Set());
   const pointerEventListenersRef = yield* Ref.make<ReadonlySet<PointerEventListener>>(new Set());
@@ -1228,7 +1260,8 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
       if (Option.isSome(next)) yield* emitIfCurrent(tabId, next.value);
     });
     const sync = () => runFork(syncState(true));
-    const syncNavigation = () => runFork(syncState(false, true));
+    const syncNavigation = () =>
+      runFork(syncState(false, true).pipe(Effect.andThen(restoreSiteZoom(tabId, wc))));
     const syncInPageNavigation = () => runFork(syncState(false));
     const restoreRecordingCursor = () =>
       runFork(
@@ -1637,6 +1670,7 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
     );
     if (result.created) {
       tabLifecycleGenerations.set(tabId, (tabLifecycleGenerations.get(tabId) ?? 0) + 1);
+      tabDefaultZoom.set(tabId, normalizeZoomFactor(defaults?.zoomFactor));
     }
     yield* emit(tabId, result.state);
     return result.state;
@@ -1675,6 +1709,7 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
       ] as const;
     });
     if (Option.isNone(tab)) return;
+    tabDefaultZoom.delete(tabId);
     const closedTab = tab.value;
     if (closedTab.webContentsId != null) {
       yield* Effect.all(
@@ -2232,15 +2267,46 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
     if (!tab) return;
     const next = transform(tab.zoomFactor);
     if (Math.abs(next - tab.zoomFactor) < ZOOM_EPSILON) return;
+    let pageUrl = tab.navStatus.kind === "Idle" ? null : tab.navStatus.url;
     if (tab.webContentsId != null) {
       const wc = webContents.fromId(tab.webContentsId);
       if (wc && !wc.isDestroyed()) {
+        pageUrl = wc.getURL() || pageUrl;
         yield* attempt({ operation: "applyZoom", tabId, webContentsId: wc.id }, () =>
           wc.setZoomFactor(next),
         );
       }
     }
     yield* update(tabId, { zoomFactor: next });
+    const site = pageUrl ? zoomSiteOf(pageUrl) : null;
+    if (!site) return;
+    // Back at the default, the site forgets its zoom.
+    if (Math.abs(next - (tabDefaultZoom.get(tabId) ?? DEFAULT_ZOOM_FACTOR)) < ZOOM_EPSILON) {
+      siteZoom.delete(site);
+    } else {
+      siteZoom.set(site, next);
+    }
+    yield* saveSiteZoom;
+  });
+
+  /** After a page commits, gives the tab its site's remembered zoom, or its default. */
+  const restoreSiteZoom = Effect.fn("PreviewManager.restoreSiteZoom")(function* (
+    tabId: string,
+    wc: Electron.WebContents,
+  ) {
+    if (wc.isDestroyed()) return;
+    const site = zoomSiteOf(wc.getURL());
+    if (!site) return;
+    const tab = (yield* SynchronizedRef.get(tabsRef)).get(tabId);
+    if (!tab || tab.webContentsId !== wc.id) return;
+    const target = normalizeZoomFactor(
+      siteZoom.get(site) ?? tabDefaultZoom.get(tabId) ?? DEFAULT_ZOOM_FACTOR,
+    );
+    if (Math.abs(target - tab.zoomFactor) < ZOOM_EPSILON) return;
+    yield* attempt({ operation: "restoreSiteZoom", tabId, webContentsId: wc.id }, () =>
+      wc.setZoomFactor(target),
+    ).pipe(Effect.ignore);
+    yield* update(tabId, { zoomFactor: target });
   });
 
   // Media emulation belongs to the debugger session and must be restored after every reattach.
@@ -3607,6 +3673,7 @@ export const make = Effect.gen(function* PreviewManagerMake() {
   const operations = yield* makeNativeOperations(
     environment.browserArtifactsDir,
     environment.path.join(environment.dirname, "preview-pip-preload.cjs"),
+    environment.stateDir,
   );
 
   return PreviewManager.of({

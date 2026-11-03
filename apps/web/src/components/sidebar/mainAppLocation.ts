@@ -2,9 +2,14 @@ import { useNavigate, type AnyRouter } from "@tanstack/react-router";
 
 import { GUEST_PAGE_PATH } from "../../guestPage";
 
-/** Settings and Usage open as modals over the last main-app view. */
+/** Settings and Usage are pages over the last main-app view (the chat stays mounted behind them). */
 export function isAppModalPage(pathname: string) {
   return pathname === "/settings" || pathname.startsWith("/settings/") || pathname === "/usage";
+}
+
+/** Settings fills the main area and takes over the sidebar, instead of floating over a thread. */
+export function isSettingsPage(pathname: string) {
+  return pathname === "/settings" || pathname.startsWith("/settings/");
 }
 
 export function isSidebarUtilityPage(pathname: string) {

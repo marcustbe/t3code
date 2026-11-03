@@ -429,8 +429,13 @@ function OpenCommandPaletteDialog(props: {
   const desktopLocalBootstraps = useDesktopLocalBootstraps();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const availableSettingsSearchItems = useAvailableSettingsSearchItems();
-  const { activeDraftThread, activeThread, defaultProjectRef, handleNewThread } =
-    useHandleNewThread();
+  const {
+    activeDraftThread,
+    activeThread,
+    defaultProjectRef,
+    rememberedProjectRef,
+    handleNewThread,
+  } = useHandleNewThread();
   const paletteRouteTarget = useThreadRouteTarget();
   const projects = useProjects();
   const referenceThreadRef =
@@ -1175,6 +1180,7 @@ function OpenCommandPaletteDialog(props: {
             activeDraftThread,
             activeThread: activeThread ?? undefined,
             defaultProjectRef,
+            rememberedProjectRef,
             handleNewThread,
           });
         },

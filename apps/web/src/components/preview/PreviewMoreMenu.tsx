@@ -18,6 +18,8 @@ import {
 } from "~/components/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 
+import { PreviewExtensionsMenu } from "./PreviewExtensionsMenu";
+
 const COLOR_SCHEME_OPTIONS: ReadonlyArray<{
   value: DesktopPreviewColorScheme;
   label: string;
@@ -48,6 +50,8 @@ interface Props {
   onToggleDeviceToolbar: () => void;
   nativePictureInPicture: boolean;
   profileName: string | undefined;
+  /** The tab renders in this app's own browser, where loaded extensions run. */
+  extensions?: boolean;
   move?: { readonly label: string; readonly onMove: () => void };
 }
 
@@ -75,6 +79,7 @@ export function PreviewMoreMenu({
   onToggleDeviceToolbar,
   nativePictureInPicture,
   profileName,
+  extensions = false,
   move,
 }: Props) {
   const zoomLabel = `${Math.round(zoomFactor * 100)}%`;
@@ -117,6 +122,7 @@ export function PreviewMoreMenu({
             </MenuRadioGroup>
           </MenuSubPopup>
         </MenuSub>
+        {extensions ? <PreviewExtensionsMenu onChanged={actions.hardReload} /> : null}
         <MenuSeparator />
         <MenuItem
           closeOnClick={false}

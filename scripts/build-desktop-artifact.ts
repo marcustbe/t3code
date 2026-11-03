@@ -225,6 +225,15 @@ export class MacPasskeySigningConfigurationResolutionError extends Schema.Tagged
   }
 }
 
+export class WindowBlurHeadersMissingError extends Schema.TaggedError<WindowBlurHeadersMissingError>()(
+  "WindowBlurHeadersMissingError",
+  { nodeIncludeDir: Schema.String },
+) {
+  override get message(): string {
+    return `Node-API headers not found in ${this.nodeIncludeDir}; the window blur add-on needs them.`;
+  }
+}
+
 export class KeyringNativePackageMissingError extends Schema.TaggedError<KeyringNativePackageMissingError>()(
   "KeyringNativePackageMissingError",
   {
@@ -1088,6 +1097,12 @@ export const DESKTOP_EXTRA_RESOURCES = [
   {
     from: "apps/desktop/prod-resources/resource-monitor",
     to: "resource-monitor",
+  },
+] as const;
+export const MAC_WINDOW_BLUR_EXTRA_RESOURCES = [
+  {
+    from: "apps/desktop/prod-resources/window-blur",
+    to: "window-blur",
   },
 ] as const;
 export const LINUX_CAPTURE_EXTRA_RESOURCES = [
@@ -2421,6 +2436,55 @@ export const stageResourceMonitor = Effect.fn("stageResourceMonitor")(function* 
   }
 });
 
+/**
+ * Compiles the macOS window blur add-on (native/window-blur) into the staged resources. It is a
+ * Node-API module, so the build node's headers serve every Electron version.
+ */
+export const stageWindowBlur = Effect.fn("stageWindowBlur")(function* (input: {
+  readonly repoRoot: string;
+  readonly stageResourcesDir: string;
+  readonly arch: typeof BuildArch.Type;
+  readonly verbose: boolean;
+}) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const nodeIncludeDir = path.join(path.dirname(path.dirname(process.execPath)), "include", "node");
+  if (!(yield* fs.exists(path.join(nodeIncludeDir, "node_api.h")))) {
+    return yield* new WindowBlurHeadersMissingError({ nodeIncludeDir });
+  }
+  const destinationDirectory = path.join(input.stageResourcesDir, "window-blur");
+  yield* fs.remove(destinationDirectory, { recursive: true, force: true }).pipe(Effect.ignore);
+  yield* fs.makeDirectory(destinationDirectory, { recursive: true });
+  const archFlags =
+    input.arch === "universal"
+      ? ["-arch", "arm64", "-arch", "x86_64"]
+      : ["-arch", input.arch === "arm64" ? "arm64" : "x86_64"];
+  yield* runCommand(
+    ChildProcess.make(
+      "clang",
+      [
+        "-shared",
+        "-undefined",
+        "dynamic_lookup",
+        "-O2",
+        "-mmacosx-version-min=12.0",
+        ...archFlags,
+        `-I${nodeIncludeDir}`,
+        "-framework",
+        "CoreGraphics",
+        "-framework",
+        "CoreFoundation",
+        "-lobjc",
+        "-o",
+        path.join(destinationDirectory, "t3-window-blur.node"),
+        path.join(input.repoRoot, "native/window-blur/window_blur.c"),
+      ],
+      { cwd: input.repoRoot },
+    ),
+    { label: "clang window blur add-on", verbose: input.verbose },
+  );
+});
+
 export const stageBrowserSecret = Effect.fn("stageBrowserSecret")(function* (input: {
   readonly repoRoot: string;
   readonly stageResourcesDir: string;
@@ -2792,6 +2856,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       : {}),
     extraResources: [
       ...DESKTOP_EXTRA_RESOURCES,
+      ...(platform === "mac" ? MAC_WINDOW_BLUR_EXTRA_RESOURCES : []),
       ...(platform === "linux" ? LINUX_CAPTURE_EXTRA_RESOURCES : []),
       ...(platform === "linux" ? LINUX_BROWSER_SECRET_EXTRA_RESOURCES : []),
       ...(platform === "win" ? WINDOWS_SERVER_EXTRA_RESOURCES : []),
@@ -3761,6 +3826,14 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
     arch: options.arch,
     verbose: options.verbose,
   });
+  if (options.platform === "mac") {
+    yield* stageWindowBlur({
+      repoRoot,
+      stageResourcesDir,
+      arch: options.arch,
+      verbose: options.verbose,
+    });
+  }
   if (options.platform === "linux") {
     for (const backend of ["kde", "hyprland"] as const)
       yield* stageLinuxCaptureHelper({

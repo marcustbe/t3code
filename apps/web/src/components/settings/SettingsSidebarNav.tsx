@@ -31,15 +31,14 @@ import {
   SmartphoneIcon,
   WrenchIcon,
   XIcon,
+  UserRoundIcon,
 } from "lucide-react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 
-import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Kbd } from "../ui/kbd";
 import {
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarMenu,
   SidebarMenuButton,
@@ -58,6 +57,7 @@ import {
 import { useAvailableSettingsSearchItems } from "./useAvailableSettingsSearchItems";
 import { validateSettingsScopeSearch } from "./settingsScope";
 import { useSettingsSectionNavigation } from "./useSettingsSectionNavigation";
+import { cn } from "../../lib/utils";
 import { workspaceAreaProps } from "../../lib/workspaceFocus";
 
 const SnapShotIcon = createLucideIcon("snap-shot", [
@@ -72,14 +72,9 @@ const SnapShotIcon = createLucideIcon("snap-shot", [
   ["circle", { cx: "12", cy: "12", r: "1.5", key: "lens" }],
 ]);
 
-const T3ConnectSidebarSignIn = lazy(() =>
+const T3ConnectSettingsAccountRow = lazy(() =>
   import("../clerk/T3ConnectSidebarSignIn").then((module) => ({
-    default: module.T3ConnectSidebarSignIn,
-  })),
-);
-const T3ConnectSidebarAvatar = lazy(() =>
-  import("../clerk/T3ConnectSidebarSignIn").then((module) => ({
-    default: module.T3ConnectSidebarAvatar,
+    default: module.T3ConnectSettingsAccountRow,
   })),
 );
 
@@ -110,6 +105,36 @@ const SETTINGS_SECTION_ICONS: Readonly<
   "/settings/archived": ArchiveIcon,
 };
 
+// Each section's icon sits on a coloured tile, like macOS System Settings: a top-to-bottom
+// gradient a step lighter and darker than the base colour.
+// "/settings/account" is the T3 Connect Account row (no page of its own), tiled like a section.
+const SETTINGS_SECTION_TILES: Readonly<Record<SettingsPath | "/settings/account", string>> = {
+  // oxlint-disable-next-line shadcn/no-raw-colors -- tile colours mirror macOS System Settings, like the rows below
+  "/settings/account": "bg-linear-to-b from-cyan-400 to-cyan-600",
+  "/settings/general": "bg-linear-to-b from-zinc-400 to-zinc-600",
+  "/settings/diagnostics": "bg-linear-to-b from-zinc-400 to-zinc-600",
+  "/settings/appearance": "bg-linear-to-b from-blue-400 to-blue-600",
+  "/settings/chat": "bg-linear-to-b from-green-400 to-green-600",
+  "/settings/diffs": "bg-linear-to-b from-orange-400 to-orange-600",
+  "/settings/projects": "bg-linear-to-b from-indigo-400 to-indigo-600",
+  "/settings/keybindings": "bg-linear-to-b from-zinc-400 to-zinc-600",
+  "/settings/snap-shot": "bg-linear-to-b from-pink-400 to-pink-600",
+  "/settings/providers": "bg-linear-to-b from-violet-400 to-violet-600",
+  "/settings/threads": "bg-linear-to-b from-teal-400 to-teal-600",
+  "/settings/browser": "bg-linear-to-b from-sky-400 to-sky-600",
+  "/settings/devices": "bg-linear-to-b from-zinc-400 to-zinc-600",
+  "/settings/scheduled-tasks": "bg-linear-to-b from-red-400 to-red-600",
+  "/settings/source-control": "bg-linear-to-b from-orange-500 to-orange-700",
+  "/settings/worktrees": "bg-linear-to-b from-amber-400 to-amber-600",
+  "/settings/connections": "bg-linear-to-b from-blue-500 to-blue-700",
+  "/settings/access": "bg-linear-to-b from-green-500 to-green-700",
+  "/settings/secrets": "bg-linear-to-b from-yellow-400 to-yellow-600",
+  "/settings/maintenance": "bg-linear-to-b from-zinc-400 to-zinc-600",
+  "/settings/labs": "bg-linear-to-b from-purple-400 to-purple-600",
+  "/settings/about": "bg-linear-to-b from-zinc-300 to-zinc-500",
+  "/settings/archived": "bg-linear-to-b from-stone-400 to-stone-600",
+};
+
 // Detail pages without a nav entry highlight the page that links to them.
 const SETTINGS_DETAIL_PAGE_PARENTS: Readonly<Record<string, SettingsPath>> = {
   "/settings/diagnostics": "/settings/maintenance",
@@ -121,9 +146,35 @@ function scrollResultIntoView(row: HTMLElement | null) {
   row?.scrollIntoView({ block: "nearest" });
 }
 
+function AccountTile() {
+  return (
+    <span
+      aria-hidden
+      data-settings-tile=""
+      className={cn(
+        "flex size-icon-tile shrink-0 items-center justify-center rounded-md text-white",
+        SETTINGS_SECTION_TILES["/settings/account"],
+      )}
+    >
+      <UserRoundIcon className="size-icon-sm" />
+    </span>
+  );
+}
+
 function SettingsSectionIcon({ to }: { to: SettingsPath }) {
   const Icon = SETTINGS_SECTION_ICONS[to];
-  return <Icon className="size-4 shrink-0 text-(--sidebar-icon-color)" />;
+  return (
+    <span
+      aria-hidden
+      data-settings-tile=""
+      className={cn(
+        "flex size-icon-tile shrink-0 items-center justify-center rounded-md text-white",
+        SETTINGS_SECTION_TILES[to],
+      )}
+    >
+      <Icon className="size-icon-sm" />
+    </span>
+  );
 }
 
 export function SettingsSidebarNav({ pathname }: { pathname: string }) {
@@ -141,8 +192,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   );
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  // Below md the nav is an icon rail; searching expands it over the page.
-  const [compactSearchOpen, setCompactSearchOpen] = useState(false);
   const [activeResultIndex, setActiveResultIndex] = useState(0);
   const searchableItems = useAvailableSettingsSearchItems(scopeSearch);
   const results = searchSettings(query, searchableItems);
@@ -182,18 +231,12 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       }
 
       event.preventDefault();
-      setCompactSearchOpen(true);
       searchInputRef.current?.focus();
       searchInputRef.current?.select();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- focuses the search input DOM node after the compact search opens
-  useEffect(() => {
-    if (compactSearchOpen) searchInputRef.current?.focus();
-  }, [compactSearchOpen]);
 
   const handleSectionClick = (to: SettingsPath) => {
     void navigate({
@@ -210,7 +253,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   };
   const handleSearchResultClick = (item: SettingsSearchItem) => {
     clearSearch();
-    setCompactSearchOpen(false);
     const targetId = item.targetId ?? item.id;
     revealSettingsSearchTarget(targetId);
     if (pathname === item.to && currentHash.replace(/^#/, "") === targetId) {
@@ -255,22 +297,15 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
     <nav
       {...navArea}
       role="navigation"
-      className={cn(
-        "flex w-60 shrink-0 flex-col border-e bg-sidebar text-sidebar-foreground max-md:w-14",
-        compactSearchOpen &&
-          "max-md:absolute max-md:inset-y-0 max-md:start-0 max-md:z-10 max-md:w-full",
-      )}
+      // Fills the app sidebar below its Back row (AppSidebarLayout).
+      className="flex min-h-0 flex-1 flex-col text-sidebar-foreground"
     >
       <SidebarContent className="overflow-x-hidden">
         <SidebarGroup>
           <div className="flex flex-col gap-2">
-            <div
-              className={cn(
-                "flex h-8 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
-                !compactSearchOpen && "max-md:hidden",
-              )}
-            >
-              <SearchIcon className="size-4 shrink-0 text-sidebar-muted-foreground/80" />
+            {/* A field, so it keeps a fill at rest (the open row's grey), darker while hovered. */}
+            <div className="flex h-8 items-center gap-2 rounded-(--control-radius) bg-sidebar-row-hover px-(--sidebar-row-content-inset) py-1.5 text-sm font-medium text-sidebar-muted-foreground focus-within:bg-sidebar-row-selected hover:bg-sidebar-row-selected hover:text-sidebar-foreground">
+              <SearchIcon className="size-4 shrink-0 text-(--sidebar-icon-color)" />
               <SidebarInput
                 ref={searchInputRef}
                 nativeInput
@@ -281,10 +316,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                   setActiveResultIndex(0);
                 }}
                 onKeyDown={handleSearchKeyDown}
-                onFocus={() => setCompactSearchOpen(true)}
-                onBlur={() => {
-                  if (!isSearching) setCompactSearchOpen(false);
-                }}
                 placeholder="Search"
                 aria-label="Search settings"
                 role="combobox"
@@ -362,18 +393,10 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
               </SidebarMenu>
             ) : (
               <div className="flex flex-col gap-4">
-                {compactSearchOpen ? null : (
-                  <SidebarMenu className="md:hidden">
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        aria-label="Search settings"
-                        onClick={() => setCompactSearchOpen(true)}
-                      >
-                        <SearchIcon />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </SidebarMenu>
-                )}
+                {/* The T3 Connect account leads the sections, like the Apple Account in System Settings. */}
+                <Suspense fallback={null}>
+                  <T3ConnectSettingsAccountRow tile={<AccountTile />} />
+                </Suspense>
                 <div
                   {...sectionNavigation.containerProps}
                   role="tree"
@@ -385,23 +408,19 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                       key={group.heading ?? index}
                       role="group"
                       aria-label={group.heading ?? undefined}
-                      className="flex flex-col gap-1 max-md:border-t max-md:border-sidebar-border max-md:pt-4 max-md:first:border-t-0 max-md:first:pt-0"
+                      className="flex flex-col gap-1"
                     >
                       {group.heading ? (
                         // The group carries this label; a heading is not a valid tree child.
                         <h3
                           aria-hidden="true"
-                          className={cn(
-                            "px-2 text-xs font-medium text-sidebar-muted-foreground/80",
-                            !compactSearchOpen && "max-md:hidden",
-                          )}
+                          className="px-2 text-xs font-medium text-sidebar-muted-foreground/80"
                         >
                           {group.heading}
                         </h3>
                       ) : null}
                       <SidebarMenu role="presentation">
                         {group.paths.map((to) => {
-                          const Icon = SETTINGS_SECTION_ICONS[to];
                           const isActive = activePath === to || activePath.startsWith(`${to}/`);
                           return (
                             <SidebarMenuItem key={to} role="presentation">
@@ -414,12 +433,8 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                                 isActive={isActive}
                                 onClick={() => handleSectionClick(to)}
                               >
-                                <Icon />
-                                <span
-                                  className={cn("truncate", !compactSearchOpen && "max-md:sr-only")}
-                                >
-                                  {SETTINGS_SECTION_LABELS[to]}
-                                </span>
+                                <SettingsSectionIcon to={to} />
+                                <span className="truncate">{SETTINGS_SECTION_LABELS[to]}</span>
                               </SidebarMenuButton>
                             </SidebarMenuItem>
                           );
@@ -433,14 +448,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
           </div>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="max-md:hidden">
-        <Suspense fallback={null}>
-          <T3ConnectSidebarSignIn />
-        </Suspense>
-        <Suspense fallback={null}>
-          <T3ConnectSidebarAvatar />
-        </Suspense>
-      </SidebarFooter>
     </nav>
   );
 }

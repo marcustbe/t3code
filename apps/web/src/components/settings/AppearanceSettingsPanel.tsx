@@ -7,12 +7,22 @@ import {
   type EffortDisplay,
   type EnvironmentIdentificationMode,
   MAX_APPEARANCE_CONTRAST,
+  MAX_BACKGROUND_GRAIN,
+  MAX_EDGE_PADDING,
   MAX_GLASS_OPACITY,
   MAX_PANEL_ANIMATION_DURATION_MS,
+  MAX_TOP_BAR_BLUR,
+  MAX_WINDOW_BLUR_RADIUS,
+  MAX_WINDOW_SURFACE_OPACITY,
   MIN_APPEARANCE_CONTRAST,
+  MIN_EDGE_PADDING,
   MIN_GLASS_OPACITY,
   MIN_PANEL_ANIMATION_DURATION_MS,
+  MIN_WINDOW_BLUR_RADIUS,
+  MIN_WINDOW_SURFACE_OPACITY,
 } from "@t3tools/contracts/settings";
+import { isElectron } from "../../env";
+import { isMacPlatform } from "../../lib/utils";
 import {
   resolveSidebarStageBackdropVariant,
   type SidebarStageBackdropVariant,
@@ -31,10 +41,10 @@ import {
   SettingsSection,
 } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
-import { AdvancedSettings } from "./AdvancedSettings";
 import { PanelAnimationsPreview } from "./PanelAnimationsPreview";
 import { TypographySection } from "./TypographySettings";
 import { ThreadDetailsItemsRow } from "./ThreadDetailsItemsRow";
+import type { SettingsSearchItemId } from "./settingsSearch";
 
 const ENVIRONMENT_IDENTIFICATION_LABELS: Record<EnvironmentIdentificationMode, string> = {
   artwork: "Artwork",
@@ -82,6 +92,82 @@ const EFFORT_DISPLAY_LABELS: Record<EffortDisplay, string> = {
   label: "Word",
   bars: "Bars",
 };
+
+/** A slider for the transparent window: a surface's opacity (0–100%) or the blur behind it. */
+function WindowSurfaceOpacityRow({
+  searchId,
+  inputId,
+  label,
+  description,
+  value,
+  defaultValue,
+  onChange,
+  min = MIN_WINDOW_SURFACE_OPACITY,
+  max = MAX_WINDOW_SURFACE_OPACITY,
+  unit = "%",
+  step = 5,
+}: {
+  searchId: SettingsSearchItemId;
+  inputId: string;
+  label: string;
+  description: string;
+  value: number;
+  defaultValue: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  unit?: string;
+  step?: number;
+}) {
+  const ratio = (value - min) / (max - min);
+  const sliderStyle = {
+    "--settings-slider-progress": `${ratio * 100}%`,
+    "--settings-slider-fill-offset": `${0.5 - ratio}rem`,
+  } as CSSProperties;
+  return (
+    <SettingsRow
+      {...searchableSetting(searchId)}
+      description={description}
+      resetAction={
+        value !== defaultValue ? (
+          <SettingResetButton label={label.toLowerCase()} onClick={() => onChange(defaultValue)} />
+        ) : null
+      }
+      control={
+        <div className="flex w-full items-center gap-3 sm:w-52">
+          <output
+            className="min-w-12 rounded-md bg-muted px-2 py-1 text-center font-mono text-xs font-medium tabular-nums text-foreground"
+            htmlFor={inputId}
+          >
+            {value}
+            {unit}
+          </output>
+          <input
+            aria-label={label}
+            className="settings-slider min-w-0 flex-1"
+            id={inputId}
+            max={max}
+            min={min}
+            onChange={(event) => {
+              const next = Number(event.currentTarget.value);
+              if (Number.isInteger(next) && next >= min && next <= max) {
+                onChange(next);
+              }
+            }}
+            step={step}
+            style={sliderStyle}
+            type="range"
+            value={value}
+          />
+        </div>
+      }
+    />
+  );
+}
+
+// Only the macOS desktop app can show the desktop through the window.
+const WINDOW_TRANSPARENCY_SUPPORTED =
+  isElectron && typeof navigator !== "undefined" && isMacPlatform(navigator.platform);
 
 export function AppearanceSettingsPanel() {
   const {
@@ -242,6 +328,74 @@ export function AppearanceSettingsPanel() {
           }
         />
 
+        {WINDOW_TRANSPARENCY_SUPPORTED ? (
+          <>
+            <WindowSurfaceOpacityRow
+              searchId="sidebar-surface-opacity"
+              inputId="sidebar-surface-opacity-input"
+              label="Sidebar opacity"
+              description="Lower values let the desktop show through the left sidebar."
+              value={settings.sidebarSurfaceOpacity}
+              defaultValue={DEFAULT_UNIFIED_SETTINGS.sidebarSurfaceOpacity}
+              onChange={(sidebarSurfaceOpacity) => updateSettings({ sidebarSurfaceOpacity })}
+            />
+            <WindowSurfaceOpacityRow
+              searchId="content-surface-opacity"
+              inputId="content-surface-opacity-input"
+              label="Main area opacity"
+              description="Lower values let the desktop show through the chat and other pages."
+              value={settings.contentSurfaceOpacity}
+              defaultValue={DEFAULT_UNIFIED_SETTINGS.contentSurfaceOpacity}
+              onChange={(contentSurfaceOpacity) => updateSettings({ contentSurfaceOpacity })}
+            />
+            <WindowSurfaceOpacityRow
+              searchId="panel-surface-opacity"
+              inputId="panel-surface-opacity-input"
+              label="Right panel opacity"
+              description="Lower values let the desktop show through the right panel."
+              value={settings.panelSurfaceOpacity}
+              defaultValue={DEFAULT_UNIFIED_SETTINGS.panelSurfaceOpacity}
+              onChange={(panelSurfaceOpacity) => updateSettings({ panelSurfaceOpacity })}
+            />
+            <WindowSurfaceOpacityRow
+              searchId="window-blur-radius"
+              inputId="window-blur-radius-input"
+              label="Background blur"
+              description="How much the desktop behind see-through areas is blurred."
+              value={settings.windowBlurRadius}
+              defaultValue={DEFAULT_UNIFIED_SETTINGS.windowBlurRadius}
+              onChange={(windowBlurRadius) => updateSettings({ windowBlurRadius })}
+              min={MIN_WINDOW_BLUR_RADIUS}
+              max={MAX_WINDOW_BLUR_RADIUS}
+              unit="pt"
+            />
+          </>
+        ) : null}
+        <WindowSurfaceOpacityRow
+          searchId="background-grain"
+          inputId="background-grain-input"
+          label="Background grain"
+          description="Noise texture over the sidebar, main area and panels."
+          value={settings.backgroundGrain}
+          defaultValue={DEFAULT_UNIFIED_SETTINGS.backgroundGrain}
+          onChange={(backgroundGrain) => updateSettings({ backgroundGrain })}
+          min={0}
+          max={MAX_BACKGROUND_GRAIN}
+        />
+        <WindowSurfaceOpacityRow
+          searchId="top-bar-blur"
+          inputId="top-bar-blur-input"
+          label="Top bar blur"
+          description="How much the chat's top bar blurs what scrolls under it."
+          value={settings.topBarBlur}
+          defaultValue={DEFAULT_UNIFIED_SETTINGS.topBarBlur}
+          onChange={(topBarBlur) => updateSettings({ topBarBlur })}
+          min={0}
+          max={MAX_TOP_BAR_BLUR}
+          unit="px"
+          step={1}
+        />
+
         <SettingsRow
           {...searchableSetting("chat-width")}
           description="Set how wide messages and the composer can grow on large screens."
@@ -269,6 +423,71 @@ export function AppearanceSettingsPanel() {
                   <SelectItem value="comfortable">Comfortable (default)</SelectItem>
                   <SelectItem value="wide">Wide</SelectItem>
                   <SelectItem value="full">Full</SelectItem>
+                </SelectPopup>
+              </Select>
+            </div>
+          }
+        />
+        <SettingsRow
+          {...searchableSetting("chat-behind-composer")}
+          description="Let the conversation run a little into the composer box as it scrolls. Off stops it at the composer's top edge."
+          resetAction={
+            settings.chatScrollsBehindComposer !==
+            DEFAULT_UNIFIED_SETTINGS.chatScrollsBehindComposer ? (
+              <SettingResetButton
+                label="chat scrolls behind composer"
+                onClick={() =>
+                  updateSettings({
+                    chatScrollsBehindComposer: DEFAULT_UNIFIED_SETTINGS.chatScrollsBehindComposer,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.chatScrollsBehindComposer}
+              onCheckedChange={(checked) =>
+                updateSettings({ chatScrollsBehindComposer: Boolean(checked) })
+              }
+              aria-label="Chat scrolls behind composer"
+            />
+          }
+        />
+        <SettingsRow
+          {...searchableSetting("composer-prompt-layout")}
+          description="Where a prompt goes once it wraps: above the + and send buttons, or between them."
+          resetAction={
+            settings.composerPromptLayout !== DEFAULT_UNIFIED_SETTINGS.composerPromptLayout ? (
+              <SettingResetButton
+                label="long prompts"
+                onClick={() =>
+                  updateSettings({
+                    composerPromptLayout: DEFAULT_UNIFIED_SETTINGS.composerPromptLayout,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <div className="w-full sm:w-40">
+              <Select
+                value={settings.composerPromptLayout}
+                onValueChange={(value) => {
+                  if (value === "stack" || value === "inline")
+                    updateSettings({ composerPromptLayout: value });
+                }}
+              >
+                <SelectTrigger size="sm" className="w-full min-w-0" aria-label="Long prompts">
+                  <SelectValue>
+                    {settings.composerPromptLayout === "inline"
+                      ? "Between buttons"
+                      : "Above buttons"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectPopup align="end" alignItemWithTrigger={false}>
+                  <SelectItem value="stack">Above buttons (default)</SelectItem>
+                  <SelectItem value="inline">Between buttons</SelectItem>
                 </SelectPopup>
               </Select>
             </div>
@@ -309,6 +528,32 @@ export function AppearanceSettingsPanel() {
           }
         />
         <SettingsRow
+          {...searchableSetting("sidebar-pull-requests")}
+          description="Show the pull requests button at the bottom of the sidebar."
+          control={
+            <Switch
+              checked={settings.sidebarShowPullRequests}
+              onCheckedChange={(checked) =>
+                updateSettings({ sidebarShowPullRequests: Boolean(checked) })
+              }
+              aria-label="Show pull requests in sidebar"
+            />
+          }
+        />
+        <SettingsRow
+          {...searchableSetting("sidebar-settled-count")}
+          description="Show how many chats are settled beside the Settled shelf."
+          control={
+            <Switch
+              checked={settings.sidebarShowSettledCount}
+              onCheckedChange={(checked) =>
+                updateSettings({ sidebarShowSettledCount: Boolean(checked) })
+              }
+              aria-label="Show settled count in sidebar"
+            />
+          }
+        />
+        <SettingsRow
           {...searchableSetting("math-rendering")}
           description="Typeset LaTeX math, such as $x^2$ or \[x^2\], in messages and Markdown previews. The composer keeps TeX source editable."
           resetAction={
@@ -333,143 +578,205 @@ export function AppearanceSettingsPanel() {
             />
           }
         />
-        <AdvancedSettings
-          targetIds={[
-            searchableSetting("panel-animations").id,
-            searchableSetting("environment-identification").id,
-            // Environment identification's search result lands on this section.
-            "appearance-interface",
-            searchableSetting("composer-context").id,
-          ]}
-        >
-          <SettingsRow
-            {...searchableSetting("panel-animations")}
-            description="Set how fast panels open and close."
-            control={
-              <div className="grid w-full grid-cols-[5rem_minmax(0,1fr)] items-center gap-3 sm:w-auto sm:grid-cols-[7rem_13rem] sm:gap-4">
-                <PanelAnimationsPreview durationMs={settings.panelAnimationDurationMs} />
-                <div className="flex w-full items-center gap-3">
-                  <output
-                    className="min-w-16 rounded-md bg-muted px-2 py-1 text-center font-mono text-xs font-medium tabular-nums text-foreground"
-                    htmlFor="panel-animation-duration"
-                  >
-                    {settings.panelAnimationDurationMs} ms
-                  </output>
-                  <input
-                    aria-label="Panel animation duration"
-                    className="settings-slider min-w-0 flex-1"
-                    id="panel-animation-duration"
-                    max={MAX_PANEL_ANIMATION_DURATION_MS}
-                    min={MIN_PANEL_ANIMATION_DURATION_MS}
-                    onChange={(event) => {
-                      const panelAnimationDurationMs = Number(event.currentTarget.value);
-                      if (
-                        Number.isInteger(panelAnimationDurationMs) &&
-                        panelAnimationDurationMs >= MIN_PANEL_ANIMATION_DURATION_MS &&
-                        panelAnimationDurationMs <= MAX_PANEL_ANIMATION_DURATION_MS
-                      ) {
-                        updateSettings({ panelAnimationDurationMs });
-                      }
-                    }}
-                    step={25}
-                    style={panelAnimationDurationSliderStyle}
-                    type="range"
-                    value={settings.panelAnimationDurationMs}
-                  />
-                </div>
-              </div>
-            }
-            resetAction={
-              settings.panelAnimationDurationMs !==
-              DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs ? (
-                <SettingResetButton
-                  label="panel animations"
-                  onClick={() =>
-                    updateSettings({
-                      panelAnimationDurationMs: DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs,
-                    })
-                  }
-                />
-              ) : null
-            }
-          />
-          <SettingsRow
-            {...searchableSetting("environment-identification")}
-            description={
-              environmentStageVariant
-                ? "Choose how Dev and Nightly environments are identified."
-                : "Show Dev or Nightly artwork in the sidebar header."
-            }
-            resetAction={
-              settings.environmentIdentificationMode !== DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE ? (
-                <SettingResetButton
-                  label="environment identification"
-                  onClick={() =>
-                    updateSettings({
-                      environmentIdentificationMode: DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE,
-                    })
-                  }
-                />
-              ) : null
-            }
-            control={
-              <Select
-                value={settings.environmentIdentificationMode}
-                onValueChange={(value) => {
-                  const option = environmentIdentificationOptionList.find(
-                    ([optionValue]) => optionValue === value,
-                  );
-                  if (option) updateSettings({ environmentIdentificationMode: option[0] });
-                }}
-              >
-                <SelectTrigger
-                  size="sm"
-                  className="w-full sm:w-40"
-                  aria-label="Environment identification"
+        <SettingsRow
+          {...searchableSetting("panel-animations")}
+          description="Set how fast panels open and close."
+          control={
+            <div className="grid w-full grid-cols-[5rem_minmax(0,1fr)] items-center gap-3 sm:w-auto sm:grid-cols-[7rem_13rem] sm:gap-4">
+              <PanelAnimationsPreview durationMs={settings.panelAnimationDurationMs} />
+              <div className="flex w-full items-center gap-3">
+                <output
+                  className="min-w-16 rounded-md bg-muted px-2 py-1 text-center font-mono text-xs font-medium tabular-nums text-foreground"
+                  htmlFor="panel-animation-duration"
                 >
-                  <SelectValue>{environmentIdentificationLabel}</SelectValue>
-                </SelectTrigger>
-                <SelectPopup align="end" alignItemWithTrigger={false}>
-                  {environmentIdentificationOptionList.map(([value, label]) => (
-                    <SelectItem hideIndicator key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectPopup>
-              </Select>
-            }
-          />
-          <SettingsRow
-            {...searchableSetting("composer-context")}
-            description="Keep branch and worktree controls below the composer after a thread starts."
-            resetAction={
-              settings.persistComposerContextStrip !==
-              DEFAULT_UNIFIED_SETTINGS.persistComposerContextStrip ? (
-                <SettingResetButton
-                  label="composer context"
-                  onClick={() =>
-                    updateSettings({
-                      persistComposerContextStrip:
-                        DEFAULT_UNIFIED_SETTINGS.persistComposerContextStrip,
-                    })
-                  }
+                  {settings.panelAnimationDurationMs} ms
+                </output>
+                <input
+                  aria-label="Panel animation duration"
+                  className="settings-slider min-w-0 flex-1"
+                  id="panel-animation-duration"
+                  max={MAX_PANEL_ANIMATION_DURATION_MS}
+                  min={MIN_PANEL_ANIMATION_DURATION_MS}
+                  onChange={(event) => {
+                    const panelAnimationDurationMs = Number(event.currentTarget.value);
+                    if (
+                      Number.isInteger(panelAnimationDurationMs) &&
+                      panelAnimationDurationMs >= MIN_PANEL_ANIMATION_DURATION_MS &&
+                      panelAnimationDurationMs <= MAX_PANEL_ANIMATION_DURATION_MS
+                    ) {
+                      updateSettings({ panelAnimationDurationMs });
+                    }
+                  }}
+                  step={25}
+                  style={panelAnimationDurationSliderStyle}
+                  type="range"
+                  value={settings.panelAnimationDurationMs}
                 />
-              ) : null
-            }
-            control={
-              <Switch
-                checked={settings.persistComposerContextStrip}
-                onCheckedChange={(checked) =>
-                  updateSettings({ persistComposerContextStrip: Boolean(checked) })
+              </div>
+            </div>
+          }
+          resetAction={
+            settings.panelAnimationDurationMs !==
+            DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs ? (
+              <SettingResetButton
+                label="panel animations"
+                onClick={() =>
+                  updateSettings({
+                    panelAnimationDurationMs: DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs,
+                  })
                 }
-                aria-label="Keep composer context visible in active threads"
               />
-            }
-          />
-        </AdvancedSettings>
+            ) : null
+          }
+        />
+        <SettingsRow
+          {...searchableSetting("environment-identification")}
+          description={
+            environmentStageVariant
+              ? "Choose how Dev and Nightly environments are identified."
+              : "Show Dev or Nightly artwork in the sidebar header."
+          }
+          resetAction={
+            settings.environmentIdentificationMode !== DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE ? (
+              <SettingResetButton
+                label="environment identification"
+                onClick={() =>
+                  updateSettings({
+                    environmentIdentificationMode: DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Select
+              value={settings.environmentIdentificationMode}
+              onValueChange={(value) => {
+                const option = environmentIdentificationOptionList.find(
+                  ([optionValue]) => optionValue === value,
+                );
+                if (option) updateSettings({ environmentIdentificationMode: option[0] });
+              }}
+            >
+              <SelectTrigger
+                size="sm"
+                className="w-full sm:w-40"
+                aria-label="Environment identification"
+              >
+                <SelectValue>{environmentIdentificationLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                {environmentIdentificationOptionList.map(([value, label]) => (
+                  <SelectItem hideIndicator key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
+          }
+        />
+        <SettingsRow
+          {...searchableSetting("composer-context")}
+          description="Keep branch and worktree controls below the composer after a thread starts."
+          resetAction={
+            settings.persistComposerContextStrip !==
+            DEFAULT_UNIFIED_SETTINGS.persistComposerContextStrip ? (
+              <SettingResetButton
+                label="composer context"
+                onClick={() =>
+                  updateSettings({
+                    persistComposerContextStrip:
+                      DEFAULT_UNIFIED_SETTINGS.persistComposerContextStrip,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.persistComposerContextStrip}
+              onCheckedChange={(checked) =>
+                updateSettings({ persistComposerContextStrip: Boolean(checked) })
+              }
+              aria-label="Keep composer context visible in active threads"
+            />
+          }
+        />
       </SettingsSection>
+
+      <EdgePaddingSection />
 
       <TypographySection />
     </SettingsPageContainer>
+  );
+}
+
+const EDGE_PADDING_ROWS = [
+  {
+    key: "sidebarSidePadding",
+    searchId: "sidebar-side-padding",
+    label: "Sidebar side padding",
+    description: "From the sidebar's sides to its icons. The window buttons line up with them.",
+  },
+  {
+    key: "windowTopPadding",
+    searchId: "window-top-padding",
+    label: "Top padding",
+    description: "From the window's top to the window buttons; the top bars grow with it.",
+  },
+  {
+    key: "sidebarBottomPadding",
+    searchId: "sidebar-bottom-padding",
+    label: "Sidebar bottom padding",
+    description: "From the window's bottom to the sidebar's footer icons.",
+  },
+  {
+    key: "topBarSidePadding",
+    searchId: "top-bar-side-padding",
+    label: "Top bar side padding",
+    description: "From the main area's sides to the breadcrumb and the top-right buttons.",
+  },
+  {
+    key: "browserSidePadding",
+    searchId: "browser-side-padding",
+    label: "Browser side padding",
+    description: "Sides of the browser's tabs and toolbar.",
+  },
+  {
+    key: "browserTopPadding",
+    searchId: "browser-top-padding",
+    label: "Browser top padding",
+    description: "Above the browser's toolbar.",
+  },
+  {
+    key: "browserBottomPadding",
+    searchId: "browser-bottom-padding",
+    label: "Browser bottom padding",
+    description: "Below the browser's toolbar.",
+  },
+] as const;
+
+function EdgePaddingSection() {
+  const settings = useScopedSettings();
+  const updateSettings = useUpdateScopedSettings();
+  return (
+    <SettingsSection id="appearance-layout" title="Layout">
+      {EDGE_PADDING_ROWS.map((row) => (
+        <WindowSurfaceOpacityRow
+          key={row.key}
+          searchId={row.searchId}
+          inputId={`${row.searchId}-input`}
+          label={row.label}
+          description={row.description}
+          value={settings[row.key]}
+          defaultValue={DEFAULT_UNIFIED_SETTINGS[row.key]}
+          onChange={(value) => updateSettings({ [row.key]: value })}
+          min={MIN_EDGE_PADDING}
+          max={MAX_EDGE_PADDING}
+          unit="px"
+          step={1}
+        />
+      ))}
+    </SettingsSection>
   );
 }

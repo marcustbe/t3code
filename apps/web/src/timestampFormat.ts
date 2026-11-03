@@ -146,7 +146,7 @@ const numericDateWithYearFormatter = new Intl.DateTimeFormat(timestampLocale, {
   year: "numeric",
 });
 
-export function formatDayAwareTimestamp(
+function formatDayAwareTimestamp(
   isoDate: string,
   timestampFormat: TimestampFormat,
   nowMs: number = Date.now(),
@@ -251,6 +251,21 @@ export function formatRelativeTimeLabel(isoDate: string, nowMs: number = Date.no
   const relative = formatRelativeTime(isoDate, nowMs);
   if (!relative) return "";
   return relative.suffix ? `${relative.value} ${relative.suffix}` : relative.value;
+}
+
+/** "Just now", "5 minutes ago", "1 hour ago", "5 days ago". */
+export function formatRelativeTimeAgo(isoDate: string, nowMs: number = Date.now()): string {
+  const elapsedMs = relativeTimeElapsedMs(isoDate, nowMs);
+  if (elapsedMs === null) return "";
+  const minutes = Math.floor(elapsedMs / 60_000);
+  if (minutes < 1) return "Just now";
+  const [count, unit] =
+    minutes < 60
+      ? [minutes, "minute"]
+      : minutes < 1_440
+        ? [Math.floor(minutes / 60), "hour"]
+        : [Math.floor(minutes / 1_440), "day"];
+  return `${count} ${unit}${count === 1 ? "" : "s"} ago`;
 }
 
 export function formatElapsedDurationLabel(isoDate: string, nowMs: number = Date.now()): string {

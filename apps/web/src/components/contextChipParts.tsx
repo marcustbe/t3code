@@ -132,6 +132,9 @@ export function PullRequestChip(props: {
   );
 }
 
+/** Attachment chips cut names to about 20 characters, keeping the end so the extension shows. */
+const ATTACHMENT_CHIP_NAME_CHARACTERS = 20;
+
 export function ImageChipButton({
   name,
   previewUrl,
@@ -151,6 +154,7 @@ export function ImageChipButton({
   return (
     <ContextChip
       kind="image"
+      className="font-normal"
       render={<button type="button" disabled={disabled} />}
       aria-label={`Image attachment, ${name}, ${size}`}
       {...props}
@@ -160,7 +164,8 @@ export function ImageChipButton({
           key={previewUrl}
           src={previewUrl}
           alt=""
-          className="size-[1em] shrink-0 self-center rounded-sm object-cover"
+          // A hairline edge so a white screenshot doesn't melt into the composer.
+          className="size-[1em] shrink-0 self-center rounded-sm object-cover ring-1 ring-black/15 dark:ring-white/20"
           onError={onPreviewError}
         />
       ) : (
@@ -168,7 +173,7 @@ export function ImageChipButton({
       )}
       <ContextChipLabel className="flex items-baseline gap-[0.33em]">
         <span className="min-w-0 max-w-72 overflow-x-clip text-ellipsis whitespace-nowrap">
-          {middleTruncateAttachmentName(name)}
+          {middleTruncateAttachmentName(name, ATTACHMENT_CHIP_NAME_CHARACTERS, 8)}
         </span>
         <span className="shrink-0 text-3xs text-current">{size}</span>
         {suffix ? <span className="text-3xs text-current">{suffix}</span> : null}
@@ -207,6 +212,7 @@ export function FileChip(props: {
       : null;
   const attributes = {
     kind: props.isVideo ? "video" : (documentChipKindForFileName(props.name) ?? "file"),
+    className: "font-normal",
     ...(state ? { state } : {}),
     "aria-label": [props.accessibleLabel, props.suffix].filter(Boolean).join(", "),
     "data-markdown-copy": props.copyMarkdown,
@@ -317,7 +323,7 @@ function FileChipContent(props: {
       )}
       <ContextChipLabel className="flex items-baseline gap-[0.33em]">
         <span className="min-w-0 max-w-72 overflow-x-clip text-ellipsis whitespace-nowrap">
-          {middleTruncateAttachmentName(props.name)}
+          {middleTruncateAttachmentName(props.name, ATTACHMENT_CHIP_NAME_CHARACTERS, 8)}
         </span>
         <span className="shrink-0 text-3xs text-current">{props.size}</span>
         {props.suffix ? <span className="text-3xs text-current">{props.suffix}</span> : null}

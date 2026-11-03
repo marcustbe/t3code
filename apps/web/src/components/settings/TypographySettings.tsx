@@ -2,10 +2,14 @@ import type { ReactNode } from "react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   DEFAULT_UNIFIED_SETTINGS,
+  MAX_CHAT_FONT_SIZE,
+  MAX_CHAT_FONT_WEIGHT,
   MAX_CODE_FONT_SIZE,
   MAX_INTERFACE_FONT_SIZE,
   MAX_PROMPT_FONT_SIZE,
   MAX_TERMINAL_FONT_SIZE,
+  MIN_CHAT_FONT_SIZE,
+  MIN_CHAT_FONT_WEIGHT,
   MIN_CODE_FONT_SIZE,
   MIN_INTERFACE_FONT_SIZE,
   MIN_PROMPT_FONT_SIZE,
@@ -26,7 +30,6 @@ import {
   resolveTerminalFontSizePreference,
   TYPOGRAPHY_ADVANCED_STORAGE_KEY,
 } from "../../appearanceFonts";
-import { AdvancedSettings } from "./AdvancedSettings";
 import { CodeFontPreview, PromptFontPreview, TerminalFontPreview } from "./SettingsFontPreviews";
 import { discoverInstalledFonts, FontFamilyPicker, useFontEnumeration } from "./FontFamilyPicker";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
@@ -200,6 +203,84 @@ function TerminalFontRow() {
   );
 }
 
+const CHAT_FONT_SIZES = Array.from(
+  { length: MAX_CHAT_FONT_SIZE - MIN_CHAT_FONT_SIZE + 1 },
+  (_, index) => MIN_CHAT_FONT_SIZE + index,
+);
+const CHAT_FONT_WEIGHTS = Array.from(
+  { length: (MAX_CHAT_FONT_WEIGHT - MIN_CHAT_FONT_WEIGHT) / 50 + 1 },
+  (_, index) => MIN_CHAT_FONT_WEIGHT + index * 50,
+);
+
+function ChatTextRow() {
+  const settings = useScopedSettings();
+  const updateSettings = useUpdateScopedSettings();
+  const pickNumber = (next: unknown, allowed: ReadonlyArray<number>) => {
+    const parsed = Number(next);
+    return allowed.includes(parsed) ? parsed : null;
+  };
+  return (
+    <SettingsRow
+      {...searchableSetting("chat-text")}
+      description="Size and weight of messages in the chat."
+      resetAction={
+        settings.fontSizeChat !== DEFAULT_UNIFIED_SETTINGS.fontSizeChat ||
+        settings.fontWeightChat !== DEFAULT_UNIFIED_SETTINGS.fontWeightChat ? (
+          <SettingResetButton
+            label="chat text"
+            onClick={() =>
+              updateSettings({
+                fontSizeChat: DEFAULT_UNIFIED_SETTINGS.fontSizeChat,
+                fontWeightChat: DEFAULT_UNIFIED_SETTINGS.fontWeightChat,
+              })
+            }
+          />
+        ) : null
+      }
+      control={
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <Select
+            value={String(settings.fontSizeChat)}
+            onValueChange={(next) => {
+              const fontSizeChat = pickNumber(next, CHAT_FONT_SIZES);
+              if (fontSizeChat !== null) updateSettings({ fontSizeChat });
+            }}
+          >
+            <SelectTrigger size="sm" className="w-22 shrink-0" aria-label="Chat font size">
+              <SelectValue>{settings.fontSizeChat} px</SelectValue>
+            </SelectTrigger>
+            <SelectPopup align="end" alignItemWithTrigger={false}>
+              {CHAT_FONT_SIZES.map((px) => (
+                <SelectItem hideIndicator key={px} value={String(px)}>
+                  {px} px
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+          <Select
+            value={String(settings.fontWeightChat)}
+            onValueChange={(next) => {
+              const fontWeightChat = pickNumber(next, CHAT_FONT_WEIGHTS);
+              if (fontWeightChat !== null) updateSettings({ fontWeightChat });
+            }}
+          >
+            <SelectTrigger size="sm" className="w-22 shrink-0" aria-label="Chat font weight">
+              <SelectValue>{settings.fontWeightChat}</SelectValue>
+            </SelectTrigger>
+            <SelectPopup align="end" alignItemWithTrigger={false}>
+              {CHAT_FONT_WEIGHTS.map((weight) => (
+                <SelectItem hideIndicator key={weight} value={String(weight)}>
+                  <span style={{ fontWeight: weight }}>{weight}</span>
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+        </div>
+      }
+    />
+  );
+}
+
 function FontSmoothingRow() {
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
@@ -337,13 +418,10 @@ export function TypographySection() {
   return (
     <SettingsSection id="typography" title="Typography">
       {showAdvanced ? <FontSettingsGroup /> : <SimpleFontRows />}
+      <ChatTextRow />
       <WordWrapRow />
-      <AdvancedSettings
-        targetIds={[searchableSetting("separate-fonts").id, searchableSetting("font-smoothing").id]}
-      >
-        <SeparateFontsRow checked={showAdvanced} onCheckedChange={setAdvanced} />
-        <FontSmoothingRow />
-      </AdvancedSettings>
+      <SeparateFontsRow checked={showAdvanced} onCheckedChange={setAdvanced} />
+      <FontSmoothingRow />
     </SettingsSection>
   );
 }

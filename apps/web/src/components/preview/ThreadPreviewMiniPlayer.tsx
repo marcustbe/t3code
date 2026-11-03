@@ -55,6 +55,7 @@ import type { DeviceScreenSize } from "@t3tools/client-runtime/device/stream";
 import { Atom } from "effect/reactivity";
 import { deviceScreenKey, deviceStreamScreenAtom } from "../device/deviceStreamSession";
 import type { PreviewStreamViewport } from "@t3tools/client-runtime/preview/server-browser-stream";
+import { shieldEmbeddedContent } from "~/browser/guestPointerShield";
 import { previewBridge } from "./previewBridge";
 import { showPreviewPopup } from "./showPreviewPopup";
 import {
@@ -75,6 +76,7 @@ interface PointerGesture {
   readonly pointerY: number;
   readonly frame: PreviewMiniPlayerFrame;
   readonly direction: BrowserViewportResizeDirection | null;
+  readonly releaseShield: () => void;
   moved: boolean;
 }
 
@@ -466,6 +468,7 @@ function MiniPlayerShell({
     direction: BrowserViewportResizeDirection | null,
   ) => {
     if (event.button !== 0 || !frame) return;
+    gestureRef.current?.releaseShield();
     gestureRef.current = {
       pointerId: event.pointerId,
       pointerType: event.pointerType,
@@ -473,6 +476,7 @@ function MiniPlayerShell({
       pointerY: event.clientY,
       frame,
       direction,
+      releaseShield: shieldEmbeddedContent(),
       moved: false,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -483,6 +487,10 @@ function MiniPlayerShell({
   const handlePointerMove = (event: ReactPointerEvent<HTMLElement>) => {
     const gesture = gestureRef.current;
     if (!gesture || gesture.pointerId !== event.pointerId || !container) return;
+    if ((event.buttons & 1) === 0) {
+      endGesture(event);
+      return;
+    }
     const delta = { x: event.clientX - gesture.pointerX, y: event.clientY - gesture.pointerY };
     if (!gesture.moved && Math.hypot(delta.x, delta.y) < HANDLE_TAP_SLOP_PX) return;
     gesture.moved = true;
@@ -513,6 +521,7 @@ function MiniPlayerShell({
     const gesture = gestureRef.current;
     if (gesture?.pointerId !== event.pointerId) return;
     gestureRef.current = null;
+    gesture.releaseShield();
     handleTappedRef.current =
       event.type === "pointerup" &&
       gesture.direction === null &&
@@ -547,6 +556,7 @@ function MiniPlayerShell({
             onPointerMove={handlePointerMove}
             onPointerUp={endGesture}
             onPointerCancel={endGesture}
+            onLostPointerCapture={endGesture}
             onClick={() => {
               if (!handleTappedRef.current) return;
               handleTappedRef.current = false;
@@ -623,6 +633,7 @@ function MiniPlayerShell({
               onPointerMove={handlePointerMove}
               onPointerUp={endGesture}
               onPointerCancel={endGesture}
+              onLostPointerCapture={endGesture}
             />
           ))}
         </section>

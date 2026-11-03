@@ -186,6 +186,7 @@ const layerEnvironment = Layer.succeed(
   DesktopEnvironment.DesktopEnvironment,
   DesktopEnvironment.DesktopEnvironment.of({
     browserArtifactsDir: "/tmp/t3/dev/browser-artifacts",
+    stateDir: "/tmp/t3/dev/state",
     dirname: "/tmp/t3/desktop",
     path: {
       join: (...parts: ReadonlyArray<string>) => parts.join("/"),
@@ -949,6 +950,36 @@ describe("PreviewManager", () => {
         yield* flushMicrotasks();
 
         expect(states.some((state) => state.favicon !== undefined)).toBe(false);
+      }),
+    ),
+  );
+
+  effectIt.effect("remembers zoom per site and restores it when the tab returns", () =>
+    withManager((manager) =>
+      Effect.gen(function* () {
+        const changes = makeChangeSignal();
+        const preview = makeFaviconWebContents({ changes, url: "https://a.example/one" });
+        fromId.mockReturnValue(preview.webContents);
+        const states: PreviewManager.PreviewTabState[] = [];
+        yield* manager.subscribeStateChanges((_tabId, state) =>
+          Effect.sync(() => {
+            states.push(state);
+            changes.notify();
+          }),
+        );
+        yield* manager.createTab("tab_site_zoom");
+        yield* manager.registerWebview("tab_site_zoom", 42);
+        yield* manager.setZoomFactor("tab_site_zoom", 1.25);
+
+        preview.setUrl("https://b.example/");
+        preview.listeners.get("did-navigate")?.();
+        yield* changes.until(() => states.at(-1)?.zoomFactor === 1);
+
+        preview.setUrl("https://a.example/two");
+        preview.listeners.get("did-navigate")?.();
+        yield* changes.until(() => states.at(-1)?.zoomFactor === 1.25);
+        const guest: { readonly setZoomFactor: unknown } = preview.webContents;
+        expect(guest.setZoomFactor).toHaveBeenLastCalledWith(1.25);
       }),
     ),
   );

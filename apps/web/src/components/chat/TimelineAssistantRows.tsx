@@ -19,10 +19,14 @@ import { resolveAssistantMessageCopyState } from "./MessagesTimeline.logic";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "~/lib/utils";
 import { useUiStateStore } from "~/uiStateStore";
-import { formatChatTimestampTooltip, formatDayAwareTimestamp } from "../../timestampFormat";
+import { formatChatTimestampTooltip } from "../../timestampFormat";
 import { useV2ItemSupport } from "../../state/v2ItemSupport";
 import { TimelineRowCtx, TimelineRowActivityCtx, type TimelineRow } from "./timelineRowContext";
-import { MESSAGE_HEADING_LEVEL, MessageAuthorHeading } from "./TimelineRowParts";
+import {
+  MESSAGE_HEADING_LEVEL,
+  MessageAuthorHeading,
+  RelativeMessageTime,
+} from "./TimelineRowParts";
 
 export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" }> }) {
   const ctx = use(TimelineRowCtx);
@@ -109,7 +113,7 @@ function AssistantForkButton({
         render={
           <Button
             type="button"
-            size="xs"
+            size="icon-xs"
             variant="ghost"
             disabled={busy}
             onClick={() => {
@@ -180,18 +184,23 @@ function AssistantMessageMeta({
           {projectedItem.item.status}
         </span>
       ) : null}
-      <AssistantCopyButton
-        message={message}
-        showCopyButton={showCopyButton}
-        streaming={copyStreaming}
-      />
-      {projectedItem?.item.type === "assistant_message" ? (
-        <AssistantForkButton projectedItem={projectedItem} />
-      ) : null}
+      {/* Pulled left by the buttons' inset so the first icon lines up with the text. */}
+      <div data-message-actions="" className="flex items-center gap-0.5 first:-ml-1.5">
+        <AssistantCopyButton
+          message={message}
+          showCopyButton={showCopyButton}
+          streaming={copyStreaming}
+        />
+        {projectedItem?.item.type === "assistant_message" ? (
+          <AssistantForkButton projectedItem={projectedItem} />
+        ) : null}
+      </div>
       {!message.streaming && (
         <Tooltip>
-          <TooltipTrigger render={<p className="text-muted-foreground text-xs tabular-nums" />}>
-            {formatDayAwareTimestamp(message.updatedAt, ctx.timestampFormat)}
+          <TooltipTrigger
+            render={<p className="text-muted-foreground text-xs font-book tabular-nums" />}
+          >
+            <RelativeMessageTime timestamp={message.updatedAt} />
           </TooltipTrigger>
           <TooltipPopup>
             {formatChatTimestampTooltip(message.updatedAt, ctx.timestampFormat)}

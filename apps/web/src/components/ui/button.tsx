@@ -8,6 +8,25 @@ import { cn } from "~/lib/utils";
 const buttonVariants = cva(
   "[--control-icon-color:currentColor] [&_svg]:-mx-0.5 relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[var(--control-radius)] border font-medium text-base outline-none transition-[box-shadow,scale] [&:not([aria-haspopup]):not(:disabled):not([aria-disabled=true])]:will-change-[scale] [&:active:not([aria-haspopup])]:scale-[0.97] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--control-radius)-1px)] pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 aria-disabled:cursor-not-allowed aria-disabled:opacity-64 sm:text-sm [&_svg:not([class*='text-'])]:text-[var(--control-icon-color)] [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
+    // Every ghost icon button hovers with the open chat's grey, so icon buttons look the same
+    // in the sidebar, the top bar, the composer and on messages.
+    compoundVariants: [
+      {
+        variant: ["ghost", "ghost-muted", "ghost-destructive"],
+        size: [
+          "icon",
+          "icon-lg",
+          "icon-micro",
+          "icon-tiny",
+          "icon-sm",
+          "icon-sm-composer",
+          "icon-xl",
+          "icon-xs",
+        ],
+        className:
+          "data-pressed:bg-sidebar-row-selected [:hover,[data-pressed]]:bg-sidebar-row-selected",
+      },
+    ],
     defaultVariants: {
       size: "default",
       variant: "default",
@@ -23,6 +42,8 @@ const buttonVariants = cva(
           "size-5 rounded-sm p-0 before:rounded-[calc(var(--radius-sm)-1px)] [&_svg:not([class*='size-'])]:size-3",
         "icon-tiny": "size-4 p-0 [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8 sm:size-7",
+        // Round, for controls set inside a pill (the composer's attach button).
+        "icon-sm-composer": "size-8 rounded-lg before:rounded-lg sm:size-7",
         "icon-xl":
           "size-11 sm:size-10 [&_svg:not([class*='size-'])]:size-5 sm:[&_svg:not([class*='size-'])]:size-4.5",
         "icon-xs":
@@ -105,8 +126,15 @@ const inlineButtonVariants = cva(
         default: "text-foreground",
         muted: "text-muted-foreground hover:text-foreground",
         destructive: "text-destructive/80 hover:text-destructive",
+        // Hovers with the row grey like other controls. The grey is a pseudo-element past the text,
+        // so the button keeps the text's width (padding made the heading truncate). It also covers
+        // the heading's "?" after the name, and is clickable where it shows. 2px on the left (the emoji's
+        // own side bearing makes up the rest) and 8px past the "?", so both ends look even.
         picker:
-          "gap-1 text-foreground decoration-from-font underline-offset-4 data-popup-open:underline",
+          "relative isolate gap-1 text-foreground before:absolute before:-left-0.5 before:right-[calc(-0.45em-0.5rem)] before:inset-y-0 before:-z-10 before:rounded-lg before:transition-colors hover:no-underline hover:before:bg-sidebar-row-selected data-popup-open:before:bg-sidebar-row-selected",
+        // The picker without an icon in front: 8px of grey on the left too.
+        "picker-text":
+          "relative isolate gap-1 text-foreground before:absolute before:-left-2 before:right-[calc(-0.45em-0.5rem)] before:inset-y-0 before:-z-10 before:rounded-lg before:transition-colors hover:no-underline hover:before:bg-sidebar-row-selected data-popup-open:before:bg-sidebar-row-selected",
       },
     },
   },

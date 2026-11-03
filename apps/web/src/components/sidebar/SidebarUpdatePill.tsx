@@ -446,16 +446,16 @@ function SidebarUpdateControl() {
       aria-label={idleTooltip?.detail ? `${tooltip}: ${idleTooltip.detail}` : tooltip}
       aria-disabled={isInteractionDisabled || undefined}
       className={cn(
-        "inline-flex size-8 items-center justify-center rounded-full outline-hidden ring-ring transition-colors focus-visible:ring-2 focus-visible:ring-inset",
+        "inline-flex size-7 items-center justify-center rounded-(--control-radius) outline-hidden ring-ring transition-colors focus-visible:ring-2 focus-visible:ring-inset",
         isInteractionDisabled ? "cursor-not-allowed" : "cursor-pointer",
+        // An available update shows in the icon's full colour only: no resting fill (the control
+        // surface read as a whitish square), hovering like the other footer buttons.
         showUpdateIconState
-          ? cn(
-              "bg-sidebar-control-surface text-sidebar-foreground",
-              !isInteractionDisabled && "hover:bg-sidebar-row-hover",
-            )
+          ? cn("text-sidebar-foreground", !isInteractionDisabled && "hover:bg-sidebar-row-selected")
           : cn(
               "text-(--sidebar-icon-color)",
-              !isInteractionDisabled && "hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
+              !isInteractionDisabled &&
+                "hover:bg-sidebar-row-selected hover:text-sidebar-foreground",
             ),
         disabled && !showUpdateIconState && "opacity-60",
       )}
@@ -488,7 +488,7 @@ function SidebarUpdateControl() {
   );
 
   return (
-    <SidebarMenuItem className="ml-auto shrink-0">
+    <SidebarMenuItem className="shrink-0">
       <Popover
         handle={releaseNotesPopoverHandle}
         open={releaseNotesOpen && showReleaseNotesPopover}

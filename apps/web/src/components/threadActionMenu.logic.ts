@@ -4,6 +4,7 @@ import type { SnoozePreset } from "@t3tools/client-runtime/state/thread-settled"
 export type ThreadActionMenuId =
   | "find"
   | "new-thread-on-branch"
+  | "fork"
   | "filter-by-project"
   | "turn-into-project"
   | "project-settings"
@@ -81,6 +82,8 @@ export interface ThreadActionMenuState {
   readonly isSnoozed: boolean;
   readonly canSnoozeNow: boolean;
   readonly isRegeneratingTitle: boolean;
+  /** A thread with a finished run can be forked into a new conversation. */
+  readonly canFork?: boolean;
   /** Archive rejects attached providers, so disable it while running. */
   readonly isRunning: boolean;
   readonly supports: {
@@ -178,6 +181,9 @@ export function buildThreadActionMenuItems(
         ]
       : []),
     { id: "mark-unread", label: "Mark unread", icon: "mail-open" },
+    ...(state.canFork
+      ? [{ id: "fork" as const, label: "Fork conversation", icon: "git-fork" }]
+      : []),
     ...(state.canShareWithGuest
       ? [{ id: "share-guest" as const, label: "Share with guest", icon: "user-plus" }]
       : []),

@@ -22,6 +22,7 @@ import {
   reconcileOptimisticUserMessages,
 } from "./chat/optimisticUserMessages";
 import { useTimelineRewind } from "./chat/useTimelineRewind";
+import { useMessageVersions } from "./chat/useMessageVersions";
 import { useThreadLifecycle } from "./chat/useThreadLifecycle";
 import { useRightPanelActions } from "./chat/useRightPanelActions";
 import { type TerminalLaunchContext, useChatTerminalActions } from "./chat/useChatTerminalActions";
@@ -33,6 +34,7 @@ import { closeThreadFind, openThreadFind, useThreadFindOpen } from "./chat/threa
 import { THREAD_FIND_BAR_RESERVED_HEIGHT } from "./chat/ThreadFindBar";
 import { usageLimitRecoveryBannerItem } from "./chat/UsageLimitRecoveryBanner";
 import { resolveDraftHeroState } from "./ChatView.logic";
+import { formatUpcomingTimestamp } from "../timestampFormat";
 import { useQueuedRunEdit } from "./chat/useQueuedRunEdit";
 import { recallCheckoutIsRepo, rememberCheckoutIsRepo } from "./ChatView.logic";
 import { useLogicalProjectEnvironments } from "../hooks/useLogicalProjectEnvironments";
@@ -51,6 +53,7 @@ import { feedbackBannerItem } from "./chat/ComposerFeedback";
 import { useUsageLimitsPanel } from "./chat/useUsageLimitsPanel";
 import { useWorktreeSetup } from "./chat/useWorktreeSetup";
 import { useChatShortcuts } from "./chat/useChatShortcuts";
+import { useEscapeToStop } from "./chat/useEscapeToStop";
 import { ChatBannerLane } from "./chat/ChatBannerLane";
 import * as Schema from "effect/Schema";
 import {
@@ -65,12 +68,10 @@ import {
   type MessageId,
   type ModelSelection,
   type PreviewAnnotationPayload,
-  ProviderInstanceId,
   type ServerProvider,
   type ScopedThreadRef,
   type ThreadId,
   ProviderInteractionMode,
-  resolveIdleCompaction,
   RuntimeMode,
 } from "@t3tools/contracts";
 import {
@@ -176,8 +177,6 @@ import { LinkPullRequestDialogHost } from "./pullRequest/LinkPullRequestDialog";
 import { GuestPendingMessages } from "./chat/GuestShareControls";
 import { useDeviceState } from "~/state/device";
 import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
-import { ComposerContextPermissions } from "./ComposerContextPermissions";
-import { resolveCompatibleRuntimeMode } from "./chat/runtimeModeConfig";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
 import { isEditableFocused } from "../lib/editableFocus";
 import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
@@ -313,7 +312,6 @@ import { resolveThreadSyncPhase } from "../threadSync";
 import {
   hasAvailableCompactionProvider,
   hasDismissedResumeCompaction,
-  shouldOfferResumeCompaction,
 } from "./chat/ContextWindowMeter.logic";
 import {
   deriveLatestContextWindowSnapshot,
@@ -560,6 +558,9 @@ export default function ChatView(props: ChatViewProps) {
   const settings = useEnvironmentSettings(environmentId);
   const clientSettingsHydrated = useClientSettingsHydrated();
   const timestampFormat = settings.timestampFormat;
+  const chatScrollsBehindComposer = useClientSettings(
+    (clientSettings) => clientSettings.chatScrollsBehindComposer,
+  );
   const navigate = useNavigate();
   // Selects primitives: an object here is new on every router store update, which
   // re-renders ChatView on unrelated navigation state changes.
@@ -1284,6 +1285,19 @@ export default function ChatView(props: ChatViewProps) {
   const selectedProvider = selectedProviderEntry?.driverKind ?? requestedDriverKind;
   const activeProviderInstanceId = selectedProviderEntry?.instanceId ?? null;
   const activeProviderStatus = selectedProviderEntry?.snapshot ?? null;
+  // The provider's 5-hour window, which the composer's ring shows until a chat has context.
+  const sessionLimitWindow =
+    activeProviderStatus?.usageLimits?.windows.find((window) => window.kind === "session") ?? null;
+  const sessionLimit = sessionLimitWindow
+    ? {
+        usedPercent: sessionLimitWindow.usedPercent,
+        label:
+          sessionLimitWindow.windowDurationMins === 300 ? "5-hour limit" : sessionLimitWindow.label,
+        resetsAtLabel: sessionLimitWindow.resetsAt
+          ? formatUpcomingTimestamp(sessionLimitWindow.resetsAt, settings.timestampFormat)
+          : null,
+      }
+    : null;
   const { enabled: interactionModeEnabled, interactionMode } = resolveComposerInteractionMode({
     planModeEnabled: settings.planModeEnabled,
     provider: activeProviderStatus,
@@ -1806,6 +1820,10 @@ export default function ChatView(props: ChatViewProps) {
     }
   };
   const onInterruptStable = useStableCallback(onInterrupt);
+  useEscapeToStop({
+    enabled: canInterruptRunningThread && !backgroundThread,
+    stop: onInterruptStable,
+  });
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window listener for the desktop snapshot event that focuses the composer
   useEffect(() => subscribeSnapShotComposerFocus(focusComposerStable), [focusComposerStable]);
   const scheduleComposerFocus = () => {
@@ -1814,9 +1832,6 @@ export default function ChatView(props: ChatViewProps) {
     });
   };
   const scheduleComposerFocusStable = useStableCallback(scheduleComposerFocus);
-  const openComposerPermissionsStable = useStableCallback(() =>
-    composerRef.current?.openControl("composer.mode"),
-  );
   const insertArtifactTemplate = (template: CodexArtifactTemplate) => {
     const composer = composerRef.current;
     if (!composer) return;
@@ -2215,6 +2230,17 @@ export default function ChatView(props: ChatViewProps) {
       stack?.querySelector('[data-chat-composer-mobile-collapsed="true"]'),
     );
     if (!mobileCollapsed) composerExpandedHeightRef.current = expandedComposerHeight;
+    // Messages stop 24px into the composer box (the timeline masks everything below), so nothing
+    // shows under the box, the row beneath it or the gap to the window edge. A mask rather than a
+    // fill: a see-through main area would get its tint twice where a fill sits on top of it.
+    const pane = composerOverlayElement?.parentElement;
+    const shell = composerOverlayElement?.querySelector<HTMLElement>(
+      '[data-slot="composer-shell"]',
+    );
+    if (pane && shell) {
+      const cover = pane.getBoundingClientRect().bottom - shell.getBoundingClientRect().top - 24;
+      pane.style.setProperty("--composer-cover", `${Math.max(0, Math.round(cover))}px`);
+    }
     const reservedHeight = Math.max(composerExpandedHeightRef.current, expandedComposerHeight);
     if (composerReservedHeightRef.current !== reservedHeight) {
       composerReservedHeightRef.current = reservedHeight;
@@ -2446,26 +2472,9 @@ export default function ChatView(props: ChatViewProps) {
           ? "Compaction is unavailable for this provider"
           : "Compacting is unavailable right now"
     : null;
-  const resumeCompactionTokens =
-    activeContextWindow &&
-    resolveIdleCompaction(
-      settings,
-      activeProviderInstanceId ?? ProviderInstanceId.make("claudeAgent"),
-    ) !== "off" &&
-    !resumeCompactionPermanentlyDismissed &&
-    !nativeResumeCompactionDismissed &&
-    !compactDisabled &&
-    !hasHeldQueuedRuns &&
-    multipleModelSelections === null &&
-    shouldOfferResumeCompaction({
-      provider: selectedProvider,
-      usedTokens: activeContextWindow.usedTokens,
-      updatedAt: activeContextWindow.updatedAt,
-      promptCacheTtlMs: activeThreadLiveTokenUsage?.promptCacheTtlMs,
-      now: `${nowMinute}:00.000Z`,
-    })
-      ? activeContextWindow.usedTokens
-      : null;
+  // Marcus removed the composer's "Compact 303k" offer, so a send never compacts first; the
+  // context ring's popover still compacts on demand.
+  const resumeCompactionTokens: number | null = null;
   const [fullHistoryThreadKeys, setFullHistoryThreadKeys] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -2732,6 +2741,12 @@ export default function ChatView(props: ChatViewProps) {
       composerDraftTarget,
       setThreadError,
     });
+  const { onEditMessageStable, onSwitchMessageVersionStable } = useMessageVersions({
+    environmentId,
+    activeThread,
+    isWorking,
+    setThreadError,
+  });
   const onCompactContext = () => {
     if (compactDisabled) return;
     void sendStandaloneCommand("/compact", "Failed to compact context.");
@@ -3210,16 +3225,18 @@ export default function ChatView(props: ChatViewProps) {
         )}
         data-chat-column-maximized-away={rightPanelMaximized ? "true" : "false"}
         data-chat-column
+        data-chat-above-composer={chatScrollsBehindComposer ? undefined : ""}
         inert={rightPanelMaximized}
       >
         <header
           ref={threadPanelPopoverAnchorRef}
           data-chat-header
           className={cn(
-            "relative bg-background [[data-panel-animations=true]_&]:motion-safe:transition-[padding-left] [[data-panel-animations=true]_&]:motion-safe:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:motion-safe:ease-out",
+            "relative z-20 border-b [[data-panel-animations=true]_&]:motion-safe:transition-[padding-left] [[data-panel-animations=true]_&]:motion-safe:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:motion-safe:ease-out",
             isElectron
               ? cn(
-                  "drag-region flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center px-3 sm:px-5",
+                  // Settings › Appearance › Top bar side padding (16px).
+                  "drag-region flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center px-3 sm:ps-(--topbar-side-padding) sm:pe-5",
                   reserveTitleBarControlInset &&
                     !inlineRightPanelOwnsTitleBar &&
                     "wco:pr-(--workspace-native-controls-inset)",
@@ -3360,6 +3377,8 @@ export default function ChatView(props: ChatViewProps) {
                 parentThreadLink={parentThreadLink}
                 workflowOpening={workflowOpening}
                 onForkFromRun={onForkFromRunStable}
+                onEditMessage={onEditMessageStable}
+                onSwitchMessageVersion={onSwitchMessageVersionStable}
                 supportsConversationRollback={supportsConversationRollback}
                 threadStartCheckpointReady={threadStartCheckpointReady}
                 availableRevertTurnCounts={availableRevertTurnCounts}
@@ -3384,7 +3403,6 @@ export default function ChatView(props: ChatViewProps) {
                 onViewportAttach={attachTimelineViewport}
                 onFooterGrow={onTimelineFooterGrowStable}
                 hideEmptyPlaceholder={isDraftHeroState || threadDetailLoading}
-                emptyPlaceholderInset={composerReservedHeight}
                 topFadeEnabled={!hasTimelineTopBanner}
                 {...(threadHistoryControls === undefined
                   ? {}
@@ -3400,6 +3418,26 @@ export default function ChatView(props: ChatViewProps) {
               )}
             </div>
 
+            {isDraftHeroState ? (
+              // The new-chat heading sits centred in the chat area; the composer stays docked at
+              // the bottom like in any chat.
+              <div className="pointer-events-none absolute inset-0 z-20 flex items-center px-4 pb-24">
+                <div
+                  className="pointer-events-auto mx-auto w-full max-w-5xl"
+                  style={
+                    forceExpandedMobileComposer
+                      ? { viewTransitionName: MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME }
+                      : undefined
+                  }
+                >
+                  <DraftHeroHeadline
+                    draftId={draftId}
+                    activeProjectRef={activeProjectRef}
+                    activeProjectTitle={activeProject?.title ?? null}
+                  />
+                </div>
+              </div>
+            ) : null}
             <div
               {...composerArea}
               ref={(overlay: HTMLDivElement | null) => {
@@ -3408,35 +3446,13 @@ export default function ChatView(props: ChatViewProps) {
               }}
               inert={isRevertingCheckpoint}
               data-chat-composer-overlay="true"
-              className={
-                isDraftHeroState
-                  ? "pointer-events-none absolute inset-0 z-20 flex items-center"
-                  : "pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
-              }
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
             >
               <div ref={draftHeroTransitionGroupRef} className="chat-composer-lane w-full">
                 <div
                   data-chat-composer-stack="true"
                   className="group/composer-stack pointer-events-auto relative z-10 mx-auto w-full max-w-(--chat-content-max-width)"
                 >
-                  {isDraftHeroState ? (
-                    <div className="absolute inset-x-0 bottom-full">
-                      <div
-                        className="pb-4 group-has-data-[composer-shoulder-tab]/composer-stack:pb-0"
-                        style={
-                          forceExpandedMobileComposer
-                            ? { viewTransitionName: MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME }
-                            : undefined
-                        }
-                      >
-                        <DraftHeroHeadline
-                          draftId={draftId}
-                          activeProjectRef={activeProjectRef}
-                          activeProjectTitle={activeProject?.title ?? null}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
                   <div
                     ref={draftHeroComposerAnchorRef}
                     className="relative z-10"
@@ -3470,6 +3486,53 @@ export default function ChatView(props: ChatViewProps) {
                           ) : null}
                           {!composerMounted ? null : (
                             <ChatComposer
+                              sessionLimit={sessionLimit}
+                              footerStart={
+                                showComposerContextStrip ? (
+                                  <BranchToolbar
+                                    forceNewWorktree={multipleModelSelections !== null}
+                                    ref={branchToolbarRef}
+                                    environmentId={activeThread.environmentId}
+                                    threadId={activeThread.id}
+                                    projectId={activeThread.projectId}
+                                    worktreePath={activeThread.worktreePath}
+                                    isServerThread={isServerThread}
+                                    showGitControls={isGitRepo}
+                                    {...(routeKind === "draft" && draftId ? { draftId } : {})}
+                                    onEnvModeChange={onEnvModeChangeStable}
+                                    startFromOrigin={startFromOrigin}
+                                    onStartFromOriginChange={onStartFromOriginChange}
+                                    envMode={envMode}
+                                    {...(canOverrideServerThreadEnvMode
+                                      ? {
+                                          activeThreadBranchOverride: activeThreadBranch,
+                                          onActiveThreadBranchOverrideChange:
+                                            setPendingServerThreadBranch,
+                                        }
+                                      : {})}
+                                    envLocked={envLocked}
+                                    onComposerFocusRequest={scheduleComposerFocusStable}
+                                    {...(canCheckoutPullRequestIntoThread
+                                      ? {
+                                          onCheckoutPullRequestRequest: openPullRequestDialogStable,
+                                        }
+                                      : {})}
+                                    {...(canChangeEnvironment
+                                      ? { onEnvironmentChange: onEnvironmentChangeStable }
+                                      : {})}
+                                    autoEnvironmentLabel={autoEnvironmentLabel}
+                                    onAutoEnvironment={
+                                      draftId &&
+                                      !envLocked &&
+                                      canAutoBalanceEnvironments &&
+                                      loadBalancingSettings.loadBalancingEnabled
+                                        ? onAutoEnvironmentStable
+                                        : undefined
+                                    }
+                                    availableEnvironments={logicalProjectEnvironments}
+                                  />
+                                ) : null
+                              }
                               canOperateThread={canOperateThread}
                               reportedModelSelection={reportedModelSelection}
                               multipleModelSelections={multipleModelSelections}
@@ -3581,7 +3644,6 @@ export default function ChatView(props: ChatViewProps) {
                               }
                               threadPullRequests={(activeThreadShell ?? activeThread)?.pullRequests}
                               onComposerOverlayHeightChange={publishComposerOverlayHeightStable}
-                              permissionsShownInStrip={showComposerContextStrip && !isServerThread}
                               promptRef={promptRef}
                               composerImagesRef={composerImagesRef}
                               composerFilesRef={composerFilesRef}
@@ -3626,82 +3688,17 @@ export default function ChatView(props: ChatViewProps) {
                           )}
                         </div>
                       </ComposerSurface.Host>
-                      <div className="min-h-0">
-                        <div
-                          data-terminal-open={terminalUiState.terminalOpen ? "true" : undefined}
-                          className="relative z-0"
-                        >
-                          {showComposerContextStrip && (
-                            <div className="pointer-events-auto">
-                              <BranchToolbar
-                                forceNewWorktree={multipleModelSelections !== null}
-                                ref={branchToolbarRef}
-                                environmentId={activeThread.environmentId}
-                                threadId={activeThread.id}
-                                projectId={activeThread.projectId}
-                                worktreePath={activeThread.worktreePath}
-                                isServerThread={isServerThread}
-                                showGitControls={isGitRepo}
-                                {...(routeKind === "draft" && draftId ? { draftId } : {})}
-                                onEnvModeChange={onEnvModeChangeStable}
-                                startFromOrigin={startFromOrigin}
-                                onStartFromOriginChange={onStartFromOriginChange}
-                                envMode={envMode}
-                                {...(canOverrideServerThreadEnvMode
-                                  ? {
-                                      activeThreadBranchOverride: activeThreadBranch,
-                                      onActiveThreadBranchOverrideChange:
-                                        setPendingServerThreadBranch,
-                                    }
-                                  : {})}
-                                envLocked={envLocked}
-                                onComposerFocusRequest={scheduleComposerFocusStable}
-                                {...(canCheckoutPullRequestIntoThread
-                                  ? { onCheckoutPullRequestRequest: openPullRequestDialogStable }
-                                  : {})}
-                                {...(canChangeEnvironment
-                                  ? { onEnvironmentChange: onEnvironmentChangeStable }
-                                  : {})}
-                                autoEnvironmentLabel={autoEnvironmentLabel}
-                                onAutoEnvironment={
-                                  draftId &&
-                                  !envLocked &&
-                                  canAutoBalanceEnvironments &&
-                                  loadBalancingSettings.loadBalancingEnabled
-                                    ? onAutoEnvironmentStable
-                                    : undefined
-                                }
-                                availableEnvironments={logicalProjectEnvironments}
-                                {...(isServerThread
-                                  ? {}
-                                  : {
-                                      trailing: (
-                                        <ComposerContextPermissions
-                                          runtimeMode={
-                                            resolveCompatibleRuntimeMode(
-                                              runtimeMode,
-                                              activeProviderStatus?.supportedRuntimeModes,
-                                            ).mode
-                                          }
-                                          onOpen={openComposerPermissionsStable}
-                                        />
-                                      ),
-                                    })}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
                       {isDraftHeroState && composerBannerItems.length > 0 ? (
-                        // Out of flow, like the headline, so a notice never moves the centered composer.
-                        <div className="absolute inset-x-0 top-full flex flex-col gap-1 pt-4">
+                        // Out of flow, like the headline, so a notice never moves the composer.
+                        <div className="absolute inset-x-0 bottom-full flex flex-col gap-1 pb-4">
                           <ComposerBannerStack items={composerBannerItems} detached />
                         </div>
                       ) : null}
                     </ComposerSurface.Shell>
                     <div
                       aria-hidden
-                      className="h-[calc(env(safe-area-inset-bottom)+1rem)] sm:h-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+                      // The same 16px as the lane's side gutter.
+                      className="h-[calc(env(safe-area-inset-bottom)+1rem)]"
                     />
                   </div>
                 </div>

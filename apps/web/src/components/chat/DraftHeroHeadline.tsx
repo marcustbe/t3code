@@ -3,18 +3,15 @@ import { composerDraftHasUserContent, useComposerDraftStore } from "~/composerDr
 import { resolveEnvironmentMachineKind, type ScopedProjectRef } from "@t3tools/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
-import { FolderPlusIcon } from "lucide-react";
-import { useAtomValue } from "@effect/atom-react";
+import { FolderPlusIcon, MessageSquareDashedIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { openCommandPalette } from "~/commandPaletteBus";
-import { shortcutLabelForCommand } from "~/keybindings";
-import { primaryServerKeybindingsAtom } from "~/state/server";
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { useScratchProject } from "~/hooks/useScratchProject";
 import { isTriagePrompt } from "~/hooks/useStartTriage";
 import { useClientSettings } from "~/hooks/useSettings";
-import { hasExplicitComposerModelSelection } from "~/lib/chatThreadActions";
+import { hasExplicitComposerModelSelection, rememberNewChatProject } from "~/lib/chatThreadActions";
 import {
   deriveLogicalProjectKeyFromSettings,
   selectProjectGroupingSettings,
@@ -53,6 +50,7 @@ import { resolveProjectDefaultProviderModelSelection } from "../../providerInsta
 import { resolveNewThreadModelSelection } from "@t3tools/shared/usageLimits";
 
 const ADD_PROJECT_VALUE = "add-project";
+const NO_PROJECT_VALUE = "no-project";
 
 interface PickerItem {
   readonly value: string;
@@ -64,6 +62,8 @@ interface DraftHeroHeadlineProps {
   readonly activeProjectRef: ScopedProjectRef | null;
   readonly activeProjectTitle: string | null;
 }
+
+const SCRATCH_PICKER_LABEL = "without a project";
 
 export function DraftHeroHeadline({
   draftId,
@@ -90,7 +90,6 @@ export function DraftHeroHeadline({
   const openAddProject = () => openCommandPalette({ open: "add-project" });
   const { scratchEnvironmentId, scratchWorkspaceRootFor, openScratchProject } = useScratchProject();
   const openProjectDraft = useNewThreadHandler();
-  const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
   const pickerFilter = useComboboxFilter();
@@ -158,6 +157,7 @@ export function DraftHeroHeadline({
 
   const pickerItems: readonly PickerItem[] = [
     ...menuEntries.map(({ group }) => ({ value: group.projectKey, label: group.displayName })),
+    ...(scratchWorkspaceRoot !== null ? [{ value: NO_PROJECT_VALUE, label: "No project" }] : []),
     { value: ADD_PROJECT_VALUE, label: "Add project" },
   ];
   const pickerSearch = pickerQuery.trim();
@@ -169,7 +169,8 @@ export function DraftHeroHeadline({
             item.value !== ADD_PROJECT_VALUE &&
             pickerFilter.contains(item, pickerSearch, (candidate) => candidate.label),
         );
-  const selectedPickerItem = pickerItems.find((item) => item.value === activeProjectKey) ?? null;
+  const selectedPickerValue = isScratchDraft ? NO_PROJECT_VALUE : activeProjectKey;
+  const selectedPickerItem = pickerItems.find((item) => item.value === selectedPickerValue) ?? null;
 
   // The picker can change the draft's target while the no-project home is
   // still being opened; a stale continuation must not retarget it again. Picking
@@ -188,6 +189,7 @@ export function DraftHeroHeadline({
       return;
     }
     pendingScratchRef.current = null;
+    rememberNewChatProject(scopeProjectRef(project.environmentId, project.id));
     const currentDraft = getComposerDraft(draftId);
     if (!composerDraftHasUserContent(currentDraft)) {
       void openProjectDraft(scopeProjectRef(project.environmentId, project.id));
@@ -270,6 +272,14 @@ export function DraftHeroHeadline({
           openAddProject();
           return;
         }
+        if (item.value === NO_PROJECT_VALUE) {
+          void startScratch().then((started) => {
+            if (started) {
+              document.querySelector<HTMLElement>("[data-draft-project-trigger]")?.focus();
+            }
+          });
+          return;
+        }
         const entry = projectEntryByKey.get(item.value);
         if (!entry || item.value === activeProjectKey) {
           return;
@@ -281,14 +291,26 @@ export function DraftHeroHeadline({
         <TooltipTrigger
           render={
             <ComboboxTrigger
-              render={<InlineButton tone="picker" />}
+              render={<InlineButton tone={isScratchDraft ? "picker-text" : "picker"} />}
               data-draft-project-trigger=""
-              className="pointer-events-auto min-w-0 max-w-full align-baseline"
+              // The name sits on the heading's baseline (centred, it rode 3px high beside the
+              // icon); the icon stays centred on the line.
+              className="pointer-events-auto min-w-0 max-w-full items-baseline align-baseline"
             />
           }
         >
+          {activeProjectGroup && !isScratchDraft ? (
+            <ProjectFavicon
+              project={activeProjectGroup}
+              className="size-[1em] shrink-0 self-center"
+            />
+          ) : null}
           <DraftProjectName
-            value={isScratchDraft ? "No project" : (activeProjectDisplayName ?? "Choose a project")}
+            value={
+              isScratchDraft
+                ? SCRATCH_PICKER_LABEL
+                : (activeProjectDisplayName ?? "Choose a project")
+            }
             singleLine
           />
         </TooltipTrigger>
@@ -311,6 +333,8 @@ export function DraftHeroHeadline({
               <ComboboxItem key={item.value} hideIndicator value={item}>
                 {item.value === ADD_PROJECT_VALUE ? (
                   <FolderPlusIcon className="size-4 shrink-0" />
+                ) : item.value === NO_PROJECT_VALUE ? (
+                  <MessageSquareDashedIcon className="size-4 shrink-0" />
                 ) : entry ? (
                   <ProjectFavicon project={entry.group} className="size-4 shrink-0" />
                 ) : null}
@@ -343,31 +367,6 @@ export function DraftHeroHeadline({
     </button>
   );
 
-  const noProjectShortcut = shortcutLabelForCommand(keybindings, "chat.newWithoutProject");
-  const orStartWithoutProject =
-    scratchWorkspaceRoot !== null && !isScratchDraft && (hasResolvedProject || canChooseProject) ? (
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <InlineButton
-              tone="muted"
-              className="pointer-events-auto"
-              onClick={() =>
-                void startScratch().then((started) => {
-                  if (started) {
-                    document.querySelector<HTMLElement>("[data-draft-project-trigger]")?.focus();
-                  }
-                })
-              }
-            />
-          }
-        >
-          or start without a project
-        </TooltipTrigger>
-        {noProjectShortcut ? <TooltipPopup side="bottom">{noProjectShortcut}</TooltipPopup> : null}
-      </Tooltip>
-    ) : null;
-
   if (isScratchDraft && isTriageDraftPrompt) {
     const environment = environments.find(
       (entry) => entry.environmentId === activeProject.environmentId,
@@ -382,25 +381,24 @@ export function DraftHeroHeadline({
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
-      {hasResolvedProject && !isScratchDraft ? (
+      {isScratchDraft ? (
+        // The picker sits in the question like a project's name: "What should we build without
+        // a project?"
+        <DraftHeroProjectHeading
+          projectName={SCRATCH_PICKER_LABEL}
+          connector={null}
+          projectIcon={false}
+        >
+          {projectSelector}
+        </DraftHeroProjectHeading>
+      ) : hasResolvedProject ? (
         <DraftHeroProjectHeading projectName={activeProjectDisplayName ?? "Choose a project"}>
           {projectSelector}
         </DraftHeroProjectHeading>
       ) : (
-        <h1 className="w-full text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl">
-          {isScratchDraft ? (
-            <>What should we work on?</>
-          ) : canChooseProject ? (
-            <>{projectSelector} to start</>
-          ) : (
-            <>Add a project to start</>
-          )}
+        <h1 className="w-full text-center font-normal text-xl text-foreground tracking-tight sm:text-2xl">
+          {canChooseProject ? <>{projectSelector} to start</> : <>Add a project to start</>}
         </h1>
-      )}
-      {scratchWorkspaceRoot === null ? null : (
-        <p className="mt-2 flex h-6 w-full items-center justify-center text-sm">
-          {isScratchDraft ? projectSelector : orStartWithoutProject}
-        </p>
       )}
     </div>
   );

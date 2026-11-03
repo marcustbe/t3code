@@ -1,12 +1,11 @@
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
-import { PanelLeft, PanelLeftClose } from "lucide";
 import * as React from "react";
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import { Input, type InputProps } from "~/components/ui/input";
-import { MorphIcon } from "~/components/MorphIcon";
+import { SidebarToggleSymbol } from "~/components/sidebar/SidebarSymbols";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import {
   Sheet,
@@ -81,6 +80,9 @@ type SidebarInstanceContextProps = {
 };
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
+/** Only what never changes on a desktop toggle, so the thread list doesn't re-render when the sidebar opens or closes. */
+type SidebarMobileControls = Pick<SidebarContextProps, "isMobile" | "setOpenMobile">;
+const SidebarMobileControlsContext = React.createContext<SidebarMobileControls | null>(null);
 const SidebarInstanceContext = React.createContext<SidebarInstanceContextProps | null>(null);
 
 function useSidebar() {
@@ -89,6 +91,14 @@ function useSidebar() {
     throw new Error("useSidebar must be used within a SidebarProvider.");
   }
 
+  return context;
+}
+
+function useSidebarMobileControls() {
+  const context = React.use(SidebarMobileControlsContext);
+  if (!context) {
+    throw new Error("useSidebarMobileControls must be used within a SidebarProvider.");
+  }
   return context;
 }
 
@@ -209,31 +219,34 @@ function SidebarProvider({
     toggleSidebar: store.toggle,
     onCollapse: store.onCollapse,
   };
+  const mobileControls: SidebarMobileControls = { isMobile, setOpenMobile: store.setOpenMobile };
 
   return (
-    <SidebarContext value={contextValue}>
-      <div
-        className={cn(
-          "group/sidebar-wrapper flex min-h-svh w-full",
-          SIDEBAR_TITLEBAR_CONTROL_SIZE,
-          className,
-        )}
-        data-sidebar-state={state}
-        data-slot="sidebar-wrapper"
-        style={
-          {
-            "--sidebar-width": SIDEBAR_WIDTH,
-            "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
-            "--workspace-titlebar-content-left":
-              "calc(var(--workspace-controls-left) + var(--workspace-titlebar-control-size) + var(--workspace-titlebar-control-gap))",
-            ...style,
-          } as React.CSSProperties
-        }
-        {...props}
-      >
-        {children}
-      </div>
-    </SidebarContext>
+    <SidebarMobileControlsContext value={mobileControls}>
+      <SidebarContext value={contextValue}>
+        <div
+          className={cn(
+            "group/sidebar-wrapper flex min-h-svh w-full",
+            SIDEBAR_TITLEBAR_CONTROL_SIZE,
+            className,
+          )}
+          data-sidebar-state={state}
+          data-slot="sidebar-wrapper"
+          style={
+            {
+              "--sidebar-width": SIDEBAR_WIDTH,
+              "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+              "--workspace-titlebar-content-left":
+                "calc(var(--workspace-controls-left) + var(--workspace-titlebar-control-size) + var(--workspace-titlebar-control-gap))",
+              ...style,
+            } as React.CSSProperties
+          }
+          {...props}
+        >
+          {children}
+        </div>
+      </SidebarContext>
+    </SidebarMobileControlsContext>
   );
 }
 
@@ -411,7 +424,7 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
       variant="ghost"
       {...props}
     >
-      <MorphIcon className="size-4" icon={isOpen ? PanelLeftClose : PanelLeft} />
+      <SidebarToggleSymbol className="size-icon-lg text-(--sidebar-icon-color)" open={isOpen} />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );
@@ -630,7 +643,13 @@ function SidebarHeader({ className, ...props }: React.ComponentProps<"div">) {
 function SidebarFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("flex flex-col gap-2 px-[var(--sidebar-content-inset)] py-1", className)}
+      // The buttons' hover squares sit 5px from the separator, the bottom and the side, so the icon
+      // glyphs land 12px in on every side, on the rows' line. Like
+      // Claude's, it stays put under the scrolling list behind a separator that runs edge to edge.
+      className={cn(
+        "flex flex-col gap-2 border-t border-separator px-[calc(var(--sidebar-side-inset)+1px)] pt-[calc(var(--sidebar-side-inset)+1px)] pb-[max(0px,calc(var(--sidebar-bottom-padding,12px)-7px))]",
+        className,
+      )}
       data-sidebar="footer"
       data-slot="sidebar-footer"
       {...props}
@@ -676,7 +695,7 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        "relative flex w-full min-w-0 flex-col p-[var(--sidebar-content-inset)]",
+        "relative flex w-full min-w-0 flex-col px-[var(--sidebar-side-inset)] py-[var(--sidebar-content-inset)]",
         className,
       )}
       data-sidebar="group"
@@ -719,12 +738,12 @@ const sidebarMenuButtonVariants = cva(
       size: {
         default:
           "h-8 rounded-[var(--control-radius)] px-[var(--sidebar-row-content-inset)] py-1.5 text-sm",
-        icon: "size-8 justify-center rounded-[var(--control-radius)] p-0",
+        icon: "size-7 justify-center rounded-[var(--control-radius)] p-0 hover:bg-sidebar-row-selected!",
         lg: "h-12 rounded-[var(--control-radius)] px-[var(--sidebar-row-content-inset)] py-2 text-sm group-data-[collapsible=icon]:p-0!",
         sm: "h-7 rounded-[var(--control-radius)] px-[var(--sidebar-row-content-inset)] py-2 text-xs",
       },
       variant: {
-        default: "font-medium text-sidebar-muted-foreground/80",
+        default: "font-medium text-sidebar-muted-foreground",
         outline: "bg-sidebar-control-surface ring-1 ring-sidebar-border",
       },
     },
@@ -860,5 +879,6 @@ export {
   SidebarRail,
   SidebarTrigger,
   useSidebar,
+  useSidebarMobileControls,
   useSidebarVisibility,
 };

@@ -33,7 +33,40 @@ export interface ChatThreadActionContext {
   readonly activeDraftThread: ThreadContextLike | null;
   readonly activeThread: ThreadContextLike | undefined;
   readonly defaultProjectRef: ScopedProjectRef | null;
+  /** The project last picked for a new chat; new chats keep using it until another is picked. */
+  readonly rememberedProjectRef?: ScopedProjectRef | null;
   readonly handleNewThread: NewThreadHandler;
+}
+
+const NEW_CHAT_PROJECT_STORAGE_KEY = "t3code:new-chat-project:v1";
+
+export function rememberNewChatProject(projectRef: ScopedProjectRef): void {
+  try {
+    localStorage.setItem(
+      NEW_CHAT_PROJECT_STORAGE_KEY,
+      JSON.stringify({ environmentId: projectRef.environmentId, projectId: projectRef.projectId }),
+    );
+  } catch {
+    // Storage unavailable: new chats fall back to the open chat's project.
+  }
+}
+
+/** The remembered project, if it still exists among `projects`. */
+export function resolveRememberedNewChatProject(
+  projects: ReadonlyArray<{ readonly environmentId: EnvironmentId; readonly id: ProjectId }>,
+): ScopedProjectRef | null {
+  let stored: unknown;
+  try {
+    stored = JSON.parse(localStorage.getItem(NEW_CHAT_PROJECT_STORAGE_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+  if (typeof stored !== "object" || stored === null) return null;
+  const { environmentId, projectId } = stored as Record<string, unknown>;
+  const project = projects.find(
+    (candidate) => candidate.environmentId === environmentId && candidate.id === projectId,
+  );
+  return project ? scopeProjectRef(project.environmentId, project.id) : null;
 }
 
 export function resolveNewDraftStartFromOrigin(input: {
@@ -85,7 +118,7 @@ export function resolveThreadActionProjectRef(
 export async function startNewThreadFromContext(
   context: ChatThreadActionContext,
 ): Promise<boolean> {
-  const projectRef = resolveThreadActionProjectRef(context);
+  const projectRef = context.rememberedProjectRef ?? resolveThreadActionProjectRef(context);
   if (!projectRef) {
     return false;
   }

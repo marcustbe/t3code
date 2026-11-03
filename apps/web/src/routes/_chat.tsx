@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import { ThreadRouteView } from "../components/ThreadRouteView";
 import { isAppModalPage } from "../components/sidebar/mainAppLocation";
-import { SidebarInset } from "../components/ui/sidebar";
 import { resolveThreadRouteTarget, type ThreadRouteTarget } from "../threadRoutes";
 import { retainThreadFindForRoute } from "../components/chat/threadFindStore";
 import { ThreadLinkPrompt } from "../components/promptLinks/ThreadLinkPrompt";
@@ -22,22 +21,23 @@ function ChatRouteLayout() {
   const modalOpen = useMatches({
     select: (matches) => matches.some((match) => isAppModalPage(match.pathname)),
   });
-  // Settings and Usage render over the thread that opened them, so ChatView never remounts.
+  // Settings and Usage keep the thread that opened them mounted, so going back never remounts ChatView.
   const [backgroundTarget, setBackgroundTarget] = useState(threadTarget);
   if (!modalOpen && threadRouteTargetKey(backgroundTarget) !== threadRouteTargetKey(threadTarget)) {
     setBackgroundTarget(threadTarget);
   }
   const shownTarget = modalOpen ? backgroundTarget : threadTarget;
+  // Settings and Usage are pages of their own in the main area (Settings also swaps the sidebar for
+  // its sections, AppSidebarLayout); the thread stays mounted behind them, out of the layout, instead
+  // of remounting on Back.
   return (
     <>
       {shownTarget?.kind === "server" && !modalOpen ? (
         <ThreadLinkPrompt threadRef={shownTarget.threadRef} />
       ) : null}
       {shownTarget ? (
-        <ThreadRouteView target={shownTarget} background={modalOpen} />
-      ) : modalOpen ? (
-        <SidebarInset className="h-dvh" />
-      ) : (
+        <ThreadRouteView target={shownTarget} background={modalOpen} concealed={modalOpen} />
+      ) : modalOpen ? null : (
         <Outlet />
       )}
       {modalOpen ? <Outlet /> : null}

@@ -29,14 +29,18 @@ export function BrowserSurfaceSlot(props: {
     let lease = acquireBrowserSurface(tabId, fitSourceContent);
     const update = () => {
       const rect = element.getBoundingClientRect();
+      // Round the edges, not the size, so a fractional drag width cannot shift the far edge by 1px.
+      const x = Math.round(rect.left);
+      const y = Math.round(rect.top);
+      const snapped = {
+        x,
+        y,
+        width: Math.max(1, Math.round(rect.right) - x),
+        height: Math.max(1, Math.round(rect.bottom) - y),
+      };
       const presentation = presentationRef.current;
       const presented = lease.present(
-        {
-          x: Math.round(rect.x),
-          y: Math.round(rect.y),
-          width: Math.max(1, Math.round(rect.width)),
-          height: Math.max(1, Math.round(rect.height)),
-        },
+        snapped,
         presentation.visible && rect.width > 0 && rect.height > 0,
         presentation.cornerRadius,
         presentation.zIndex,
@@ -45,12 +49,7 @@ export function BrowserSurfaceSlot(props: {
         lease.release();
         lease = acquireBrowserSurface(tabId, fitSourceContent);
         lease.present(
-          {
-            x: Math.round(rect.x),
-            y: Math.round(rect.y),
-            width: Math.max(1, Math.round(rect.width)),
-            height: Math.max(1, Math.round(rect.height)),
-          },
+          snapped,
           rect.width > 0 && rect.height > 0,
           presentation.cornerRadius,
           presentation.zIndex,

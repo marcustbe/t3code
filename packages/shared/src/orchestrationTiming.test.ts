@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { deriveSubagentElapsedMs } from "./orchestrationTiming.ts";
+import { deriveSubagentElapsedMs, formatDuration } from "./orchestrationTiming.ts";
+
+describe("formatDuration", () => {
+  it.each([
+    [400, "400ms"],
+    [1_400, "1s"],
+    [9_600, "10s"],
+    [59_500, "1m"],
+    [61_000, "1m 1s"],
+  ])("formats %dms as %s", (durationMs, label) => {
+    expect(formatDuration(durationMs)).toBe(label);
+  });
+});
 
 describe("deriveSubagentElapsedMs", () => {
   const startedAt = "2026-09-21T12:00:00.000Z";

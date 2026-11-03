@@ -25,6 +25,7 @@ import { cn } from "~/lib/utils";
 import { shortcutLabelForCommand } from "../../keybindings";
 import {
   renderProviderTraitsMenuContent,
+  renderFastModeToggle,
   renderProviderTraitsPicker,
 } from "./composerProviderState";
 import type { useComposerProviderModel } from "./useComposerProviderModel";
@@ -55,7 +56,6 @@ export function ComposerControlsBar(props: {
   planModeUiEnabled: boolean;
   effortDisplay: EffortDisplay;
   /** The strip under a new thread names the permissions, so the row does not repeat them. */
-  permissionsShownInStrip: boolean;
   interactionMode: ProviderInteractionMode;
   compatibleRuntimeMode: RuntimeMode;
   defaultRuntimeMode: RuntimeMode | undefined;
@@ -151,7 +151,6 @@ export function ComposerControlsBar(props: {
     planModeEnabled,
   });
   const accessMatchesDefault = compatibleRuntimeMode === defaultRuntimeMode;
-  const permissionsChipHidden = accessMatchesDefault || props.permissionsShownInStrip;
   const providerTraitsPickerInput = {
     provider: selectedProvider,
     instanceId: selectedInstanceId,
@@ -166,7 +165,7 @@ export function ComposerControlsBar(props: {
     planModeEnabled,
     isComposerOwned: true,
     effortDisplay: props.effortDisplay,
-    triggerClassName: cn("ps-1.5 pe-1", TEXT_CONTROL_STATES),
+    triggerClassName: cn("ps-1.5 pe-1 text-xs!", TEXT_CONTROL_STATES),
     // Permissions always live in the effort menu, so the section never unmounts while open.
     extraMenuContent: (
       <ComposerPermissionsSection
@@ -175,21 +174,23 @@ export function ComposerControlsBar(props: {
         onRuntimeModeChange={handleRuntimeModeChange}
       />
     ),
-    ...(permissionsChipHidden
-      ? {
-          extraMenuHint: [
-            `Permissions: ${
-              compatibleRuntimeModeOptions.find((option) => option.mode === compatibleRuntimeMode)
-                ?.label ?? compatibleRuntimeMode
-            }`,
-            shortcutLabelForCommand(keybindings, "composer.mode"),
-          ]
-            .filter(Boolean)
-            .join(" · "),
-        }
-      : {}),
+    extraMenuHint: [
+      `Permissions: ${
+        compatibleRuntimeModeOptions.find((option) => option.mode === compatibleRuntimeMode)
+          ?.label ?? compatibleRuntimeMode
+      }`,
+      shortcutLabelForCommand(keybindings, "composer.mode"),
+    ]
+      .filter(Boolean)
+      .join(" · "),
   } satisfies Parameters<typeof renderProviderTraitsPicker>[0];
   const providerTraitsPicker = renderProviderTraitsPicker(providerTraitsPickerInput);
+  // Fast mode takes the provider logo's place in front of the model name.
+  const fastModeToggle = renderFastModeToggle({
+    ...providerTraitsPickerInput,
+    size: composerControlsCollapsed ? "xs" : "sm",
+    disabled: composerControlsHidden,
+  });
   const {
     accessDisplay,
     showModeBlock,
@@ -199,7 +200,8 @@ export function ComposerControlsBar(props: {
     effortOwnsModeShortcut,
     overflowShowsPermissions,
   } = resolveComposerControlsOwnership({
-    matchesDefault: permissionsChipHidden,
+    // Permissions never get a chip of their own; the effort menu holds them.
+    matchesDefault: true,
     hasTraits: providerTraitsPicker !== null,
     planModeUiEnabled,
     collapsed: composerControlsCollapsed,
@@ -231,7 +233,8 @@ export function ComposerControlsBar(props: {
                 interactionMode={interactionMode}
                 runtimeMode={compatibleRuntimeMode}
                 runtimeModeOptions={compatibleRuntimeModeOptions}
-                size={composerControlsCollapsed ? "xs" : "sm"}
+                // Below the pill, permissions and plan mode stay quiet next to the model.
+                size="xs"
                 hidden={composerControlsHidden || restingHiddenBlockCount > 0}
                 accessDisplay={accessDisplay}
                 emphasized={!accessMatchesDefault}
@@ -270,11 +273,13 @@ export function ComposerControlsBar(props: {
       keybindings={keybindings}
       modelOptionsByInstance={modelOptionsByInstance}
       size={composerControlsCollapsed ? "xs" : "sm"}
+      // "Opus 5.5 High" under the pill: 12px medium, icon and name 5px apart.
       triggerClassName={cn(
-        "pe-1",
+        "pe-1 text-xs! text-foreground *:gap-1.25",
         TEXT_CONTROL_STATES,
-        composerControlsCollapsed ? "min-w-13 shrink text-xs!" : "min-w-13",
+        composerControlsCollapsed ? "min-w-13 shrink" : "min-w-13",
       )}
+      providerIconClassName="size-3"
       terminalOpen={terminalOpen}
       open={modelPickerOpen}
       instanceIndicatorBackground={
@@ -307,6 +312,11 @@ export function ComposerControlsBar(props: {
     </ComposerControl>
   ) : (
     <>
+      {fastModeToggle ? (
+        <span data-fast-mode-slot="" className="contents">
+          {fastModeToggle}
+        </span>
+      ) : null}
       {composerModelPicker}
 
       <>
@@ -345,7 +355,7 @@ export function ComposerControlsBar(props: {
             interactionMode={interactionMode}
             runtimeMode={compatibleRuntimeMode}
             runtimeModeOptions={compatibleRuntimeModeOptions}
-            size={composerControlsCollapsed ? "xs" : "sm"}
+            size="xs"
             hidden={composerControlsHidden || hiddenRestingBlockIds.length === 0}
             showInteractionModeToggle={planModeUiEnabled && hiddenRestingBlockIds.includes("mode")}
             traitsMenuContent={

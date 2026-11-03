@@ -18,6 +18,9 @@ export const TRACKPAD_SCROLL_BEGIN_CHANNEL = "desktop:trackpad-scroll-begin";
 export const TRACKPAD_SCROLL_END_CHANNEL = "desktop:trackpad-scroll-end";
 export const GET_WINDOW_FULLSCREEN_STATE_CHANNEL = "desktop:get-window-fullscreen-state";
 export const WINDOW_FULLSCREEN_STATE_CHANNEL = "desktop:window-fullscreen-state";
+export const SET_WINDOW_TRANSLUCENT_CHANNEL = "desktop:set-window-translucent";
+export const SET_WINDOW_BUTTON_INSETS_CHANNEL = "desktop:set-window-button-insets";
+export const SET_PREVENT_SLEEP_CHANNEL = "desktop:set-prevent-sleep";
 export const DESKTOP_APP_ACTIVATION_READY_CHANNEL = "desktop:app-activation-ready";
 export const DESKTOP_APP_ACTIVATION_COMPLETE_CHANNEL = "desktop:app-activation-complete";
 export const DESKTOP_APP_ACTIVATION_REQUEST_CHANNEL = "desktop:app-activation-request";
@@ -95,6 +98,12 @@ export const PREVIEW_CLEAR_CACHE_CHANNEL = "desktop:preview-clear-cache";
 export const PREVIEW_GET_CONFIG_CHANNEL = "desktop:preview-get-config";
 export const PREVIEW_IMPORT_SOURCES_CHANNEL = "desktop:preview-import-sources";
 export const PREVIEW_IMPORT_COOKIES_CHANNEL = "desktop:preview-import-cookies";
+export const PREVIEW_EXTENSIONS_LIST_CHANNEL = "desktop:preview-extensions-list";
+export const PREVIEW_EXTENSIONS_ADD_UNPACKED_CHANNEL = "desktop:preview-extensions-add-unpacked";
+export const PREVIEW_EXTENSIONS_REMOVE_CHANNEL = "desktop:preview-extensions-remove";
+export const PREVIEW_EXTENSIONS_CHROME_CANDIDATES_CHANNEL =
+  "desktop:preview-extensions-chrome-candidates";
+export const PREVIEW_EXTENSIONS_IMPORT_CHROME_CHANNEL = "desktop:preview-extensions-import-chrome";
 export const PREVIEW_SET_ANNOTATION_THEME_CHANNEL = "desktop:preview-set-annotation-theme";
 export const PREVIEW_SET_ANNOTATION_SEND_ENABLED_CHANNEL =
   "desktop:preview-set-annotation-send-enabled";

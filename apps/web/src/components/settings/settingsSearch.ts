@@ -314,6 +314,98 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["transparent transparency solid menus dialogs composer"],
   },
   {
+    id: "sidebar-surface-opacity",
+    title: "Sidebar opacity",
+    to: "/settings/appearance",
+    searchTerms: ["transparent transparency see-through vibrancy blur desktop window sidebar"],
+  },
+  {
+    id: "content-surface-opacity",
+    title: "Main area opacity",
+    to: "/settings/appearance",
+    searchTerms: ["transparent transparency see-through vibrancy blur desktop window chat"],
+  },
+  {
+    id: "panel-surface-opacity",
+    title: "Right panel opacity",
+    to: "/settings/appearance",
+    searchTerms: [
+      "transparent transparency see-through vibrancy blur desktop window panel browser",
+    ],
+  },
+  {
+    id: "window-blur-radius",
+    title: "Background blur",
+    to: "/settings/appearance",
+    searchTerms: ["transparent transparency frosted vibrancy blur desktop window"],
+  },
+  {
+    id: "background-grain",
+    title: "Background grain",
+    to: "/settings/appearance",
+    searchTerms: ["noise texture grainy film surface background"],
+  },
+  {
+    id: "top-bar-blur",
+    title: "Top bar blur",
+    to: "/settings/appearance",
+    searchTerms: ["header frosted blur titlebar chat top"],
+  },
+  {
+    id: "sidebar-side-padding",
+    title: "Sidebar side padding",
+    to: "/settings/appearance",
+    searchTerms: ["margin inset spacing edge left sidebar icons window buttons traffic lights"],
+  },
+  {
+    id: "window-top-padding",
+    title: "Top padding",
+    to: "/settings/appearance",
+    searchTerms: ["margin inset spacing edge top bar height window buttons traffic lights"],
+  },
+  {
+    id: "sidebar-bottom-padding",
+    title: "Sidebar bottom padding",
+    to: "/settings/appearance",
+    searchTerms: ["margin inset spacing edge footer settings usage"],
+  },
+  {
+    id: "top-bar-side-padding",
+    title: "Top bar side padding",
+    to: "/settings/appearance",
+    searchTerms: ["margin inset spacing edge header breadcrumb chat right buttons"],
+  },
+  {
+    id: "browser-side-padding",
+    title: "Browser side padding",
+    to: "/settings/appearance",
+    searchTerms: ["margin inset spacing edge browser panel toolbar tabs address bar"],
+  },
+  {
+    id: "browser-top-padding",
+    title: "Browser top padding",
+    to: "/settings/appearance",
+    searchTerms: ["margin inset spacing edge browser panel toolbar address bar"],
+  },
+  {
+    id: "browser-bottom-padding",
+    title: "Browser bottom padding",
+    to: "/settings/appearance",
+    searchTerms: ["margin inset spacing edge browser panel toolbar address bar"],
+  },
+  {
+    id: "composer-prompt-layout",
+    title: "Long prompts",
+    to: "/settings/appearance",
+    searchTerms: ["composer prompt inline above buttons plus send wrap multiline centered"],
+  },
+  {
+    id: "prevent-sleep",
+    title: "Keep Mac awake",
+    to: "/settings/general",
+    searchTerms: ["sleep awake caffeinate power idle energy"],
+  },
+  {
     id: "diff-color-scheme",
     title: "Diff colors",
     to: "/settings/diffs",
@@ -338,6 +430,18 @@ export const SETTINGS_SEARCH_ITEMS = [
     title: "Effort display",
     to: "/settings/appearance",
     searchTerms: ["reasoning effort thinking bars graph word label level composer"],
+  },
+  {
+    id: "sidebar-pull-requests",
+    title: "Pull requests in sidebar",
+    to: "/settings/appearance",
+    searchTerms: ["pr icon footer github"],
+  },
+  {
+    id: "sidebar-settled-count",
+    title: "Settled count in sidebar",
+    to: "/settings/appearance",
+    searchTerms: ["number amount settled shelf"],
   },
   {
     id: "math-rendering",
@@ -370,6 +474,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["typography family size composer input"],
   },
   {
+    id: "chat-text",
+    title: "Chat text",
+    to: "/settings/appearance",
+    searchTerms: ["typography font size weight bold thickness messages conversation readable"],
+  },
+  {
     id: "code-font",
     title: "Code font",
     to: "/settings/appearance",
@@ -399,6 +509,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     title: "Word wrap",
     to: "/settings/appearance",
     searchTerms: ["long lines code blocks diffs file previews"],
+  },
+  {
+    id: "chat-behind-composer",
+    title: "Chat scrolls behind composer",
+    to: "/settings/appearance",
+    searchTerms: ["conversation messages composer bottom overlap fade mask under input box"],
   },
   {
     id: "composer-context",

@@ -47,11 +47,11 @@ export function CollapsibleSectionHeader({
           "transition-transform",
           SECTION_CHEVRON_IS_SF
             ? cn("h-2 w-[4.5px]", expanded ? "-rotate-90" : "rotate-180")
-            : // Lucide's chevron sits mid-box: pulled out so its ink ends on the rows' 12px line
-              // like the other icons (6px pointing right, 4px pointing down, which is wider).
+            : // Lucide's chevron sits mid-box: pulled out 2px less than the rows' 12px line, so
+              // it keeps some room inside the hover's right edge.
               expanded
-              ? "-me-1"
-              : "-me-1.5 -rotate-90",
+              ? "-me-0.5"
+              : "-me-1 -rotate-90",
         )}
       />
     </button>

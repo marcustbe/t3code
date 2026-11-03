@@ -210,9 +210,13 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --text-5xs--line-height: 1;
   /* Chat message text, a step above text-sm. */
   /* Chat text has its own size and weight (Settings › Appearance › Chat font), in whole pixels. */
+  /* The new-chat heading: a fixed 28px (not scaled by Interface size) with tighter tracking. */
+  --text-hero: 1.75rem;
+  --text-hero--line-height: calc(2.25 / 1.75);
+  --tracking-hero: -0.03em;
   --text-chat: var(--font-size-chat, 0.9375rem);
   --text-chat--line-height: 1.5;
-  --text-chat--font-weight: var(--font-weight-chat, 450);
+  --text-chat--font-weight: var(--font-weight-chat, 400);
   /* Motion. drawer is the decelerating curve for surfaces that slide or pop in
      (composer context, pills). */
   --inset-shadow-control-highlight: 0 1px rgb(255 255 255 / 16%);
@@ -220,7 +224,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   /* The composer's elevation: a soft drop pulled in under the surface, shared
      by the composer, its context strip and attached banners. */
-  --shadow-composer: 0 1px 2px rgb(0 0 0 / 5%);
+  /* A 1px drop shadow plus a faint wide lift, so the pill floats a little off the page. */
+  --shadow-composer: 0 1px 2px rgb(0 0 0 / 5%), 0 6px 20px -8px rgb(0 0 0 / 10%);
   --shadow-composer-dark: 0 14px 32px -18px rgb(0 0 0 / 75%);
   /* Overlap the lower toolbar backdrop by one pixel to cover the composer seam. */
   --spacing-composer-seam: calc(var(--spacing) * 4 - 1px);
@@ -527,6 +532,42 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     background: var(--popover) !important;
   }
+}
+
+/* Menus, popovers, tooltips and toasts: the same glass with no grey stroke, edged like the
+   composer instead: a faint 1px ring, a 1px drop shadow and a small soft lift (--popup-shadow). */
+@utility popup-glass {
+  background: color-mix(
+    in srgb,
+    var(--popover) 18%,
+    color-mix(in srgb, var(--popover) var(--glass-opacity), transparent)
+  );
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  box-shadow: var(--popup-shadow);
+
+  @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    background: var(--popover) !important;
+  }
+}
+
+/* One line that fades out over its last 1.5rem instead of ending in an ellipsis (sidebar chat
+   titles). Short text never reaches the fade. */
+@utility line-fade-end {
+  overflow: hidden;
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 calc(100% - 2.5rem),
+    rgb(0 0 0 / 55%) calc(100% - 1.25rem),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    #000 calc(100% - 2.5rem),
+    rgb(0 0 0 / 55%) calc(100% - 1.25rem),
+    transparent
+  );
 }
 
 @utility topbar-scroll-fade {
@@ -1185,17 +1226,19 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --toolbar-control-foreground: var(--foreground);
   --toolbar-control-hover: var(--accent);
   --surface-raised: color-mix(in srgb, var(--card) 20%, transparent);
-  --foreground: var(--color-zinc-900);
+  /* Apple-style label colours: primary #1d1d1f, secondary 55% black, tertiary (row times) about
+     35% through the sidebar's foreground/40. Dark: primary 92% white, secondary 55%. */
+  --foreground: #1d1d1f;
   --card: var(--color-white);
-  --card-foreground: var(--color-zinc-900);
+  --card-foreground: var(--foreground);
   --popover: var(--color-white);
-  --popover-foreground: var(--color-zinc-900);
+  --popover-foreground: var(--foreground);
   --primary: #0077f9;
   --primary-foreground: var(--color-white);
   --secondary: var(--color-zinc-50);
   --secondary-foreground: var(--color-zinc-800);
   --muted: var(--color-zinc-50);
-  --muted-foreground: var(--color-zinc-500);
+  --muted-foreground: #737373;
   --placeholder: var(--muted-foreground);
   --secondary-label: var(--muted-foreground);
   --icon-muted: var(--muted-foreground);
@@ -1206,7 +1249,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --message-action-foreground: var(--primary-foreground);
   --message-action-hover: color-mix(in srgb, var(--primary) 90%, var(--background));
   --accent: var(--color-zinc-100);
-  --accent-foreground: var(--color-zinc-900);
+  --accent-foreground: var(--foreground);
   --error: var(--color-red-500);
   --error-foreground: var(--color-red-700);
   --tool-error-icon: var(--error);
@@ -1247,27 +1290,31 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --terminal-foreground: var(--foreground);
   --terminal-cursor: rgb(38 56 78);
   --terminal-selection-background: rgb(37 63 99 / 20%);
+  --popup-shadow:
+    0 0 0 1px rgb(0 0 0 / 6%), 0 1px 2px rgb(0 0 0 / 6%), 0 6px 16px -8px rgb(0 0 0 / 14%);
 
   @variant dark {
+    --popup-shadow:
+      0 0 0 1px rgb(255 255 255 / 9%), 0 1px 2px rgb(0 0 0 / 30%), 0 8px 20px -8px rgb(0 0 0 / 50%);
     color-scheme: dark;
     /* The canvas is a dark gray, matching the sidebar, rather than true black. Raised
        surfaces sit a step lighter, so cards, popovers, and the composer still lift. Borders
        and hover states provide separation without milky gray fills. */
     --background: #181818;
     --surface-raised: #1f1f1f;
-    /* Text sits at about 88% white rather than near-white, softer on the dark grey. */
-    --foreground: #e0e0e0;
+    /* Text is 92% white over the canvas. */
+    --foreground: #ececec;
     --card: #1f1f1f;
-    --card-foreground: #e0e0e0;
+    --card-foreground: var(--foreground);
     --popover: #1f1f1f;
-    --popover-foreground: #e0e0e0;
+    --popover-foreground: var(--foreground);
     --primary: #0077f9;
     --secondary: --alpha(var(--color-white) / 3%);
-    --secondary-foreground: #e0e0e0;
+    --secondary-foreground: var(--foreground);
     --muted: --alpha(var(--color-white) / 3%);
-    --muted-foreground: var(--color-neutral-400);
+    --muted-foreground: #979797;
     --accent: --alpha(var(--color-white) / 4%);
-    --accent-foreground: #e0e0e0;
+    --accent-foreground: var(--foreground);
     /* A user turn sits above the composer tone, level with the selected sidebar row. */
     --message-surface: #242424;
     --error: color-mix(in srgb, var(--color-red-500) 90%, var(--color-white));
@@ -1299,18 +1346,18 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
    white raised surfaces. */
 [data-app-sidebar] {
   --background: var(--color-zinc-25);
-  --foreground: var(--color-zinc-900);
+  --foreground: #1d1d1f;
   --card: var(--color-white);
-  --card-foreground: var(--color-zinc-900);
+  --card-foreground: var(--foreground);
   --accent: var(--color-zinc-100);
-  --accent-foreground: var(--color-zinc-900);
+  --accent-foreground: var(--foreground);
   --muted: var(--color-zinc-50);
-  --muted-foreground: var(--color-zinc-500);
+  --muted-foreground: #737373;
   --border: var(--color-zinc-200);
   --input: var(--color-zinc-300);
   --sidebar: var(--color-zinc-50);
-  --sidebar-foreground: var(--color-zinc-900);
-  --sidebar-muted-foreground: var(--color-zinc-500);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-muted-foreground: var(--muted-foreground);
   --sidebar-control-surface: var(--color-zinc-100);
   --sidebar-row-hover: color-mix(in srgb, var(--contrast-foreground) 5%, transparent);
   --sidebar-row-active: color-mix(in srgb, var(--contrast-foreground) 8%, transparent);
@@ -1320,13 +1367,13 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 
   @variant dark {
     --background: #141414;
-    --foreground: #e0e0e0;
+    --foreground: #ececec;
     --card: #141414;
     --card-foreground: var(--foreground);
     --accent: #26272a;
-    --accent-foreground: #e6e6e6;
+    --accent-foreground: var(--foreground);
     --muted: #1c1c1c;
-    --muted-foreground: #9a9a9a;
+    --muted-foreground: #969696;
     --border: rgb(255 255 255 / 8%);
     --input: rgb(255 255 255 / 18%);
     --sidebar: var(--card);
@@ -1396,12 +1443,6 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 }
 * + [data-message-actions] {
   margin-inline-start: -4px;
-}
-/* Their icons are 12px, so the 2.1 stroke of the 16px icons would draw thinner; 2.4 is a touch
-   heavier than that (2.8 read too bold). Copy is a morphicon, which the lucide stroke rule doesn't
-   reach. */
-[data-message-actions] svg {
-  stroke-width: 2.4;
 }
 
 /* The chat header is its own band: no fill (the main area's own tint shows through, also in the
@@ -1894,11 +1935,24 @@ body {
   padding: 0;
 }
 
-/* Default icon stroke: 2.1, a touch heavier than Lucide's 2. In the base layer so stroke-*
-   utilities still win; any CSS beats lucide's stroke-width="2" attribute. */
+/* One icon line everywhere: every Lucide UI icon (Lucide's default 2 and the heavier 2.25/2.4
+   picks for small icons) and the animated morph icons draw a 1.25px line whatever their size, so
+   12, 14 and 16px icons read as one set, a touch lighter than before. non-scaling-stroke makes the
+   width CSS pixels instead of the 24-unit grid. Deliberately bold glyphs (checkbox ticks at 3)
+   keep their own stroke. In the base layer so stroke-* utilities still win. */
 @layer base {
-  :where(svg.lucide[stroke-width="2"]) {
-    stroke-width: 2.1;
+  :where(
+      svg.lucide:is(
+          [stroke-width="2"],
+          [stroke-width="2.1"],
+          [stroke-width="2.25"],
+          [stroke-width="2.4"]
+        ),
+      svg[data-morph-icon]
+    )
+    :where(path, line, circle, rect, polyline, polygon, ellipse) {
+    stroke-width: 1.25px;
+    vector-effect: non-scaling-stroke;
   }
 }
 
@@ -2847,11 +2901,11 @@ html.dark[data-window-translucent] [data-sidebar-control],
 html.dark[data-window-translucent] [data-history-navigation] {
   --accent: rgb(255 255 255 / 6%);
   --muted: rgb(255 255 255 / 4%);
-  --foreground: rgb(255 255 255 / 86%);
-  --sidebar-foreground: rgb(255 255 255 / 86%);
-  --muted-foreground: rgb(255 255 255 / 62%);
-  --sidebar-muted-foreground: rgb(255 255 255 / 62%);
-  --secondary-label: rgb(255 255 255 / 40%);
+  --foreground: rgb(255 255 255 / 92%);
+  --sidebar-foreground: rgb(255 255 255 / 92%);
+  --muted-foreground: rgb(255 255 255 / 55%);
+  --sidebar-muted-foreground: rgb(255 255 255 / 55%);
+  --secondary-label: rgb(255 255 255 / 35%);
 }
 
 html[data-window-translucent]:not(.dark) {
@@ -2863,11 +2917,11 @@ html[data-window-translucent]:not(.dark) [data-sidebar-control],
 html[data-window-translucent]:not(.dark) [data-history-navigation] {
   --accent: rgb(0 0 0 / 5%);
   --muted: rgb(0 0 0 / 3%);
-  --foreground: rgb(0 0 0 / 95%);
-  --sidebar-foreground: rgb(0 0 0 / 95%);
-  --muted-foreground: rgb(0 0 0 / 76%);
-  --sidebar-muted-foreground: rgb(0 0 0 / 76%);
-  --secondary-label: rgb(0 0 0 / 45%);
+  --foreground: rgb(0 0 0 / 89%);
+  --sidebar-foreground: rgb(0 0 0 / 89%);
+  --muted-foreground: rgb(0 0 0 / 55%);
+  --sidebar-muted-foreground: rgb(0 0 0 / 55%);
+  --secondary-label: rgb(0 0 0 / 35%);
 }
 
 /* Reduce motion (System Settings › Accessibility › Display) turns transitions and animations

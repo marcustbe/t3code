@@ -225,7 +225,7 @@ export const ChatFontWeight = Schema.Int.check(
   Schema.isBetween({ minimum: MIN_CHAT_FONT_WEIGHT, maximum: MAX_CHAT_FONT_WEIGHT }),
 );
 export type ChatFontWeight = typeof ChatFontWeight.Type;
-export const DEFAULT_CHAT_FONT_WEIGHT: ChatFontWeight = 450;
+export const DEFAULT_CHAT_FONT_WEIGHT: ChatFontWeight = 400;
 
 export const MIN_CODE_FONT_SIZE = 10;
 export const MAX_CODE_FONT_SIZE = 18;

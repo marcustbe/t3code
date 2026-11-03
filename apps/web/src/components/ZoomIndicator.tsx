@@ -33,7 +33,7 @@ export function ZoomIndicator() {
       role="status"
       aria-live="polite"
       // Like Chrome's zoom bubble: top right, under the top-right buttons, on their right edge.
-      className="dropdown-glass pointer-events-none fixed top-(--workspace-topbar-height) right-(--topbar-side-padding) z-50 rounded-full px-3 py-1 font-medium text-sm text-foreground tabular-nums shadow-lg"
+      className="popup-glass pointer-events-none fixed top-(--workspace-topbar-height) right-(--topbar-side-padding) z-50 rounded-full px-3 py-1 font-medium text-sm text-foreground tabular-nums shadow-lg"
     >
       {percent}%
     </div>

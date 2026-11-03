@@ -957,9 +957,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       aria-hidden
       className={cn(
         "min-w-0 flex-1 text-start text-sm font-medium transition-opacity motion-reduce:transition-none",
+        // Long titles fade out before the time instead of ending in an ellipsis; -me-1
+        // lets the fully faded tail reach into the gap before the time.
+        "-me-1",
         variant !== "slim"
           ? cn(
-              "truncate",
+              "line-fade-end",
               shouldRecede
                 ? "text-foreground/90 group-hover/sidebar-row:text-foreground group-focus-visible/sidebar-row:text-foreground"
                 : status === "failed" && !isUnread && !isWoke
@@ -967,7 +970,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   : "text-foreground",
             )
           : cn(
-              "truncate group-focus-within/sidebar-row:text-foreground group-hover/sidebar-row:text-foreground",
+              "line-fade-end group-focus-within/sidebar-row:text-foreground group-hover/sidebar-row:text-foreground",
               props.isActive || isWoke || isUnread || status === "input" || status === "request"
                 ? "text-foreground"
                 : "text-foreground/90",

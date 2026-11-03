@@ -3163,7 +3163,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         if (isInsideRestingComposerControlScope(event.target)) return;
         composerMentionDragHandlers.onDrop(event);
       }}
-      className="mx-auto w-full min-w-0 max-w-[min(var(--chat-content-max-width),800px)]"
+      className="mx-auto w-full min-w-0 max-w-(--chat-content-max-width)"
       data-chat-composer-form="true"
       {...threadContextDropTargetProps()}
     >
@@ -3565,9 +3565,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           className={cn(
             // One row under the composer in every chat, so its height and the gap below never
             // change: the ring and the new-thread project strip on the left, the model on the right.
-            // It hangs 13px into the 16px gap below, so its controls centre 19px above the window's
-            // bottom edge, level with the sidebar footer's icons.
-            "-mb-3.25 flex h-9 min-w-0 flex-nowrap items-center gap-2 px-4 pt-1",
+            // It hangs 12px into the 16px gap below, so its controls sit centred between the
+            // composer's bottom edge and the window's (20px to each).
+            "-mb-3 flex h-9 min-w-0 flex-nowrap items-center gap-2 px-4 pt-1",
             showMobilePendingAnswerActions && "hidden sm:flex",
           )}
         >

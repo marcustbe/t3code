@@ -3,7 +3,6 @@ import {
   type ComponentProps,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
-  type RefObject,
 } from "react";
 
 import { cn } from "~/lib/utils";
@@ -18,7 +17,6 @@ import {
 } from "./SidebarSymbols";
 
 export interface SidebarThreadHeaderProps {
-  searchFieldRef?: RefObject<HTMLDivElement | null>;
   hasProjects: boolean;
   projectScope: ReactNode;
   onNewProject: () => void;
@@ -31,7 +29,6 @@ export interface SidebarThreadHeaderProps {
 }
 
 export function SidebarThreadHeader({
-  searchFieldRef,
   hasProjects,
   projectScope,
   onNewProject,
@@ -74,7 +71,7 @@ export function SidebarThreadHeader({
         </SidebarMenuItem>
         {/* Search opens the ⌘K palette, which searches threads, projects and commands. */}
         <SidebarMenuItem>
-          <div ref={searchFieldRef}>
+          <div>
             <SidebarMenuButton
               onClick={onSearch}
               title={searchShortcutLabel ? `Search (${searchShortcutLabel})` : "Search"}

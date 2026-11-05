@@ -7,6 +7,7 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import { BROWSER_IMPORT_SOURCES } from "./BrowserImport/Sources.ts";
@@ -145,9 +146,15 @@ export const make = Effect.gen(function* () {
   const loadInto = (session: Session, extensionPath: string) => {
     const loaded = attached.get(session);
     if (!loaded || loaded.has(extensionPath)) return Effect.void;
-    return Effect.tryPromise(() =>
-      session.extensions.loadExtension(extensionPath, { allowFileAccess: true }),
-    ).pipe(
+    return Effect.tryPromise({
+      try: () => session.extensions.loadExtension(extensionPath, { allowFileAccess: true }),
+      catch: (cause) =>
+        new BrowserExtensionError({
+          path: extensionPath,
+          reason: "Could not load the extension",
+          cause,
+        }),
+    }).pipe(
       Effect.tap((extension) => Effect.sync(() => loaded.set(extensionPath, extension.id))),
       Effect.asVoid,
     );
@@ -196,12 +203,13 @@ export const make = Effect.gen(function* () {
   );
 
   const chromeCandidates = Effect.gen(function* () {
+    const hostEnvironment = yield* HostProcess.Environment;
     const context = {
       path,
       platform: environment.platform,
       home: environment.homeDirectory,
-      appData: process.env.APPDATA,
-      localAppData: process.env.LOCALAPPDATA,
+      appData: hostEnvironment.APPDATA,
+      localAppData: hostEnvironment.LOCALAPPDATA,
     };
     const candidates: DesktopChromeExtensionCandidate[] = [];
     for (const source of BROWSER_IMPORT_SOURCES) {

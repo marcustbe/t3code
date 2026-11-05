@@ -678,9 +678,14 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     isSelected,
   });
   const topStatus =
-    status === "working"
+    status === "preparing" || status === "working"
       ? {
-          label: thread.goal?.status === "active" ? "Goal" : "Working",
+          label:
+            status === "preparing"
+              ? "Setting up"
+              : thread.goal?.status === "active"
+                ? "Goal"
+                : "Working",
           icon: "working" as const,
           // Grey while working, blue once done and unread.
           className: "text-sidebar-foreground/40",
@@ -1077,13 +1082,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   ) : null;
 
   const diff = latestRunDiff(thread);
-  // Only the provider icon would remain, so the row drops the line instead of leaving it blank.
+  // Only the trailing icons would remain, so the row moves them to the title line instead.
   const metaLineEmpty =
     !thread.branch &&
     !showsScratchMachine &&
     prBadge === null &&
     diff === null &&
-    !isRemote &&
     runningTerminalIds.length === 0;
   const metaLine = metaLineEmpty ? null : (
     <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-secondary-label text-xs">
@@ -1140,8 +1144,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         {...sortableRootProps}
         {...(fileDropHandlers ?? {})}
         className={cn(
-          "list-none [content-visibility:auto] [contain-intrinsic-size:auto_36px]",
-          metaLine !== null && multiline && "[contain-intrinsic-size:auto_54px]",
+          "list-none [content-visibility:auto] [contain-intrinsic-size:auto_--spacing(9)]",
+          metaLine !== null && multiline && "[contain-intrinsic-size:auto_--spacing(13.5)]",
           sortable?.isDragging && "relative z-20",
         )}
       >
@@ -1150,8 +1154,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
             render={
               <div
                 ref={rowRef}
-                role="treeitem"
-                tabIndex={-1}
+                role="button"
+                tabIndex={0}
                 data-sidebar-row={threadKey}
                 data-sidebar-parent={props.navigationParent}
                 aria-label={accessibility.label}
@@ -1285,18 +1289,25 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       <TooltipPopup side="top">Un-settle thread</TooltipPopup>
                     </Tooltip>
                   ) : (
-                    <button
-                      type="button"
-                      aria-label="Settle thread"
-                      onClick={handleSettleClick}
-                      onPointerDown={handleActionPointerDown}
-                      className={cn(
-                        "pointer-events-none absolute inset-y-0 right-0 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-2 text-xs text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100",
-                        isWoke && "group-any-hover/sidebar-row:static",
-                      )}
-                    >
-                      <CheckIcon className="size-3" />
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            type="button"
+                            aria-label="Settle thread"
+                            onClick={handleSettleClick}
+                            onPointerDown={handleActionPointerDown}
+                            className={cn(
+                              "pointer-events-none absolute inset-y-0 right-0 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-2 text-xs text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100",
+                              isWoke && "group-any-hover/sidebar-row:static",
+                            )}
+                          />
+                        }
+                      >
+                        <CheckIcon className="size-3" />
+                      </TooltipTrigger>
+                      <TooltipPopup side="top">Settle thread</TooltipPopup>
+                    </Tooltip>
                   )}
                 </span>
               )}
@@ -1327,8 +1338,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           render={
             <div
               ref={rowRef}
-              role="treeitem"
-              tabIndex={-1}
+              role="button"
+              tabIndex={0}
               data-sidebar-row={threadKey}
               data-sidebar-parent={props.navigationParent}
               aria-label={accessibility.label}

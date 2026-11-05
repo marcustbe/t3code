@@ -19,7 +19,7 @@ export function SettingsSliderRow({
   max = MAX_WINDOW_SURFACE_OPACITY,
   unit = "%",
   step = 5,
-  format = (next) => `${next}${unit}`,
+  format,
 }: {
   searchId: SettingsSearchItemId;
   inputId: string;
@@ -54,7 +54,7 @@ export function SettingsSliderRow({
             className="min-w-12 rounded-md bg-muted px-2 py-1 text-center font-mono text-xs font-medium tabular-nums text-foreground"
             htmlFor={inputId}
           >
-            {format(value)}
+            {format ? format(value) : `${value}${unit}`}
           </output>
           <input
             aria-label={label}

@@ -42,8 +42,8 @@ const buttonVariants = cva(
           "size-5 rounded-sm p-0 before:rounded-[calc(var(--radius-sm)-1px)] [&_svg:not([class*='size-'])]:size-3",
         "icon-tiny": "size-4 p-0 [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8 sm:size-7",
-        // Round, for controls set inside a pill (the composer's attach button).
-        "icon-sm-composer": "size-8 rounded-lg before:rounded-lg sm:size-7",
+        // 4px corners, concentric inside the composer (its attach button).
+        "icon-sm-composer": "size-8 rounded-md before:rounded-md sm:size-7",
         "icon-xl":
           "size-11 sm:size-10 [&_svg:not([class*='size-'])]:size-5 sm:[&_svg:not([class*='size-'])]:size-4.5",
         "icon-xs":
@@ -65,9 +65,9 @@ const buttonVariants = cva(
         "destructive-outline":
           "border-input bg-popover not-dark:bg-clip-padding text-destructive-foreground shadow-xs/5 not-disabled:not-active:not-data-pressed:before:shadow-[0_1px_--theme(--color-black/4%)] dark:bg-input/32 dark:not-disabled:before:shadow-[0_-1px_--theme(--color-white/2%)] dark:not-disabled:not-active:not-data-pressed:before:shadow-[0_-1px_--theme(--color-white/6%)] [:disabled,:active,[data-pressed]]:shadow-none [:hover,[data-pressed]]:border-destructive/32 [:hover,[data-pressed]]:bg-destructive/4",
         ghost:
-          "[--control-icon-color:var(--contrast-muted-foreground)] border-transparent text-foreground data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent",
+          "[--control-icon-color:currentColor] border-transparent text-foreground data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent",
         "ghost-muted":
-          "[--control-icon-color:currentColor] border-transparent text-muted-foreground data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent [:hover,[data-pressed]]:text-foreground",
+          "[--control-icon-color:currentColor] border-transparent text-foreground data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent [:hover,[data-pressed]]:text-foreground",
         "ghost-destructive":
           "[--control-icon-color:currentColor] border-transparent text-muted-foreground data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent [:hover,[data-pressed]]:text-destructive",
         glass:

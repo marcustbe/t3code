@@ -137,8 +137,8 @@ function ProjectFaviconFallback({
           className,
         )}
       >
-        {/* Colour emoji paint at the text colour's alpha, so a muted row colour faded them. */}
-        <span className="text-[length:80cqh] leading-none text-foreground">{emoji}</span>
+        {/* Colour emoji paint at the text colour's alpha, so they get an opaque one (the hue is ignored). */}
+        <span className="text-[length:80cqh] leading-none text-black">{emoji}</span>
       </span>
     );
   }

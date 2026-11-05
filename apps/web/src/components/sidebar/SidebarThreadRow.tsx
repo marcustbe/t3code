@@ -49,6 +49,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type WheelEvent as ReactWheelEvent,
 } from "react";
 
 import { useRightPanelStore } from "../../rightPanelStore";
@@ -119,6 +120,23 @@ export type SidebarProviderEntry = Pick<
   | "acpRegistryIconUrl"
   | "models"
 >;
+
+/** A sideways trackpad swipe over a cut-off title scrolls it, so the whole name can be read. */
+function scrollTitleSideways(event: ReactWheelEvent<HTMLSpanElement>) {
+  if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+  const title = event.currentTarget;
+  const overflow = title.scrollWidth - title.clientWidth;
+  if (overflow <= 0 || title.dir === "rtl") return;
+  title.scrollLeft = Math.min(overflow, Math.max(0, title.scrollLeft + event.deltaX));
+  if (title.scrollLeft <= 0) delete title.dataset.titleScroll;
+  else title.dataset.titleScroll = title.scrollLeft >= overflow - 1 ? "end" : "middle";
+}
+
+function resetTitleScroll(event: ReactPointerEvent<HTMLSpanElement>) {
+  event.currentTarget.scrollLeft = 0;
+  delete event.currentTarget.dataset.titleScroll;
+}
+
 function compactSidebarTimeLabel(label: string): string {
   if (label === "just now") return "now";
   return label.endsWith(" ago") ? label.slice(0, -4) : label;
@@ -306,7 +324,7 @@ function SnoozeMenuButton(props: {
                   aria-label="Snooze thread"
                   onClick={(event) => event.stopPropagation()}
                   onDoubleClick={(event) => event.stopPropagation()}
-                  className="inline-flex h-full cursor-pointer items-center rounded-md bg-transparent px-1 text-xs text-muted-foreground hover:bg-sidebar-row-selected hover:text-foreground"
+                  className="inline-flex h-full cursor-pointer items-center rounded-md bg-transparent px-1 text-xs text-foreground hover:bg-sidebar-row-selected hover:text-foreground"
                 />
               }
             />
@@ -561,7 +579,7 @@ function ThreadRenameInput(props: {
       }}
       onClick={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
-      className="min-w-0 flex-1 rounded-sm border border-input bg-card px-1 text-sm font-medium text-card-foreground outline-none focus:border-foreground"
+      className="-mx-1 min-w-0 flex-1 rounded-md bg-transparent px-1 text-sm font-medium text-foreground outline-none ring-1 ring-foreground/15 ring-inset"
     />
   );
 }
@@ -963,21 +981,16 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         variant !== "slim"
           ? cn(
               "line-fade-end",
-              shouldRecede
-                ? "text-foreground/90 group-hover/sidebar-row:text-foreground group-focus-visible/sidebar-row:text-foreground"
-                : status === "failed" && !isUnread && !isWoke
-                  ? "text-foreground/95"
-                  : "text-foreground",
+              status === "failed" && !isUnread && !isWoke
+                ? "text-foreground/95"
+                : "text-foreground",
             )
-          : cn(
-              "line-fade-end group-focus-within/sidebar-row:text-foreground group-hover/sidebar-row:text-foreground",
-              props.isActive || isWoke || isUnread || status === "input" || status === "request"
-                ? "text-foreground"
-                : "text-foreground/90",
-            ),
+          : "line-fade-end text-foreground",
         isRegeneratingTitle && "opacity-55",
       )}
       dir={textDirection(thread.title)}
+      onWheel={scrollTitleSideways}
+      onPointerLeave={resetTitleScroll}
     >
       {thread.title}
     </span>
@@ -1422,7 +1435,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                                 type="button"
                                 aria-label="Discard draft"
                                 onClick={handleDiscardDraftClick}
-                                className="inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-xs text-muted-foreground hover:bg-sidebar-row-selected hover:text-foreground"
+                                className="inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-xs text-foreground hover:bg-sidebar-row-selected hover:text-foreground"
                               />
                             }
                           >
@@ -1449,7 +1462,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                                 type="button"
                                 aria-label="Stop"
                                 onClick={handleStopClick}
-                                className="-mr-1 inline-flex w-5.5 cursor-pointer items-center justify-center rounded-md bg-transparent text-xs text-muted-foreground hover:bg-sidebar-row-selected hover:text-foreground"
+                                className="-mr-1 inline-flex w-5.5 cursor-pointer items-center justify-center rounded-md bg-transparent text-xs text-foreground hover:bg-sidebar-row-selected hover:text-foreground"
                               />
                             }
                           >
@@ -1466,7 +1479,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                                 aria-label="Settle thread"
                                 onClick={handleSettleClick}
                                 onPointerDown={handleActionPointerDown}
-                                className="-mr-1 inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-xs text-muted-foreground hover:bg-sidebar-row-selected hover:text-foreground"
+                                className="-mr-1 inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-xs text-foreground hover:bg-sidebar-row-selected hover:text-foreground"
                               />
                             }
                           >

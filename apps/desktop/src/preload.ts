@@ -45,7 +45,7 @@ try {
 const clientPlatform = process.platform;
 
 // Settings › Appearance places the window buttons; the top bar is inset + 14 + inset tall so they
-// centre in it, and the sidebar toggle starts 22pt after the 52pt button group.
+// centre in it, and the sidebar toggle starts 18pt after the 52pt button group.
 const windowButtonInsets = { top: 18, left: 12 };
 const syncWindowControlInset = () => {
   if (clientPlatform !== "darwin") return;
@@ -55,7 +55,7 @@ const syncWindowControlInset = () => {
   // 1.5: the icons' ink inset, as in DesktopWindow.ts.
   const buttonsX = Math.round((windowButtonInsets.left + 1.5) * zoom);
   const style = document.documentElement.style;
-  style.setProperty("--desktop-window-controls-inset", `${(buttonsX + 74) / zoom}px`);
+  style.setProperty("--desktop-window-controls-inset", `${(buttonsX + 70) / zoom}px`);
   style.setProperty("--workspace-topbar-height", `${(2 * top + 14) / zoom}px`);
 };
 if (clientPlatform === "darwin") {

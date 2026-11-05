@@ -707,7 +707,7 @@ export function ComposerAttachButton({
             />
           }
         >
-          <PlusIcon strokeWidth={2.25} className="size-icon-lg text-foreground/80" />
+          <PlusIcon strokeWidth={2.25} className="size-[18px] text-foreground" />
         </TooltipTrigger>
         <TooltipPopup>Attach files</TooltipPopup>
       </Tooltip>

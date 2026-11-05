@@ -3573,7 +3573,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         >
           {/* Pulled out by the button's own inset so the ring lines up with the pill's text. */}
           {settings.contextWindowMeterVisible ? (
-            <div className="-ms-1.75 flex shrink-0 items-center">
+            <div className="-ms-1.25 flex shrink-0 items-center">
               {activeContextWindow ? (
                 <ContextWindowMeter
                   usage={activeContextWindow}

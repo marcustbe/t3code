@@ -194,9 +194,11 @@ export function WorkspaceTitlebarControls(props: {
             "flex shrink-0",
             props.animationsActive &&
               "motion-safe:transition-opacity motion-safe:duration-(--panel-animation-duration) motion-safe:ease-out",
+            // Closing fades it out in its own slot, where the thread details button takes over;
+            // `right-full` made it jump one slot left first.
             props.rightPanelOpen
               ? "pointer-events-auto opacity-100"
-              : "pointer-events-none absolute right-full mr-1 opacity-0",
+              : "pointer-events-none absolute inset-y-0 left-0 items-center opacity-0",
           )}
           inert={!props.rightPanelOpen}
         >

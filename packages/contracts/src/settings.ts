@@ -167,6 +167,25 @@ export const TopBarBlur = Schema.Int.check(
   Schema.isBetween({ minimum: 0, maximum: MAX_TOP_BAR_BLUR }),
 );
 
+/** Opacity of primary text and icons, in percent. */
+export const MIN_PRIMARY_TEXT_STRENGTH = 40;
+export const PrimaryTextStrength = Schema.Int.check(
+  Schema.isBetween({ minimum: MIN_PRIMARY_TEXT_STRENGTH, maximum: 100 }),
+);
+
+/** Letter spacing of interface and chat text, in thousandths of an em (-10 = -0.01em). */
+export const MIN_LETTER_SPACING = -40;
+export const MAX_LETTER_SPACING = 40;
+export const LetterSpacing = Schema.Int.check(
+  Schema.isBetween({ minimum: MIN_LETTER_SPACING, maximum: MAX_LETTER_SPACING }),
+);
+
+/** The user message bubble's own colour ("" = the theme's) as #rrggbb, and its opacity in percent. */
+export const MessageBubbleColor = Schema.String.check(Schema.isPattern(/^(#[0-9a-fA-F]{6})?$/));
+export const MessageBubbleOpacity = Schema.Int.check(
+  Schema.isBetween({ minimum: 0, maximum: 100 }),
+);
+
 /** CSS px from a window edge to the icons and text that sit along it. */
 export const MIN_EDGE_PADDING = 0;
 export const MAX_EDGE_PADDING = 40;
@@ -506,6 +525,10 @@ export const ClientSettingsSchema = Schema.Struct({
   ),
   backgroundGrain: BackgroundGrain.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
   topBarBlur: TopBarBlur.pipe(Schema.withDecodingDefault(Effect.succeed(16))),
+  primaryTextStrength: PrimaryTextStrength.pipe(Schema.withDecodingDefault(Effect.succeed(100))),
+  messageBubbleColor: MessageBubbleColor.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
+  letterSpacing: LetterSpacing.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
+  messageBubbleOpacity: MessageBubbleOpacity.pipe(Schema.withDecodingDefault(Effect.succeed(100))),
   // Glyph distance from the edges: the sidebar's sides (its icons), the window top (window buttons,
   // which also set the top bar's height), the sidebar's bottom (footer icons), the main top bar's
   // sides, and the browser panel's sides, top and bottom.
@@ -1861,6 +1884,10 @@ export const ClientSettingsPatch = Schema.Struct({
   windowBlurRadius: Schema.optionalKey(WindowBlurRadius),
   backgroundGrain: Schema.optionalKey(BackgroundGrain),
   topBarBlur: Schema.optionalKey(TopBarBlur),
+  primaryTextStrength: Schema.optionalKey(PrimaryTextStrength),
+  messageBubbleColor: Schema.optionalKey(MessageBubbleColor),
+  letterSpacing: Schema.optionalKey(LetterSpacing),
+  messageBubbleOpacity: Schema.optionalKey(MessageBubbleOpacity),
   sidebarSidePadding: Schema.optionalKey(EdgePadding),
   windowTopPadding: Schema.optionalKey(EdgePadding),
   sidebarBottomPadding: Schema.optionalKey(EdgePadding),

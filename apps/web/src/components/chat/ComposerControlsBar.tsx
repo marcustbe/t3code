@@ -273,9 +273,10 @@ export function ComposerControlsBar(props: {
       keybindings={keybindings}
       modelOptionsByInstance={modelOptionsByInstance}
       size={composerControlsCollapsed ? "xs" : "sm"}
-      // "Opus 5.5 High" under the pill: 12px medium, icon and name 5px apart.
+      // "Opus 5.5 High" under the pill: 12px medium, icon and name 5px apart. The name rests at
+      // 80% so hovering brightens it like the effort word and the bolt.
       triggerClassName={cn(
-        "pe-1 text-xs! text-foreground *:gap-1.25",
+        "pe-1 text-xs! text-foreground hover:text-(--foreground-solid) dark:hover:text-(--foreground-solid) *:gap-1.25",
         TEXT_CONTROL_STATES,
         composerControlsCollapsed ? "min-w-13 shrink" : "min-w-13",
       )}

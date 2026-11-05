@@ -181,8 +181,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --spacing-icon-lg: 16px;
   --spacing-icon-tile: 20px;
   --spacing-status-dot: 6px;
-  /* Rounded, not a pill: Claude's composer corners, about a third of the one-line height. */
-  --radius-composer: 16px;
+  /* Rounded, not a pill: a little tighter than Claude's composer corners. */
+  --radius-composer: 12px;
   /* Between regular and medium: message times under the actions (500 read too bold). */
   --font-weight-book: 450;
   /* Snappy by default: hovers, menus and popovers settle in 120ms with a fast-out curve. */
@@ -303,7 +303,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --color-code: var(--code-background);
   --color-foreground: var(--contrast-foreground);
   --color-background: var(--background);
-  --color-message: var(--message-surface);
+  /* Settings › Appearance › Message colour/opacity set --message-bubble (appearanceLayout.ts). */
+  --color-message: var(--message-bubble, var(--message-surface));
   --color-message-foreground: var(--contrast-message-foreground);
   --color-message-action: var(--message-action);
   --color-message-action-foreground: var(--message-action-foreground);
@@ -495,8 +496,9 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     0 24px 64px -24px rgb(0 0 0 / 65%);
 }
 :root.dark [data-slot="command-dialog-popup"] {
+  /* The dark lift would swallow a fainter ring, so the edge is a lighter white line. */
   box-shadow:
-    0 0 0 1px rgb(255 255 255 / 8%),
+    0 0 0 1px rgb(255 255 255 / 14%),
     inset 0 1px rgb(255 255 255 / 4%),
     0 24px 72px -20px rgb(0 0 0 / 90%);
 }
@@ -1228,7 +1230,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --surface-raised: color-mix(in srgb, var(--card) 20%, transparent);
   /* Apple-style label colours: primary #1d1d1f, secondary 55% black, tertiary (row times) about
      35% through the sidebar's foreground/40. Dark: primary 92% white, secondary 55%. */
-  --foreground: #1d1d1f;
+  --foreground: color-mix(in srgb, #1d1d1f var(--primary-text-strength, 100%), transparent);
   --card: var(--color-white);
   --card-foreground: var(--foreground);
   --popover: var(--color-white);
@@ -1276,7 +1278,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
      portaled mobile sheets and settings navigation outside the app sidebar. */
   --sidebar: var(--color-zinc-50);
   --sidebar-foreground: var(--foreground);
-  --sidebar-muted-foreground: var(--muted-foreground);
+  /* Icons and labels follow Text strength in both modes; sub-labels use --secondary-label. */
+  --sidebar-muted-foreground: var(--foreground);
   --sidebar-control-surface: var(--color-zinc-100);
   /* Rows darken like a macOS sidebar: a faint gray on hover, a deeper one when open. */
   --sidebar-row-hover: color-mix(in srgb, var(--contrast-foreground) 5%, transparent);
@@ -1297,13 +1300,13 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     --popup-shadow:
       0 0 0 1px rgb(255 255 255 / 9%), 0 1px 2px rgb(0 0 0 / 30%), 0 8px 20px -8px rgb(0 0 0 / 50%);
     color-scheme: dark;
-    /* The canvas is a dark gray, matching the sidebar, rather than true black. Raised
+    /* The canvas is a dark gray a step below the sidebar (#181818), not true black. Raised
        surfaces sit a step lighter, so cards, popovers, and the composer still lift. Borders
        and hover states provide separation without milky gray fills. */
-    --background: #181818;
+    --background: #141414;
     --surface-raised: #1f1f1f;
-    /* Text is 92% white over the canvas. */
-    --foreground: #ececec;
+    /* Text is pure white (high contrast); sub-labels stay muted. */
+    --foreground: color-mix(in srgb, #ffffff var(--primary-text-strength, 100%), transparent);
     --card: #1f1f1f;
     --card-foreground: var(--foreground);
     --popover: #1f1f1f;
@@ -1333,6 +1336,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     --sidebar-control-surface: var(--muted);
     --sidebar-row-hover: var(--accent);
     --sidebar-row-active: var(--accent);
+    /* Top-bar sidebar icons (toggle, back/forward) are white like the sidebar's own. */
+    --sidebar-muted-foreground: var(--foreground);
     /* Icon-button hovers in the main area match the sidebar's (white 7%), not the fainter muted. */
     --sidebar-row-selected: color-mix(in srgb, var(--contrast-foreground) 7%, transparent);
     --sidebar-stage-fade: var(--card);
@@ -1346,7 +1351,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
    white raised surfaces. */
 [data-app-sidebar] {
   --background: var(--color-zinc-25);
-  --foreground: #1d1d1f;
+  --foreground: color-mix(in srgb, #1d1d1f var(--primary-text-strength, 100%), transparent);
   --card: var(--color-white);
   --card-foreground: var(--foreground);
   --accent: var(--color-zinc-100);
@@ -1357,7 +1362,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --input: var(--color-zinc-300);
   --sidebar: var(--color-zinc-50);
   --sidebar-foreground: var(--foreground);
-  --sidebar-muted-foreground: var(--muted-foreground);
+  /* Icons and labels follow Text strength in both modes; sub-labels use --secondary-label. */
+  --sidebar-muted-foreground: var(--foreground);
   --sidebar-control-surface: var(--color-zinc-100);
   --sidebar-row-hover: color-mix(in srgb, var(--contrast-foreground) 5%, transparent);
   --sidebar-row-active: color-mix(in srgb, var(--contrast-foreground) 8%, transparent);
@@ -1366,19 +1372,20 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --sidebar-stage-fade: var(--sidebar);
 
   @variant dark {
-    --background: #141414;
-    --foreground: #ececec;
-    --card: #141414;
+    --background: #181818;
+    --foreground: color-mix(in srgb, #ffffff var(--primary-text-strength, 100%), transparent);
+    --card: #181818;
     --card-foreground: var(--foreground);
     --accent: #26272a;
     --accent-foreground: var(--foreground);
-    --muted: #1c1c1c;
+    --muted: #202020;
     --muted-foreground: #969696;
     --border: rgb(255 255 255 / 8%);
     --input: rgb(255 255 255 / 18%);
     --sidebar: var(--card);
     --sidebar-foreground: var(--foreground);
-    --sidebar-muted-foreground: var(--muted-foreground);
+    /* High contrast: labels and icons are white like the titles; only sub-labels stay grey. */
+    --sidebar-muted-foreground: var(--foreground);
     --sidebar-control-surface: var(--muted);
     --sidebar-row-hover: color-mix(in srgb, var(--contrast-foreground) 5%, transparent);
     --sidebar-row-active: color-mix(in srgb, var(--contrast-foreground) 7%, transparent);
@@ -1931,8 +1938,14 @@ body {
   /* Reference the theme token (not a literal stack) so the Settings ->
      Appearance runtime override of --font-sans reaches all interface text. */
   font-family: var(--font-sans);
+  /* Settings › Appearance › Letter spacing; code and terminal keep their own. */
+  letter-spacing: var(--text-tracking, normal);
   margin: 0;
   padding: 0;
+}
+
+:where(code, pre, kbd, samp, .font-mono, .xterm) {
+  letter-spacing: normal;
 }
 
 /* One icon line everywhere: every Lucide UI icon (Lucide's default 2 and the heavier 2.25/2.4
@@ -2281,10 +2294,10 @@ code {
   text-decoration: none;
 }
 
-/* File links and context chips own their color and focus ring. Links are #036DE2 in both
-   appearances, a step deeper than the highlight blue. */
+/* File links and context chips own their color and focus ring. Links are #0176F9 in both
+   appearances. */
 .chat-markdown a:not(.chat-markdown-file-link, :has([data-slot="context-chip-label"])) {
-  color: #036de2;
+  color: #0176f9;
 }
 
 .chat-markdown
@@ -2511,6 +2524,10 @@ code {
 
 :root[data-chat-width="full"] {
   --chat-content-max-width: 100%;
+}
+/* Wide and Full: the conversation starts where the composer's corners end, not at its edge. */
+:root:is([data-chat-width="wide"], [data-chat-width="full"]) .chat-content-lane {
+  padding-inline: var(--radius-composer);
 }
 
 :root[data-diff-color-scheme="blue-orange"] {
@@ -2901,10 +2918,15 @@ html.dark[data-window-translucent] [data-sidebar-control],
 html.dark[data-window-translucent] [data-history-navigation] {
   --accent: rgb(255 255 255 / 6%);
   --muted: rgb(255 255 255 / 4%);
-  --foreground: rgb(255 255 255 / 92%);
+  --foreground: color-mix(
+    in srgb,
+    rgb(255 255 255 / 92%) var(--primary-text-strength, 100%),
+    transparent
+  );
   --sidebar-foreground: rgb(255 255 255 / 92%);
-  --muted-foreground: rgb(255 255 255 / 55%);
-  --sidebar-muted-foreground: rgb(255 255 255 / 55%);
+  /* Menu rows, icons and Settled sit close to the chat titles (about 83%). */
+  --muted-foreground: rgb(255 255 255 / 72%);
+  --sidebar-muted-foreground: rgb(255 255 255 / 72%);
   --secondary-label: rgb(255 255 255 / 35%);
 }
 
@@ -2917,10 +2939,14 @@ html[data-window-translucent]:not(.dark) [data-sidebar-control],
 html[data-window-translucent]:not(.dark) [data-history-navigation] {
   --accent: rgb(0 0 0 / 5%);
   --muted: rgb(0 0 0 / 3%);
-  --foreground: rgb(0 0 0 / 89%);
+  --foreground: color-mix(
+    in srgb,
+    rgb(0 0 0 / 89%) var(--primary-text-strength, 100%),
+    transparent
+  );
   --sidebar-foreground: rgb(0 0 0 / 89%);
-  --muted-foreground: rgb(0 0 0 / 55%);
-  --sidebar-muted-foreground: rgb(0 0 0 / 55%);
+  --muted-foreground: rgb(0 0 0 / 70%);
+  --sidebar-muted-foreground: rgb(0 0 0 / 70%);
   --secondary-label: rgb(0 0 0 / 35%);
 }
 
@@ -3036,4 +3062,78 @@ html[data-content-translucent] .messages-timeline-under-header {
       transparent calc(100% - var(--composer-cover, 0px) - var(--composer-cover-overlap, 0px))
     );
   mask-composite: intersect;
+}
+
+/* The fast-mode bolt glows in its own colour on hover. */
+[data-fast-mode-bolt] {
+  transition-property: color, fill, filter;
+}
+:hover > [data-fast-mode-bolt] {
+  filter: drop-shadow(0 0 2px color-mix(in srgb, currentColor 70%, transparent))
+    drop-shadow(0 0 6px color-mix(in srgb, currentColor 45%, transparent));
+}
+/* Light mode: a fainter glow, the full one reads heavy on white. */
+html:not(.dark) :hover > [data-fast-mode-bolt] {
+  filter: drop-shadow(0 0 2px color-mix(in srgb, currentColor 40%, transparent))
+    drop-shadow(0 0 5px color-mix(in srgb, currentColor 22%, transparent));
+}
+
+/* Dark mode: the right panel wears the sidebar's colour, a step above the main area. */
+html.dark:not([data-window-translucent]) [data-preview-panel-mode="inline"] {
+  --background: #181818;
+  background-color: var(--background);
+}
+html.dark[data-window-translucent] [data-slot="sidebar-inset"] {
+  --translucent-panel-tint: rgb(31 31 31);
+}
+
+/* A title swiped sideways (SidebarThreadRow) fades in at its start too; at the end the last
+   characters are shown without the end fade. */
+[data-title-scroll="middle"] {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 1.5rem,
+    #000 calc(100% - 2.5rem),
+    rgb(0 0 0 / 55%) calc(100% - 1.25rem),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 1.5rem,
+    #000 calc(100% - 2.5rem),
+    rgb(0 0 0 / 55%) calc(100% - 1.25rem),
+    transparent
+  );
+}
+[data-title-scroll="end"] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 1.5rem);
+  mask-image: linear-gradient(to right, transparent, #000 1.5rem);
+}
+
+/* Primary text at full strength whatever Settings › Appearance › Text strength says: the composer's
+   model name and effort word light up to this on hover. */
+:root {
+  --foreground-solid: #1d1d1f;
+}
+.dark {
+  --foreground-solid: #ffffff;
+}
+
+/* Right panel: buttons and tabs follow Text strength (the foreground) like the left sidebar's,
+   instead of the fixed muted grey; plain sub-labels stay muted. Hover/pressed colours (e.g.
+   destructive) keep their own. */
+[data-preview-panel-mode]
+  :is(
+    button,
+    a,
+    [role="tab"],
+    [role="button"],
+    [role="menuitem"]
+  )[class*="text-muted-foreground"]:not(:hover):not([data-pressed]):not(:disabled),
+[data-preview-panel-mode]
+  :is(button, a, [role="tab"], [role="button"])
+  svg[class*="text-muted-foreground"] {
+  color: var(--foreground);
 }

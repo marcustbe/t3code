@@ -85,8 +85,8 @@ export function SidebarThreadHeader({
           </div>
         </SidebarMenuItem>
       </ul>
-      {/* 22px from the Search icon to the toolbar icons, the same as from the window buttons to New. */}
-      <div className="mt-1.5 -mb-1 flex items-center justify-between px-0.75">
+      {/* 26px from the Search icon to the toolbar icons, matching the gap above New. */}
+      <div className="mt-3.5 -mb-1 flex items-center justify-between px-0.75">
         {/* Out to the rows' edge: the filter pads itself 8px like a row (Sidebar.tsx). */}
         <div className="-ms-0.75 flex items-center">{hasProjects ? projectScope : null}</div>
         {/* Pulled 3px out so the compose icon's ink ends on the rows' right line, like the times. */}

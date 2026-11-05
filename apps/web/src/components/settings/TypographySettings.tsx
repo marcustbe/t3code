@@ -4,12 +4,14 @@ import {
   DEFAULT_UNIFIED_SETTINGS,
   MAX_CHAT_FONT_SIZE,
   MAX_CHAT_FONT_WEIGHT,
+  MAX_LETTER_SPACING,
   MAX_CODE_FONT_SIZE,
   MAX_INTERFACE_FONT_SIZE,
   MAX_PROMPT_FONT_SIZE,
   MAX_TERMINAL_FONT_SIZE,
   MIN_CHAT_FONT_SIZE,
   MIN_CHAT_FONT_WEIGHT,
+  MIN_LETTER_SPACING,
   MIN_CODE_FONT_SIZE,
   MIN_INTERFACE_FONT_SIZE,
   MIN_PROMPT_FONT_SIZE,
@@ -34,6 +36,7 @@ import { CodeFontPreview, PromptFontPreview, TerminalFontPreview } from "./Setti
 import { discoverInstalledFonts, FontFamilyPicker, useFontEnumeration } from "./FontFamilyPicker";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
+import { SettingsSliderRow } from "./SettingsSliderRow";
 import {
   SettingResetButton,
   SettingsRow,
@@ -281,6 +284,26 @@ function ChatTextRow() {
   );
 }
 
+function LetterSpacingRow() {
+  const settings = useScopedSettings();
+  const updateSettings = useUpdateScopedSettings();
+  return (
+    <SettingsSliderRow
+      searchId="letter-spacing"
+      inputId="letter-spacing-input"
+      label="Letter spacing"
+      description="Tighter or looser interface and chat text. Code keeps its own."
+      value={settings.letterSpacing}
+      defaultValue={DEFAULT_UNIFIED_SETTINGS.letterSpacing}
+      onChange={(letterSpacing) => updateSettings({ letterSpacing })}
+      min={MIN_LETTER_SPACING}
+      max={MAX_LETTER_SPACING}
+      step={2}
+      format={(value) => `${value > 0 ? "+" : ""}${(value / 10).toFixed(1)}%`}
+    />
+  );
+}
+
 function FontSmoothingRow() {
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
@@ -419,6 +442,7 @@ export function TypographySection() {
     <SettingsSection id="typography" title="Typography">
       {showAdvanced ? <FontSettingsGroup /> : <SimpleFontRows />}
       <ChatTextRow />
+      <LetterSpacingRow />
       <WordWrapRow />
       <SeparateFontsRow checked={showAdvanced} onCheckedChange={setAdvanced} />
       <FontSmoothingRow />

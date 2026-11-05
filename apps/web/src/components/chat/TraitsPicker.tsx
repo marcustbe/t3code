@@ -698,7 +698,7 @@ export const TraitsPicker = memo(function TraitsPicker({
                     isComposerOwned && (effortWord !== null ? "-ms-0.5 ps-0" : "-ms-1 ps-0.5"),
                     // The word sits at 55% next to the model name and brightens like it on hover.
                     effortWord !== null &&
-                      "text-foreground/55 hover:text-foreground data-pressed:text-foreground data-popup-open:text-foreground",
+                      "text-foreground/55 dark:text-foreground/55 hover:text-(--foreground-solid) dark:hover:text-(--foreground-solid) data-pressed:text-(--foreground-solid) data-popup-open:text-(--foreground-solid)",
                   )}
                 />
               }
@@ -852,18 +852,23 @@ export const FastModeToggle = memo(function FastModeToggle({
                 ),
               )
             }
-            // A 20px square with the bolt centred, overlapping the model button so the bolt sits
-            // about 5px from the model name and reads as one group with it (8px felt detached); the
-            // square stops just short of the name. On is the filled bolt alone: no pressed fill
-            // behind it. It sits above the model button so its whole hover square is the click target.
-            className="z-10 size-5 px-0 -me-3 aria-pressed:bg-transparent aria-pressed:hover:bg-sidebar-row-selected"
+            // A 20px square overlapping the model button, the bolt about 7px from the name (5px felt
+            // cramped, 8px detached). On is the filled bolt alone; hover brightens it like the name and
+            // effort word, no box. Above the model button so the whole square is the click target.
+            className="z-10 size-5 px-0 -me-2.5 hover:bg-transparent aria-pressed:bg-transparent aria-pressed:hover:bg-transparent"
           />
         }
       >
         <ZapIcon
           aria-hidden="true"
           data-composer-control-icon
-          className={cn("size-3", on ? "fill-current text-foreground" : "text-foreground/40")}
+          data-fast-mode-bolt
+          className={cn(
+            "size-2.75",
+            on
+              ? "fill-current text-foreground"
+              : "text-foreground/40 [:hover>&]:text-foreground/80",
+          )}
         />
       </TooltipTrigger>
       <TooltipPopup side="top">Fast mode {on ? "on" : "off"}</TooltipPopup>

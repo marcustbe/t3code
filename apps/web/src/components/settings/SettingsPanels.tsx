@@ -455,6 +455,18 @@ export function useSettingsRestore(onRestored?: () => void) {
       ? ["Background grain"]
       : []),
     ...(settings.topBarBlur !== DEFAULT_UNIFIED_SETTINGS.topBarBlur ? ["Top bar blur"] : []),
+    ...(settings.primaryTextStrength !== DEFAULT_UNIFIED_SETTINGS.primaryTextStrength
+      ? ["Text strength"]
+      : []),
+    ...(settings.letterSpacing !== DEFAULT_UNIFIED_SETTINGS.letterSpacing
+      ? ["Letter spacing"]
+      : []),
+    ...(settings.messageBubbleColor !== DEFAULT_UNIFIED_SETTINGS.messageBubbleColor
+      ? ["Message colour"]
+      : []),
+    ...(settings.messageBubbleOpacity !== DEFAULT_UNIFIED_SETTINGS.messageBubbleOpacity
+      ? ["Message opacity"]
+      : []),
     ...(settings.composerPromptLayout !== DEFAULT_UNIFIED_SETTINGS.composerPromptLayout
       ? ["Long prompts"]
       : []),
@@ -668,6 +680,10 @@ export function useSettingsRestore(onRestored?: () => void) {
       windowBlurRadius: DEFAULT_UNIFIED_SETTINGS.windowBlurRadius,
       backgroundGrain: DEFAULT_UNIFIED_SETTINGS.backgroundGrain,
       topBarBlur: DEFAULT_UNIFIED_SETTINGS.topBarBlur,
+      primaryTextStrength: DEFAULT_UNIFIED_SETTINGS.primaryTextStrength,
+      messageBubbleColor: DEFAULT_UNIFIED_SETTINGS.messageBubbleColor,
+      letterSpacing: DEFAULT_UNIFIED_SETTINGS.letterSpacing,
+      messageBubbleOpacity: DEFAULT_UNIFIED_SETTINGS.messageBubbleOpacity,
       composerPromptLayout: DEFAULT_UNIFIED_SETTINGS.composerPromptLayout,
       sidebarSidePadding: DEFAULT_UNIFIED_SETTINGS.sidebarSidePadding,
       windowTopPadding: DEFAULT_UNIFIED_SETTINGS.windowTopPadding,

@@ -12,12 +12,25 @@ function grainImage(percent: number): string {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
-/** Writes Settings › Appearance's grain, top bar blur and edge paddings onto the document. */
+/** Writes Settings › Appearance's grain, top bar blur, text strength and edge paddings onto the document. */
 export function applyAppearanceLayout(root: HTMLElement, settings: ClientSettings): void {
   const style = root.style;
   style.setProperty("--surface-grain", grainImage(settings.backgroundGrain));
   style.setProperty("--surface-grain-size", "256px 256px");
   style.setProperty("--top-bar-blur", `${settings.topBarBlur}px`);
+  style.setProperty("--primary-text-strength", `${settings.primaryTextStrength}%`);
+  style.setProperty("--text-tracking", `${settings.letterSpacing / 1000}em`);
+  // The user bubble: its own colour (or the theme's), faded by its opacity. Unset at the defaults
+  // so themes keep their own --message-surface.
+  const bubbleColor = settings.messageBubbleColor || "var(--message-surface)";
+  if (settings.messageBubbleColor === "" && settings.messageBubbleOpacity >= 100) {
+    style.removeProperty("--message-bubble");
+  } else {
+    style.setProperty(
+      "--message-bubble",
+      `color-mix(in srgb, ${bubbleColor} ${settings.messageBubbleOpacity}%, transparent)`,
+    );
+  }
   const side = settings.sidebarSidePadding;
   style.setProperty("--sidebar-side-padding", `${side}px`);
   style.setProperty("--sidebar-side-inset", `${Math.max(0, side - SIDEBAR_ROW_CONTENT_INSET)}px`);

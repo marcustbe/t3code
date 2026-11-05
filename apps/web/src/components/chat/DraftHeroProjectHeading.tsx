@@ -71,7 +71,7 @@ export function DraftHeroProjectHeading({
           reads in the secondary colour, the project (icon + name) in the primary at medium. Sizes
           are 28px (text-hero, fixed), a size down text-2xl. */}
       <h1 className="flex w-full flex-col items-center justify-center gap-2 text-center font-normal text-xl text-foreground tracking-hero group-data-[fit=large]/draft-hero:flex-row group-data-[fit=large]/draft-hero:items-baseline group-data-[fit=large]/draft-hero:gap-1.5 group-data-[fit=large]/draft-hero:text-hero group-data-[fit=small]/draft-hero:flex-row group-data-[fit=small]/draft-hero:items-baseline group-data-[fit=small]/draft-hero:gap-1.5 group-data-[fit=small]/draft-hero:text-2xl group-data-[fit=stack]/draft-hero:sm:text-2xl">
-        <span className="max-w-full text-muted-foreground group-data-[fit=large]/draft-hero:shrink-0 group-data-[fit=small]/draft-hero:shrink-0">
+        <span className="max-w-full text-foreground group-data-[fit=large]/draft-hero:shrink-0 group-data-[fit=small]/draft-hero:shrink-0">
           What should we build
           <span className="group-data-[fit=large]/draft-hero:hidden group-data-[fit=small]/draft-hero:hidden">
             ?

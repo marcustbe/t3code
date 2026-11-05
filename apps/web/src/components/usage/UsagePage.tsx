@@ -10,7 +10,13 @@ import {
   type UsageProviderKind,
   type UsageSummaryInput,
 } from "@t3tools/contracts";
-import { CircleAlertIcon, ChevronDownIcon, InfoIcon, SlidersHorizontalIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  CircleAlertIcon,
+  ChevronDownIcon,
+  InfoIcon,
+  SlidersHorizontalIcon,
+} from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
@@ -530,16 +536,25 @@ export function UsagePage() {
 
   return (
     // A page in the main area like Settings, over the chat and its right panel; the thread sidebar
-    // stays, so clicking a chat there leaves it. Esc returns to where it was opened.
+    // stays, so clicking a chat there leaves it. Back and Esc return to where it was opened.
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
         <WorkspacePageHeader
           electron={isElectron}
           aria-label="Usage"
-          className="@container/usage-header gap-1 border-b border-border"
+          className="@container/usage-header gap-1 border-b border-separator"
         >
           {topbarContent}
         </WorkspacePageHeader>
+        {/* The arrow's ink sits on the top bar's side padding line. */}
+        <div className="shrink-0 ps-(--topbar-side-padding) pt-2">
+          <div className="-ms-2.5 flex">
+            <Button variant="ghost" size="sm" onClick={() => void closeUsage()}>
+              <ArrowLeftIcon />
+              Back
+            </Button>
+          </div>
+        </div>
 
         <ScrollArea className="min-h-0 flex-1">
           <WorkspacePageContainer width="wide">

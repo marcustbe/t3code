@@ -43,7 +43,7 @@ export function ContextWindowMeter(props: {
           <Button
             size="icon-sm"
             variant="ghost-muted"
-            className="size-7"
+            className="size-6 sm:size-6"
             aria-label={
               usage.maxTokens !== null && usedPercentage
                 ? `Context window ${usedPercentage} used`
@@ -164,7 +164,7 @@ export function SessionLimitMeter(props: {
           <Button
             size="icon-sm"
             variant="ghost-muted"
-            className="size-7"
+            className="size-6 sm:size-6"
             aria-label={`${props.label} ${used} used`}
           >
             <ContextWindowRing percentage={percentage} color={color} />
@@ -243,7 +243,7 @@ function ContextWindowRing(props: { percentage: number; color?: string }) {
 /** Usage not known yet: the bare track, so the row does not shift when it arrives. */
 export function ContextWindowMeterPlaceholder() {
   return (
-    <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center">
+    <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center">
       <ContextWindowRing percentage={0} />
     </span>
   );

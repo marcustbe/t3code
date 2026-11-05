@@ -128,6 +128,10 @@ function startClientAppearance(): void {
     if (
       previous?.backgroundGrain !== settings.backgroundGrain ||
       previous.topBarBlur !== settings.topBarBlur ||
+      previous.primaryTextStrength !== settings.primaryTextStrength ||
+      previous.messageBubbleColor !== settings.messageBubbleColor ||
+      previous.letterSpacing !== settings.letterSpacing ||
+      previous.messageBubbleOpacity !== settings.messageBubbleOpacity ||
       previous.sidebarSidePadding !== settings.sidebarSidePadding ||
       previous.windowTopPadding !== settings.windowTopPadding ||
       previous.sidebarBottomPadding !== settings.sidebarBottomPadding ||

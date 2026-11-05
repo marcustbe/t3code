@@ -303,8 +303,8 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       <SidebarContent className="overflow-x-hidden">
         <SidebarGroup>
           <div className="flex flex-col gap-2">
-            {/* A field, so it keeps a fill at rest (the open row's grey), darker while hovered. */}
-            <div className="flex h-8 items-center gap-2 rounded-(--control-radius) bg-sidebar-row-hover px-(--sidebar-row-content-inset) py-1.5 text-sm font-medium text-sidebar-muted-foreground focus-within:bg-sidebar-row-selected hover:bg-sidebar-row-selected hover:text-sidebar-foreground">
+            {/* A field, so it keeps a fill at rest (the open row's grey) and a faint stroke, darker while hovered. */}
+            <div className="flex h-8 items-center gap-2 rounded-(--control-radius) bg-sidebar-row-hover ring-1 ring-foreground/6 ring-inset focus-within:ring-foreground/15 px-(--sidebar-row-content-inset) py-1.5 text-sm font-medium text-sidebar-muted-foreground focus-within:bg-sidebar-row-selected hover:bg-sidebar-row-selected hover:text-sidebar-foreground">
               <SearchIcon className="size-4 shrink-0 text-(--sidebar-icon-color)" />
               <SidebarInput
                 ref={searchInputRef}

@@ -384,7 +384,7 @@ function Sidebar({
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
             variant === "floating" || variant === "inset"
               ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
-              : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
+              : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) border-separator group-data-[side=left]:border-r group-data-[side=right]:border-l",
             className,
           )}
           data-slot="sidebar-container"
@@ -606,7 +606,7 @@ function SidebarInput({ className, ...props }: Omit<InputProps, "unstyled" | "va
   return (
     <Input
       className={cn(
-        "[&_[data-slot=input]]:h-auto [&_[data-slot=input]]:p-0 [&_[data-slot=input]]:font-medium [&_[data-slot=input]]:text-sidebar-foreground [&_[data-slot=input]]:text-sm [&_[data-slot=input]]:leading-normal [&_[data-slot=input]]:placeholder:text-sidebar-muted-foreground",
+        "[&_[data-slot=input]]:h-auto [&_[data-slot=input]]:p-0 [&_[data-slot=input]]:font-medium [&_[data-slot=input]]:text-sidebar-foreground [&_[data-slot=input]]:text-sm [&_[data-slot=input]]:leading-normal [&_[data-slot=input]]:placeholder:text-(--secondary-label)",
         className,
       )}
       unstyled
@@ -674,7 +674,8 @@ function SidebarContent({
         // Rows provide keyboard access; exclude the viewport from tab order to flatten VoiceOver's WebKit
         // interaction boundary.
         viewportTabIndex={-1}
-        className="h-auto min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]]:[--fade-size:0.75rem]"
+        // A long fade at the top (0.75rem cut rows off harshly); a shorter one above the footer.
+        className="h-auto min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]]:[--fade-size:2rem] [&>[data-slot=scroll-area-viewport]]:[--fade-size-end:1rem]"
       >
         <div
           className={cn(

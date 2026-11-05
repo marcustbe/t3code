@@ -130,7 +130,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
         render={
           <button
             type="button"
-            className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-foreground/12 text-foreground transition-colors duration-150 hover:bg-foreground/18 active:bg-foreground/22 disabled:pointer-events-none disabled:opacity-64 [&_svg]:pointer-events-none"
+            className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md bg-foreground/12 text-foreground transition-colors duration-150 hover:bg-foreground/18 active:bg-foreground/22 disabled:pointer-events-none disabled:opacity-64 [&_svg]:pointer-events-none"
             {...pointerFocusProps}
             disabled={!canOperateThread}
             onClick={() => {
@@ -301,9 +301,9 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     <button
       type={showResume ? "button" : "submit"}
       className={cn(
-        // 8px corners, concentric with the composer's 16px 8px out. Hover: a slight grow (3%,
+        // 4px corners, concentric with the composer's 12px 8px out. Hover: a slight grow (3%,
         // upstream's 5% was a lot), the whole square turns 45° right with its arrow, and a soft shadow.
-        "relative isolate flex size-7 items-center justify-center overflow-hidden rounded-lg transition-all duration-150 enabled:cursor-pointer enabled:hover:scale-103 enabled:hover:rotate-45 enabled:hover:shadow-md disabled:pointer-events-none [&_svg]:pointer-events-none",
+        "relative isolate flex size-7 items-center justify-center overflow-hidden rounded-md transition-all duration-150 enabled:cursor-pointer enabled:hover:scale-103 enabled:hover:rotate-45 enabled:hover:shadow-md disabled:pointer-events-none [&_svg]:pointer-events-none",
         stageBackdropVariant
           ? "bg-transparent text-white enabled:hover:brightness-110 disabled:opacity-64"
           : "bg-message-action text-message-action-foreground hover:bg-message-action-hover disabled:bg-foreground/12 disabled:text-muted-foreground",

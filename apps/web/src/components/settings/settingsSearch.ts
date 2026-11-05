@@ -346,6 +346,30 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["noise texture grainy film surface background"],
   },
   {
+    id: "primary-text-strength",
+    title: "Text strength",
+    to: "/settings/appearance",
+    searchTerms: ["primary text icons opacity contrast bright brightness white dim"],
+  },
+  {
+    id: "letter-spacing",
+    title: "Letter spacing",
+    to: "/settings/appearance",
+    searchTerms: ["tracking kerning font text tight loose spacing letters"],
+  },
+  {
+    id: "message-bubble-color",
+    title: "Message colour",
+    to: "/settings/appearance",
+    searchTerms: ["user message bubble background fill colour color"],
+  },
+  {
+    id: "message-bubble-opacity",
+    title: "Message opacity",
+    to: "/settings/appearance",
+    searchTerms: ["user message bubble background fill transparency"],
+  },
+  {
     id: "top-bar-blur",
     title: "Top bar blur",
     to: "/settings/appearance",

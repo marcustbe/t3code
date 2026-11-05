@@ -12,14 +12,13 @@ import {
   MAX_GLASS_OPACITY,
   MAX_PANEL_ANIMATION_DURATION_MS,
   MAX_TOP_BAR_BLUR,
+  MIN_PRIMARY_TEXT_STRENGTH,
   MAX_WINDOW_BLUR_RADIUS,
-  MAX_WINDOW_SURFACE_OPACITY,
   MIN_APPEARANCE_CONTRAST,
   MIN_EDGE_PADDING,
   MIN_GLASS_OPACITY,
   MIN_PANEL_ANIMATION_DURATION_MS,
   MIN_WINDOW_BLUR_RADIUS,
-  MIN_WINDOW_SURFACE_OPACITY,
 } from "@t3tools/contracts/settings";
 import { isElectron } from "../../env";
 import { isMacPlatform } from "../../lib/utils";
@@ -43,8 +42,8 @@ import {
 import { searchableSetting } from "./settingsSearch";
 import { PanelAnimationsPreview } from "./PanelAnimationsPreview";
 import { TypographySection } from "./TypographySettings";
+import { SettingsSliderRow } from "./SettingsSliderRow";
 import { ThreadDetailsItemsRow } from "./ThreadDetailsItemsRow";
-import type { SettingsSearchItemId } from "./settingsSearch";
 
 const ENVIRONMENT_IDENTIFICATION_LABELS: Record<EnvironmentIdentificationMode, string> = {
   artwork: "Artwork",
@@ -93,72 +92,40 @@ const EFFORT_DISPLAY_LABELS: Record<EffortDisplay, string> = {
   bars: "Bars",
 };
 
-/** A slider for the transparent window: a surface's opacity (0–100%) or the blur behind it. */
-function WindowSurfaceOpacityRow({
-  searchId,
-  inputId,
-  label,
-  description,
+/** The user bubble's colour: a swatch opening the system colour picker; empty follows the theme. */
+function MessageBubbleColorRow({
   value,
-  defaultValue,
   onChange,
-  min = MIN_WINDOW_SURFACE_OPACITY,
-  max = MAX_WINDOW_SURFACE_OPACITY,
-  unit = "%",
-  step = 5,
 }: {
-  searchId: SettingsSearchItemId;
-  inputId: string;
-  label: string;
-  description: string;
-  value: number;
-  defaultValue: number;
-  onChange: (value: number) => void;
-  min?: number;
-  max?: number;
-  unit?: string;
-  step?: number;
+  value: string;
+  onChange: (value: string) => void;
 }) {
-  const ratio = (value - min) / (max - min);
-  const sliderStyle = {
-    "--settings-slider-progress": `${ratio * 100}%`,
-    "--settings-slider-fill-offset": `${0.5 - ratio}rem`,
-  } as CSSProperties;
   return (
     <SettingsRow
-      {...searchableSetting(searchId)}
-      description={description}
+      {...searchableSetting("message-bubble-color")}
+      description="Background of your messages. Reset to follow the theme."
       resetAction={
-        value !== defaultValue ? (
-          <SettingResetButton label={label.toLowerCase()} onClick={() => onChange(defaultValue)} />
+        value !== "" ? (
+          <SettingResetButton label="message colour" onClick={() => onChange("")} />
         ) : null
       }
       control={
-        <div className="flex w-full items-center gap-3 sm:w-52">
-          <output
-            className="min-w-12 rounded-md bg-muted px-2 py-1 text-center font-mono text-xs font-medium tabular-nums text-foreground"
-            htmlFor={inputId}
+        <div className="flex w-full items-center justify-end gap-3 sm:w-52">
+          <span className="font-mono text-xs text-muted-foreground uppercase">
+            {value === "" ? "Theme" : value}
+          </span>
+          <label
+            className="relative size-7 shrink-0 cursor-pointer overflow-hidden rounded-md ring-1 ring-foreground/12 ring-inset"
+            style={{ background: value === "" ? "var(--message-surface)" : value }}
           >
-            {value}
-            {unit}
-          </output>
-          <input
-            aria-label={label}
-            className="settings-slider min-w-0 flex-1"
-            id={inputId}
-            max={max}
-            min={min}
-            onChange={(event) => {
-              const next = Number(event.currentTarget.value);
-              if (Number.isInteger(next) && next >= min && next <= max) {
-                onChange(next);
-              }
-            }}
-            step={step}
-            style={sliderStyle}
-            type="range"
-            value={value}
-          />
+            <input
+              aria-label="Message colour"
+              className="absolute inset-0 size-full cursor-pointer opacity-0"
+              type="color"
+              value={value === "" ? "#808080" : value}
+              onChange={(event) => onChange(event.currentTarget.value.toLowerCase())}
+            />
+          </label>
         </div>
       }
     />
@@ -330,7 +297,7 @@ export function AppearanceSettingsPanel() {
 
         {WINDOW_TRANSPARENCY_SUPPORTED ? (
           <>
-            <WindowSurfaceOpacityRow
+            <SettingsSliderRow
               searchId="sidebar-surface-opacity"
               inputId="sidebar-surface-opacity-input"
               label="Sidebar opacity"
@@ -339,7 +306,7 @@ export function AppearanceSettingsPanel() {
               defaultValue={DEFAULT_UNIFIED_SETTINGS.sidebarSurfaceOpacity}
               onChange={(sidebarSurfaceOpacity) => updateSettings({ sidebarSurfaceOpacity })}
             />
-            <WindowSurfaceOpacityRow
+            <SettingsSliderRow
               searchId="content-surface-opacity"
               inputId="content-surface-opacity-input"
               label="Main area opacity"
@@ -348,7 +315,7 @@ export function AppearanceSettingsPanel() {
               defaultValue={DEFAULT_UNIFIED_SETTINGS.contentSurfaceOpacity}
               onChange={(contentSurfaceOpacity) => updateSettings({ contentSurfaceOpacity })}
             />
-            <WindowSurfaceOpacityRow
+            <SettingsSliderRow
               searchId="panel-surface-opacity"
               inputId="panel-surface-opacity-input"
               label="Right panel opacity"
@@ -357,7 +324,7 @@ export function AppearanceSettingsPanel() {
               defaultValue={DEFAULT_UNIFIED_SETTINGS.panelSurfaceOpacity}
               onChange={(panelSurfaceOpacity) => updateSettings({ panelSurfaceOpacity })}
             />
-            <WindowSurfaceOpacityRow
+            <SettingsSliderRow
               searchId="window-blur-radius"
               inputId="window-blur-radius-input"
               label="Background blur"
@@ -371,7 +338,7 @@ export function AppearanceSettingsPanel() {
             />
           </>
         ) : null}
-        <WindowSurfaceOpacityRow
+        <SettingsSliderRow
           searchId="background-grain"
           inputId="background-grain-input"
           label="Background grain"
@@ -382,7 +349,33 @@ export function AppearanceSettingsPanel() {
           min={0}
           max={MAX_BACKGROUND_GRAIN}
         />
-        <WindowSurfaceOpacityRow
+        <SettingsSliderRow
+          searchId="primary-text-strength"
+          inputId="primary-text-strength-input"
+          label="Text strength"
+          description="Opacity of primary text and icons."
+          value={settings.primaryTextStrength}
+          defaultValue={DEFAULT_UNIFIED_SETTINGS.primaryTextStrength}
+          onChange={(primaryTextStrength) => updateSettings({ primaryTextStrength })}
+          min={MIN_PRIMARY_TEXT_STRENGTH}
+          max={100}
+        />
+        <MessageBubbleColorRow
+          value={settings.messageBubbleColor}
+          onChange={(messageBubbleColor) => updateSettings({ messageBubbleColor })}
+        />
+        <SettingsSliderRow
+          searchId="message-bubble-opacity"
+          inputId="message-bubble-opacity-input"
+          label="Message opacity"
+          description="How solid the background of your messages is."
+          value={settings.messageBubbleOpacity}
+          defaultValue={DEFAULT_UNIFIED_SETTINGS.messageBubbleOpacity}
+          onChange={(messageBubbleOpacity) => updateSettings({ messageBubbleOpacity })}
+          min={0}
+          max={100}
+        />
+        <SettingsSliderRow
           searchId="top-bar-blur"
           inputId="top-bar-blur-input"
           label="Top bar blur"
@@ -762,7 +755,7 @@ function EdgePaddingSection() {
   return (
     <SettingsSection id="appearance-layout" title="Layout">
       {EDGE_PADDING_ROWS.map((row) => (
-        <WindowSurfaceOpacityRow
+        <SettingsSliderRow
           key={row.key}
           searchId={row.searchId}
           inputId={`${row.searchId}-input`}

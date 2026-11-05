@@ -2872,9 +2872,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       <SidebarContent
         className="min-h-full"
         fixedHeader={
-          // Pulled up so the New icon sits about 32 points under the window buttons at his 144% zoom
-          // (22px), a little more than the 18px between rows.
-          <SidebarGroup className="z-[1] -mt-3.25">
+          // The New icon sits about 30px under the window buttons (4px more than before, his ask).
+          <SidebarGroup className="z-[1] -mt-1.25">
             <SidebarThreadHeader
               searchFieldRef={headerSearchRef}
               hasProjects={projectGroups.length > 0}

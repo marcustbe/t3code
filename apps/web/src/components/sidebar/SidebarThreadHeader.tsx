@@ -7,11 +7,6 @@ import { SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { AddProjectSymbol, NewChatSymbol, RoutinesSymbol, SearchSymbol } from "./SidebarSymbols";
 
-// 28px rows with a 7px icon gap (his pick, 2026-11-05): the default 32px/8px felt loose around
-// the 12px labels. Labels and icons take the chat titles' colour, not the dimmer muted one
-// (2026-11-06).
-const NAV_ROW_CLASS = "h-7 gap-[7px] text-foreground [&>svg]:text-foreground!";
-
 export interface SidebarThreadHeaderProps {
   hasProjects: boolean;
   projectScope: ReactNode;
@@ -51,7 +46,8 @@ export function SidebarThreadHeader({
       <ul className="flex w-full min-w-0 flex-col">
         <SidebarMenuItem>
           <SidebarMenuButton
-            className={NAV_ROW_CLASS}
+            size="nav"
+            variant="nav"
             disabled={newThreadDisabled}
             onClick={onNewThread}
             title={newThreadLabel}
@@ -62,7 +58,8 @@ export function SidebarThreadHeader({
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton
-            className={NAV_ROW_CLASS}
+            size="nav"
+            variant="nav"
             isActive={routinesActive}
             render={<Link to="/routines" onClick={onNavigate} />}
           >
@@ -74,7 +71,8 @@ export function SidebarThreadHeader({
         <SidebarMenuItem>
           <div>
             <SidebarMenuButton
-              className={NAV_ROW_CLASS}
+              size="nav"
+              variant="nav"
               onClick={onSearch}
               title={searchShortcutLabel ? `Search (${searchShortcutLabel})` : "Search"}
             >

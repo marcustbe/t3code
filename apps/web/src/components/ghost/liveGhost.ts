@@ -176,7 +176,7 @@ function dispose() {
 // toward its landing spot, then flies those frames as compositor animations (a busy main thread
 // can't make them stutter). It turns back to the companion's own gaze before landing.
 const FLIGHT_WINDOW_MS = 4000;
-const FLIGHT_MS = 750;
+const FLIGHT_MS = 480;
 /** Frames per turn; it faces the landing spot by TURN_OUT_END of the flight, and turns back
  *  to the companion's gaze between TURN_BACK_START and TURN_BACK_END. */
 const TURN_FRAMES = 8;

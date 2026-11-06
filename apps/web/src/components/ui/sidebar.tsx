@@ -752,10 +752,15 @@ const sidebarMenuButtonVariants = cva(
         icon: "size-7 justify-center rounded-[var(--control-radius)] border-2 border-transparent bg-clip-padding p-0 hover:bg-sidebar-row-selected!",
         lg: "h-12 rounded-[var(--control-radius)] px-[var(--sidebar-row-content-inset)] py-2 text-sm group-data-[collapsible=icon]:p-0!",
         sm: "h-7 rounded-[var(--control-radius)] px-[var(--sidebar-row-content-inset)] py-2 text-xs",
+        // Top nav rows (New, Routines, Search): 28px tall with a 7px icon gap, Marcus's pick
+        // (2026-11-05); the default 32px/8px felt loose around the labels.
+        nav: "h-7 gap-1.75 rounded-[var(--control-radius)] px-[var(--sidebar-row-content-inset)] py-1.5 text-sm",
       },
       variant: {
         default: "font-medium text-sidebar-muted-foreground",
         outline: "bg-sidebar-control-surface ring-1 ring-sidebar-border",
+        // Labels and icons take the chat titles' colour, not the dimmer muted one (2026-11-06).
+        nav: "font-medium text-foreground [&>svg]:text-foreground!",
       },
     },
   },

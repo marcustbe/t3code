@@ -20,11 +20,9 @@ function escapeBelongsElsewhere(event: KeyboardEvent): boolean {
 }
 
 /**
- * Escape stops the running turn when nothing else claims it: no open menu or dialog, no editor
- * but the composer, no terminal or browser. Layers are read in the capture phase, because one
- * that closes on this Escape is already gone when it bubbles. ProseMirror prevents the default of
- * every Escape in the composer, so that alone doesn't count as consumed there; the composer's own
- * menu dismissal stops propagation, so its Escape never reaches the observer.
+ * Escape stops the running turn unless a menu, dialog, other editor, terminal or browser claims it.
+ * Layers are read in the capture phase: one closing on this Escape is gone by the bubble phase.
+ * ProseMirror's preventDefault on every composer Escape doesn't count as consumed.
  */
 export function useEscapeToStop(input: { readonly enabled: boolean; readonly stop: () => void }) {
   const stop = useEffectEvent(() => {

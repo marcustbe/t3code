@@ -31,7 +31,7 @@ const scale = (a: Vec3, s: number): Vec3 => [a[0] * s, a[1] * s, a[2] * s];
 const length = (a: Vec3) => Math.hypot(a[0], a[1], a[2]);
 
 /** Keep the side n·p <= d; normalises n. */
-export function halfSpace(n: Vec3, d: number): HalfSpace {
+function halfSpace(n: Vec3, d: number): HalfSpace {
   const l = length(n);
   return { n: scale(n, 1 / l), d: d / l };
 }

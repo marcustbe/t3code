@@ -1592,7 +1592,10 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     };
     measure();
     return observeResize([row, box], measure);
-  }, [promptMultiline]);
+  }, [
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A promptMultiline flip moves the prompt to its own row without always resizing the observed nodes.
+    promptMultiline,
+  ]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reads draft images as data URLs and persists them to the draft store, dropping stale results on cleanup
   useEffect(() => {

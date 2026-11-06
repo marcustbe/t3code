@@ -2372,7 +2372,12 @@ export default function ChatView(props: ChatViewProps) {
       stop();
       stack.style.removeProperty("--composer-editor-max-height");
     };
-  }, [composerMounted, composerOverlayElement, isDraftHeroState]);
+  }, [
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A composer mount replaces the editor inside the stack, so the cap is measured again.
+    composerMounted,
+    composerOverlayElement,
+    isDraftHeroState,
+  ]);
   const openPanelPullRequestUrl = useOpenPanelPullRequestUrl(activeThreadRef);
   const activeThreadReferenceCopyTarget =
     activeThreadRef === null || !isServerThread

@@ -182,7 +182,7 @@ export const LetterSpacing = Schema.Int.check(
   Schema.isBetween({ minimum: MIN_LETTER_SPACING, maximum: MAX_LETTER_SPACING }),
 );
 
-/** The user message bubble's own colour ("" = the theme's) as #rrggbb, and its opacity in percent. */
+/** The user message bubble's own colour per appearance ("" = the theme's) as #rrggbb, and its opacity in percent. */
 export const MessageBubbleColor = Schema.String.check(Schema.isPattern(/^(#[0-9a-fA-F]{6})?$/));
 export const MessageBubbleOpacity = Schema.Int.check(
   Schema.isBetween({ minimum: 0, maximum: 100 }),
@@ -405,8 +405,13 @@ export const LoadBalancingWeights = Schema.Record(
 
 export const DiffColorScheme = Schema.Literals(["red-green", "blue-orange"]);
 
-export const ChatWidth = Schema.Literals(["comfortable", "wide", "full"]);
-export type ChatWidth = typeof ChatWidth.Type;
+/** Chat width as a slider: 0 is Comfortable (45rem), 100 fills the main area; steps in between
+ * cover the space left over linearly. */
+export const MAX_CHAT_WIDTH_PERCENT = 100;
+export const ChatWidthPercent = Schema.Int.check(
+  Schema.isBetween({ minimum: 0, maximum: MAX_CHAT_WIDTH_PERCENT }),
+);
+export type ChatWidthPercent = typeof ChatWidthPercent.Type;
 
 /** How the composer shows reasoning effort: the level's name, or rising bars. */
 export const EffortDisplay = Schema.Literals(["label", "bars"]);
@@ -437,7 +442,7 @@ export const ClientSettingsSchema = Schema.Struct({
   diffColorScheme: DiffColorScheme.pipe(
     Schema.withDecodingDefault(Effect.succeed("red-green" as const)),
   ),
-  chatWidth: ChatWidth.pipe(Schema.withDecodingDefault(Effect.succeed("comfortable" as const))),
+  chatWidthPercent: ChatWidthPercent.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
   effortDisplay: EffortDisplay.pipe(Schema.withDecodingDefault(Effect.succeed("label" as const))),
   loadBalancingEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   loadBalancingWeights: LoadBalancingWeights.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
@@ -512,6 +517,13 @@ export const ClientSettingsSchema = Schema.Struct({
   sidebarShowSettledCount: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   // Sidebar chat rows drop the project name and show only its icon, before the chat title.
   sidebarProjectIconOnly: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  // Sidebar chat rows show how long ago each chat was active.
+  sidebarShowTimestamps: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  // Sidebar chat rows offer a Snooze button on hover (snoozing stays in the context menu).
+  sidebarShowSnoozeButton: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  // The sidebar toggle always shows its collapsed-sidebar icon instead of morphing between the
+  // open and collapsed icons.
+  sidebarToggleStaticIcon: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   sidebarSurfaceOpacity: WindowSurfaceOpacity.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_WINDOW_SURFACE_OPACITY)),
   ),
@@ -527,8 +539,11 @@ export const ClientSettingsSchema = Schema.Struct({
   ),
   backgroundGrain: BackgroundGrain.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
   topBarBlur: TopBarBlur.pipe(Schema.withDecodingDefault(Effect.succeed(16))),
+  // How solid the chat's top bar fill is over its blur.
+  topBarOpacity: WindowSurfaceOpacity.pipe(Schema.withDecodingDefault(Effect.succeed(75))),
   primaryTextStrength: PrimaryTextStrength.pipe(Schema.withDecodingDefault(Effect.succeed(100))),
   messageBubbleColor: MessageBubbleColor.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
+  messageBubbleColorDark: MessageBubbleColor.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   letterSpacing: LetterSpacing.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
   messageBubbleOpacity: MessageBubbleOpacity.pipe(Schema.withDecodingDefault(Effect.succeed(100))),
   // Glyph distance from the edges: the sidebar's sides (its icons), the window top (window buttons,
@@ -1895,7 +1910,7 @@ export const ClientSettingsPatch = Schema.Struct({
   notificationMode: Schema.optionalKey(NotificationMode),
   inAppNotificationsEnabled: Schema.optionalKey(Schema.Boolean),
   diffColorScheme: Schema.optionalKey(DiffColorScheme),
-  chatWidth: Schema.optionalKey(ChatWidth),
+  chatWidthPercent: Schema.optionalKey(ChatWidthPercent),
   effortDisplay: Schema.optionalKey(EffortDisplay),
   loadBalancingEnabled: Schema.optionalKey(Schema.Boolean),
   loadBalancingWeights: Schema.optionalKey(LoadBalancingWeights),
@@ -1925,14 +1940,19 @@ export const ClientSettingsPatch = Schema.Struct({
   sidebarShowPullRequests: Schema.optionalKey(Schema.Boolean),
   sidebarShowSettledCount: Schema.optionalKey(Schema.Boolean),
   sidebarProjectIconOnly: Schema.optionalKey(Schema.Boolean),
+  sidebarShowTimestamps: Schema.optionalKey(Schema.Boolean),
+  sidebarShowSnoozeButton: Schema.optionalKey(Schema.Boolean),
+  sidebarToggleStaticIcon: Schema.optionalKey(Schema.Boolean),
   sidebarSurfaceOpacity: Schema.optionalKey(WindowSurfaceOpacity),
   contentSurfaceOpacity: Schema.optionalKey(WindowSurfaceOpacity),
   panelSurfaceOpacity: Schema.optionalKey(WindowSurfaceOpacity),
   windowBlurRadius: Schema.optionalKey(WindowBlurRadius),
   backgroundGrain: Schema.optionalKey(BackgroundGrain),
   topBarBlur: Schema.optionalKey(TopBarBlur),
+  topBarOpacity: Schema.optionalKey(WindowSurfaceOpacity),
   primaryTextStrength: Schema.optionalKey(PrimaryTextStrength),
   messageBubbleColor: Schema.optionalKey(MessageBubbleColor),
+  messageBubbleColorDark: Schema.optionalKey(MessageBubbleColor),
   letterSpacing: Schema.optionalKey(LetterSpacing),
   messageBubbleOpacity: Schema.optionalKey(MessageBubbleOpacity),
   sidebarSidePadding: Schema.optionalKey(EdgePadding),

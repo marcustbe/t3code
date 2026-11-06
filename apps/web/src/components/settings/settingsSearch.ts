@@ -386,6 +386,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["header frosted blur titlebar chat top"],
   },
   {
+    id: "top-bar-opacity",
+    title: "Top bar opacity",
+    to: "/settings/appearance",
+    searchTerms: ["header transparency fill solid titlebar chat top see-through"],
+  },
+  {
     id: "sidebar-side-padding",
     title: "Sidebar side padding",
     to: "/settings/appearance",
@@ -478,6 +484,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["number amount settled shelf"],
   },
   {
+    id: "sidebar-toggle-static-icon",
+    title: "Static sidebar button icon",
+    to: "/settings/appearance",
+    searchTerms: ["collapse expand panel animation morph still"],
+  },
+  {
     id: "math-rendering",
     title: "Render math",
     to: "/settings/appearance",
@@ -487,13 +499,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "panel-animations",
     title: "Panel animations",
     to: "/settings/appearance",
-  },
-  {
-    id: "environment-identification",
-    title: "Environment identification",
-    to: "/settings/appearance",
-    searchTerms: ["dev nightly latest channel artwork pill label hide none"],
-    targetId: "appearance-interface",
   },
   {
     id: "interface-font",
@@ -1079,7 +1084,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "pull-request-links-open-in-app",
-    title: "Open pull requests in T3 Code",
+    title: "Open pull requests in Ghost",
     to: "/settings/diffs",
     searchTerms: [
       `pr commit links ${SOURCE_CONTROL_HOST_LABELS} browser external click default pull request view panel`,

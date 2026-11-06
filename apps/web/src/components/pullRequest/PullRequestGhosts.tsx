@@ -145,7 +145,7 @@ export function PullRequestDetailGhost({
                 onClick={onBack}
                 aria-label="Back to this thread's pull requests"
               >
-                <ArrowLeftIcon aria-hidden className="size-3.5" />
+                <ArrowLeftIcon aria-hidden className="size-3" />
               </Button>
             ) : null}
             {seed ? (
@@ -175,7 +175,7 @@ export function PullRequestDetailGhost({
             disabled
             aria-label={`${capitalizeTerm(terminology.singular)} actions loading`}
           >
-            <EllipsisIcon aria-hidden className="size-4" />
+            <EllipsisIcon aria-hidden className="size-3.5" />
           </Button>
           {onClose ? (
             <Button

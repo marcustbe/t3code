@@ -9,6 +9,7 @@ import { prepareVideoFirstFrame } from "../../lib/videoFirstFrame";
 import { Button } from "../ui/button";
 import { OpenMediaLink } from "./OpenMediaLink";
 import { MediaActions, type MediaActionSource } from "./MediaActions";
+import { claimExclusivePlayback } from "./exclusivePlayback";
 
 interface MediaVideoPlayerProps {
   readonly src: string | null;
@@ -177,7 +178,8 @@ export function MediaVideoPlayer({
             prepareVideoFirstFrame(event.currentTarget);
             if (sourceRevision !== null) setPlaybackSource({ src, revision: sourceRevision });
           }}
-          onPlay={() => {
+          onPlay={(event) => {
+            claimExclusivePlayback(event.currentTarget);
             setPlaying(true);
             setPlaybackSource({ src, revision: sourceRevision });
           }}

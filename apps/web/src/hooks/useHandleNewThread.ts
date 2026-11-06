@@ -45,6 +45,7 @@ import { legacyProjectCwdPreferenceKey, useUiStateStore } from "../uiStateStore"
 import { getClientSettings } from "./useSettings";
 import { useThreadRouteTarget } from "./useThreadRouteTarget";
 import { readUnloadedThreadCount } from "../state/olderSettledShelf";
+import { rememberNewChatOrigin } from "../newChatOrigin";
 import { resolveProjectDefaultProviderModelSelection } from "../providerInstances";
 import { resolveNewThreadModelSelection } from "@t3tools/shared/usageLimits";
 
@@ -125,6 +126,16 @@ export function createNewThreadHandler(router: AnyRouter) {
             : currentRouteTarget.draftId,
         )
       : null;
+    const originThreadRef =
+      currentRouteTarget?.kind === "server" ? currentRouteTarget.threadRef : null;
+    const navigateToDraft = (draftId: DraftId) => {
+      rememberNewChatOrigin(draftId, originThreadRef);
+      return router.navigate({
+        to: "/draft/$draftId",
+        params: { draftId },
+        replace: options?.replace ?? false,
+      });
+    };
     const composerActiveProvider = carrySourceComposer?.activeProvider ?? null;
     const composerModelSelection = composerActiveProvider
       ? (carrySourceComposer?.modelSelectionByProvider[composerActiveProvider] ?? null)
@@ -230,27 +241,27 @@ export function createNewThreadHandler(router: AnyRouter) {
     if (storedDraftThreadRef && reusableStoredDraftThread === null) {
       markPromotedDraftThreadByRef(storedDraftThreadRef);
     }
-    const emptyStoredDraftThread =
-      reusableStoredDraftThread &&
-      !composerDraftHasUserContent(getComposerDraft(reusableStoredDraftThread.draftId))
-        ? reusableStoredDraftThread
-        : null;
+    // New chat reopens the project's unsent draft, text and all, instead of starting another.
+    const storedDraftHasText =
+      reusableStoredDraftThread !== null &&
+      composerDraftHasUserContent(getComposerDraft(reusableStoredDraftThread.draftId));
     const latestActiveDraftThread: DraftThreadState | null = currentRouteTarget
       ? currentRouteTarget.kind === "server"
         ? getDraftThread(currentRouteTarget.threadRef)
         : getDraftSession(currentRouteTarget.draftId)
       : null;
-    if (emptyStoredDraftThread) {
+    if (reusableStoredDraftThread) {
       return (async () => {
         const isDraftAlreadyOpen =
           currentRouteTarget?.kind === "draft" &&
-          currentRouteTarget.draftId === emptyStoredDraftThread.draftId;
+          currentRouteTarget.draftId === reusableStoredDraftThread.draftId;
+        const keepsDraftAsIs = isDraftAlreadyOpen || storedDraftHasText;
         const hasExplicitWorkspaceOption =
           hasBranchOption || hasWorktreePathOption || hasEnvModeOption || hasStartFromOriginOption;
         let workspaceContext: NewThreadWorkspaceOptions | null = null;
         if (hasExplicitWorkspaceOption) {
           workspaceContext = pickExplicitWorkspaceOptions(options);
-        } else if (!isDraftAlreadyOpen) {
+        } else if (!keepsDraftAsIs) {
           const defaultEnvMode = await resolveDefaultEnvMode();
           if (abandonedSinceRequest()) {
             return null;
@@ -259,14 +270,14 @@ export function createNewThreadHandler(router: AnyRouter) {
           const routeTargetNow = getCurrentRouteTarget();
           const openedMeanwhile =
             routeTargetNow?.kind === "draft" &&
-            routeTargetNow.draftId === emptyStoredDraftThread.draftId;
+            routeTargetNow.draftId === reusableStoredDraftThread.draftId;
           const promotedMeanwhile =
             storedDraftThreadRef !== null && readThreadShell(storedDraftThreadRef) !== null;
           const remappedMeanwhile =
             getDraftSessionByLogicalProjectKey(logicalProjectKey)?.draftId !==
-            emptyStoredDraftThread.draftId;
+            reusableStoredDraftThread.draftId;
           const investedMeanwhile = composerDraftHasUserContent(
-            getComposerDraft(emptyStoredDraftThread.draftId),
+            getComposerDraft(reusableStoredDraftThread.draftId),
           );
           if (openedMeanwhile || promotedMeanwhile || remappedMeanwhile || investedMeanwhile) {
             return null;
@@ -282,21 +293,23 @@ export function createNewThreadHandler(router: AnyRouter) {
           };
         }
         if (workspaceContext) {
-          setDraftThreadContext(emptyStoredDraftThread.draftId, {
+          setDraftThreadContext(reusableStoredDraftThread.draftId, {
             ...workspaceContext,
-            ...(!isDraftAlreadyOpen ? { runtimeMode: defaultRuntimeMode } : {}),
-            ...(carryInteractionMode ? { interactionMode: carryInteractionMode } : {}),
+            ...(!keepsDraftAsIs ? { runtimeMode: defaultRuntimeMode } : {}),
+            ...(carryInteractionMode && !storedDraftHasText
+              ? { interactionMode: carryInteractionMode }
+              : {}),
           });
         }
-        const storedDraft = getComposerDraft(emptyStoredDraftThread.draftId);
+        const storedDraft = getComposerDraft(reusableStoredDraftThread.draftId);
         const storedDraftHasExplicitModelPick = hasExplicitComposerModelSelection(storedDraft);
-        if (!storedDraftHasExplicitModelPick) {
-          applyStickyState(emptyStoredDraftThread.draftId);
+        if (!storedDraftHasExplicitModelPick && !storedDraftHasText) {
+          applyStickyState(reusableStoredDraftThread.draftId);
           const modelSelectionOverride = resolveModelSelectionOverride(
-            emptyStoredDraftThread.draftId,
+            reusableStoredDraftThread.draftId,
           );
           if (modelSelectionOverride) {
-            setModelSelection(emptyStoredDraftThread.draftId, modelSelectionOverride, {
+            setModelSelection(reusableStoredDraftThread.draftId, modelSelectionOverride, {
               replaceOptions: true,
             });
           }
@@ -305,31 +318,29 @@ export function createNewThreadHandler(router: AnyRouter) {
         setLogicalProjectDraftThreadId(
           logicalProjectKey,
           projectRef,
-          emptyStoredDraftThread.draftId,
+          reusableStoredDraftThread.draftId,
           {
-            threadId: emptyStoredDraftThread.threadId,
+            threadId: reusableStoredDraftThread.threadId,
             ...workspaceContext,
-            ...(!isDraftAlreadyOpen ? { runtimeMode: defaultRuntimeMode } : {}),
-            ...(carryInteractionMode ? { interactionMode: carryInteractionMode } : {}),
+            ...(!keepsDraftAsIs ? { runtimeMode: defaultRuntimeMode } : {}),
+            ...(carryInteractionMode && !storedDraftHasText
+              ? { interactionMode: carryInteractionMode }
+              : {}),
           },
         );
         const opened = {
-          draftId: emptyStoredDraftThread.draftId,
-          threadId: emptyStoredDraftThread.threadId,
+          draftId: reusableStoredDraftThread.draftId,
+          threadId: reusableStoredDraftThread.threadId,
         };
-        seedPrompt(emptyStoredDraftThread.draftId);
+        seedPrompt(reusableStoredDraftThread.draftId);
         const routeTargetAfterWrites = getCurrentRouteTarget();
         if (
           routeTargetAfterWrites?.kind === "draft" &&
-          routeTargetAfterWrites.draftId === emptyStoredDraftThread.draftId
+          routeTargetAfterWrites.draftId === reusableStoredDraftThread.draftId
         ) {
           return opened;
         }
-        await router.navigate({
-          to: "/draft/$draftId",
-          params: { draftId: emptyStoredDraftThread.draftId },
-          replace: options?.replace ?? false,
-        });
+        await navigateToDraft(reusableStoredDraftThread.draftId);
         return opened;
       })();
     }
@@ -386,11 +397,7 @@ export function createNewThreadHandler(router: AnyRouter) {
           ...pickExplicitWorkspaceOptions(options),
         });
         seedPrompt(racedDraft.draftId);
-        await router.navigate({
-          to: "/draft/$draftId",
-          params: { draftId: racedDraft.draftId },
-          replace: options?.replace ?? false,
-        });
+        await navigateToDraft(racedDraft.draftId);
         return { draftId: racedDraft.draftId, threadId: racedDraft.threadId };
       }
       setLogicalProjectDraftThreadId(logicalProjectKey, projectRef, draftId, {
@@ -414,11 +421,7 @@ export function createNewThreadHandler(router: AnyRouter) {
         setModelSelection(draftId, modelSelectionOverride, { replaceOptions: true });
       }
       seedPrompt(draftId);
-      await router.navigate({
-        to: "/draft/$draftId",
-        params: { draftId },
-        replace: options?.replace ?? false,
-      });
+      await navigateToDraft(draftId);
       return { draftId, threadId };
     })();
   };

@@ -162,7 +162,9 @@ export const DEFAULT_KEYBINDINGS: ReadonlyArray<KeybindingRule> = [
   { key: "mod+n", command: "terminal.new", when: "terminalFocus" },
   { key: "mod+w", command: "terminal.close", when: "terminalFocus" },
   { key: "mod+w", command: "rightPanel.close", when: "!terminalFocus" },
-  { key: "mod+shift+t", command: "view.reopenClosed" },
+  // ⌘W settles the open chat, so ⇧⌘T brings the last settled one back (his ask);
+  // reopening a closed right-panel view has no default key now.
+  { key: "mod+shift+t", command: "thread.reopenSettled" },
   { key: "mod+d", command: "diff.toggle", when: "!terminalFocus" },
   { key: "mod+shift+j", command: "preview.toggle" },
   { key: "mod+r", command: "preview.refresh", when: "previewFocus" },

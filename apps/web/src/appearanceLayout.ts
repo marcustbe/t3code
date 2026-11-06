@@ -12,25 +12,30 @@ function grainImage(percent: number): string {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
-/** Writes Settings › Appearance's grain, top bar blur, text strength and edge paddings onto the document. */
+/** Writes Settings › Appearance's grain, top bar blur and opacity, text strength and edge paddings onto the document. */
 export function applyAppearanceLayout(root: HTMLElement, settings: ClientSettings): void {
   const style = root.style;
   style.setProperty("--surface-grain", grainImage(settings.backgroundGrain));
   style.setProperty("--surface-grain-size", "256px 256px");
   style.setProperty("--top-bar-blur", `${settings.topBarBlur}px`);
+  style.setProperty("--top-bar-opacity", `${settings.topBarOpacity}%`);
   style.setProperty("--primary-text-strength", `${settings.primaryTextStrength}%`);
   style.setProperty("--text-tracking", `${settings.letterSpacing / 1000}em`);
-  // The user bubble: its own colour (or the theme's), faded by its opacity. Unset at the defaults
-  // so themes keep their own --message-surface.
-  const bubbleColor = settings.messageBubbleColor || "var(--message-surface)";
-  if (settings.messageBubbleColor === "" && settings.messageBubbleOpacity >= 100) {
-    style.removeProperty("--message-bubble");
-  } else {
-    style.setProperty(
-      "--message-bubble",
-      `color-mix(in srgb, ${bubbleColor} ${settings.messageBubbleOpacity}%, transparent)`,
-    );
+  // The user bubble: its own colour per appearance (or the theme's), faded by its opacity. Unset at
+  // the defaults so themes keep their own --message-surface; index.css picks light or dark.
+  const bubble = (color: string) =>
+    color === "" && settings.messageBubbleOpacity >= 100
+      ? null
+      : `color-mix(in srgb, ${color || "var(--message-surface)"} ${settings.messageBubbleOpacity}%, transparent)`;
+  for (const [variable, color] of [
+    ["--message-bubble-light", settings.messageBubbleColor],
+    ["--message-bubble-dark", settings.messageBubbleColorDark],
+  ] as const) {
+    const value = bubble(color);
+    if (value === null) style.removeProperty(variable);
+    else style.setProperty(variable, value);
   }
+  style.removeProperty("--message-bubble");
   const side = settings.sidebarSidePadding;
   style.setProperty("--sidebar-side-padding", `${side}px`);
   style.setProperty("--sidebar-side-inset", `${Math.max(0, side - SIDEBAR_ROW_CONTENT_INSET)}px`);

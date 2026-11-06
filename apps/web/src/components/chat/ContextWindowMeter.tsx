@@ -42,9 +42,8 @@ export function ContextWindowMeter(props: {
         closeDelay={onCompact ? 150 : 0}
         render={
           <Button
-            size="icon-sm"
+            size="icon-xs"
             variant="ghost-muted"
-            className="size-6 sm:size-6"
             aria-label={
               usage.maxTokens !== null && usedPercentage
                 ? `Context window ${usedPercentage} used`
@@ -163,9 +162,8 @@ export function SessionLimitMeter(props: {
         closeDelay={0}
         render={
           <Button
-            size="icon-sm"
+            size="icon-xs"
             variant="ghost-muted"
-            className="size-6 sm:size-6"
             aria-label={`${props.label} ${used} used`}
           >
             <ContextWindowRing percentage={percentage} color={color} />

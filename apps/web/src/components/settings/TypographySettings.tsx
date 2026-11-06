@@ -7,14 +7,12 @@ import {
   MAX_LETTER_SPACING,
   MAX_CODE_FONT_SIZE,
   MAX_INTERFACE_FONT_SIZE,
-  MAX_PROMPT_FONT_SIZE,
   MAX_TERMINAL_FONT_SIZE,
   MIN_CHAT_FONT_SIZE,
   MIN_CHAT_FONT_WEIGHT,
   MIN_LETTER_SPACING,
   MIN_CODE_FONT_SIZE,
   MIN_INTERFACE_FONT_SIZE,
-  MIN_PROMPT_FONT_SIZE,
   MIN_TERMINAL_FONT_SIZE,
 } from "@t3tools/contracts/settings";
 import * as Schema from "effect/Schema";
@@ -106,19 +104,8 @@ function PromptFontRow() {
       value={settings.fontFamilyComposer}
       onValueChange={(fontFamilyComposer) => updateSettings({ fontFamilyComposer })}
       onReset={() =>
-        updateSettings({
-          fontFamilyComposer: DEFAULT_UNIFIED_SETTINGS.fontFamilyComposer,
-          fontSizePrompt: DEFAULT_UNIFIED_SETTINGS.fontSizePrompt,
-        })
+        updateSettings({ fontFamilyComposer: DEFAULT_UNIFIED_SETTINGS.fontFamilyComposer })
       }
-      size={{
-        label: "Prompt font size",
-        min: MIN_PROMPT_FONT_SIZE,
-        max: MAX_PROMPT_FONT_SIZE,
-        value: settings.fontSizePrompt,
-        defaultValue: DEFAULT_UNIFIED_SETTINGS.fontSizePrompt,
-        onChange: (fontSizePrompt) => updateSettings({ fontSizePrompt }),
-      }}
       preview={<PromptFontPreview />}
     />
   );
@@ -473,7 +460,7 @@ function FontFamilySettingsRow({
   onValueChange: (value: string) => void;
   onReset: () => void;
   requireMonospace?: boolean;
-  size: {
+  size?: {
     label: string;
     min: number;
     max: number;
@@ -530,7 +517,7 @@ function FontFamilySettingsRow({
     onReset();
   };
   const resetAction =
-    value !== defaultValue || size.value !== size.defaultValue ? (
+    value !== defaultValue || (size !== undefined && size.value !== size.defaultValue) ? (
       <SettingResetButton label={title.toLowerCase()} onClick={resetToDefault} />
     ) : null;
   const fontEnumeration = useFontEnumeration();
@@ -597,6 +584,7 @@ function FontFamilySettingsRow({
   const control = (
     <div className="flex w-full items-center gap-2 sm:w-auto">
       <div className="min-w-0 flex-1 sm:w-44 sm:flex-none">{familyControl}</div>
+      {size === undefined ? null : (
       <Select
         value={String(size.value)}
         onValueChange={(next) => {
@@ -620,6 +608,7 @@ function FontFamilySettingsRow({
           )}
         </SelectPopup>
       </Select>
+      )}
     </div>
   );
   return (

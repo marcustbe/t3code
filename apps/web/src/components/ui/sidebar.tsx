@@ -18,6 +18,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { useResizeDrag } from "~/hooks/useResizeDrag";
 import { useMediaQuery } from "~/hooks/useMediaQuery";
 import { setLocalStorageItem } from "~/hooks/useLocalStorage";
+import { useClientSettings } from "~/hooks/useSettings";
 import { resolveSidebarState, type ResponsiveSidebarState } from "./sidebarState";
 import * as Schema from "effect/Schema";
 import { announceSidebarVisibility } from "~/lib/accessibilityAnnouncements";
@@ -406,10 +407,12 @@ function Sidebar({
 function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<typeof Button>) {
   const { toggleSidebar } = useSidebar();
   const isOpen = useSidebarVisibility();
+  const staticIcon = useClientSettings((settings) => settings.sidebarToggleStaticIcon);
 
   return (
     <Button
       className={cn(
+        // 28px hover box: 24px felt too small for the main toggle.
         "size-[var(--workspace-titlebar-control-size)]! [-webkit-app-region:no-drag]",
         className,
       )}
@@ -424,7 +427,12 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
       variant="ghost"
       {...props}
     >
-      <SidebarToggleSymbol className="size-icon-lg text-(--sidebar-icon-color)" open={isOpen} />
+      {/* 14px (the symbol's own size; 16px felt big beside the window buttons). With the static
+          setting it keeps the collapsed-sidebar icon instead of morphing. */}
+      <SidebarToggleSymbol
+        className="text-(--sidebar-icon-color)"
+        open={staticIcon ? false : isOpen}
+      />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );
@@ -643,11 +651,11 @@ function SidebarHeader({ className, ...props }: React.ComponentProps<"div">) {
 function SidebarFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      // The buttons' hover squares sit 5px from the separator, the bottom and the side, so the icon
-      // glyphs land 12px in on every side, on the rows' line. Like
+      // The buttons' hover squares sit 1px from the separator, the bottom and the side (compact, his
+      // ask), so the icon glyphs land 8px in on every side. Like
       // Claude's, it stays put under the scrolling list behind a separator that runs edge to edge.
       className={cn(
-        "flex flex-col gap-2 border-t border-separator px-[calc(var(--sidebar-side-inset)+1px)] pt-[calc(var(--sidebar-side-inset)+1px)] pb-[max(0px,calc(var(--sidebar-bottom-padding,12px)-7px))]",
+        "flex flex-col gap-2 border-t border-separator px-[calc(var(--sidebar-side-inset)-3px)] pt-[calc(var(--sidebar-side-inset)-3px)] pb-[max(0px,calc(var(--sidebar-bottom-padding,12px)-11px))]",
         className,
       )}
       data-sidebar="footer"
@@ -739,7 +747,9 @@ const sidebarMenuButtonVariants = cva(
       size: {
         default:
           "h-8 rounded-[var(--control-radius)] px-[var(--sidebar-row-content-inset)] py-1.5 text-sm",
-        icon: "size-7 justify-center rounded-[var(--control-radius)] p-0 hover:bg-sidebar-row-selected!",
+        // 14px icons get the 24px hover box (icon tiers): a 2px clear border trims the grey to 24px
+        // while the 28px footprint, and so every icon's position, stays.
+        icon: "size-7 justify-center rounded-[var(--control-radius)] border-2 border-transparent bg-clip-padding p-0 hover:bg-sidebar-row-selected!",
         lg: "h-12 rounded-[var(--control-radius)] px-[var(--sidebar-row-content-inset)] py-2 text-sm group-data-[collapsible=icon]:p-0!",
         sm: "h-7 rounded-[var(--control-radius)] px-[var(--sidebar-row-content-inset)] py-2 text-xs",
       },

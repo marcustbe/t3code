@@ -1412,6 +1412,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
       return (
         <InlineAudioPreview
           key={classifiedSrc}
+          variant="card"
           name={name}
           copyMarkdown={copyMarkdown}
           {...(filePath && threadRef

@@ -8,7 +8,7 @@ import {
 } from "./t3McpToolPresentation.ts";
 
 describe("resolveT3McpToolPresentation", () => {
-  it("recognizes every T3 tool across provider prefixes and completion suffixes", () => {
+  it("recognizes every Ghost tool across provider prefixes and completion suffixes", () => {
     for (const tool of T3_MCP_TOOL_NAMES) {
       const presentation = resolveT3McpToolPresentation(tool);
       for (const prefix of [

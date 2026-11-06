@@ -26,7 +26,7 @@ const touchComposerFontSize = () =>
   });
 
 describe("applyAppearanceFontVariables", () => {
-  it("sizes the composer from the interface size until fonts are set separately", () => {
+  it("sizes the composer like chat text", () => {
     const root = document.documentElement;
     const style = root.getAttribute("style");
     const preferences = {
@@ -34,19 +34,17 @@ describe("applyAppearanceFontVariables", () => {
       code: "",
       composer: "",
       sizeInterface: 20,
-      sizePrompt: 14,
-      sizeChat: 14,
+      sizeChat: 17,
       weightChat: 400,
       sizeCode: 13,
       smoothing: true,
     };
     try {
       applyAppearanceFontVariables(root, { ...preferences, separate: false });
-      // Interface size scales the text tokens to whole pixels: 14px × 20/16 rounds to 18px.
-      expect(composerFontSize()).toBe("18px");
-      expect(touchComposerFontSize()).toBe("18px");
+      expect(composerFontSize()).toBe("17px");
+      expect(touchComposerFontSize()).toBe("17px");
 
-      applyAppearanceFontVariables(root, { ...preferences, separate: true });
+      applyAppearanceFontVariables(root, { ...preferences, separate: true, sizeChat: 14 });
       expect(composerFontSize()).toBe("14px");
       // iOS zooms into inputs under 16px.
       expect(touchComposerFontSize()).toBe("16px");

@@ -16,7 +16,7 @@ export const MessageCopyButton = memo(function MessageCopyButton({
   label = "Copy message",
   icon = Copy,
   extraFlavors,
-  size = "icon-xs",
+  size = "icon-micro",
   variant = "outline",
   className,
 }: {
@@ -24,7 +24,7 @@ export const MessageCopyButton = memo(function MessageCopyButton({
   label?: string;
   icon?: typeof Copy;
   extraFlavors?: Readonly<Record<string, string>>;
-  size?: "xs" | "icon-xs";
+  size?: "xs" | "icon-xs" | "icon-micro";
   variant?: "outline" | "ghost";
   className?: string;
 }) {

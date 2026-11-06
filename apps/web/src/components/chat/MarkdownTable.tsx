@@ -49,7 +49,7 @@ export function MarkdownTable({ children, ...props }: ComponentProps<"table">) {
                     <Button
                       type="button"
                       variant="ghost-muted"
-                      size="icon-xs"
+                      size="icon-micro"
                       aria-label={copyLabel}
                     />
                   }

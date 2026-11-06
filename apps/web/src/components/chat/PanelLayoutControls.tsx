@@ -56,9 +56,9 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
       onPressedChange={threadPanelPresentation === "popover" ? undefined : onToggleThreadPanel}
       aria-label="Toggle thread details panel"
       variant="ghost"
-      size="sm"
+      size="xs"
     >
-      <SquareMenuIcon className="size-4" />
+      <SquareMenuIcon className="size-3.5" />
     </Toggle>
   );
   const threadPanelControl = (
@@ -79,7 +79,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
 
   return (
     <div
-      className="flex h-full shrink-0 items-center gap-1 [-webkit-app-region:no-drag]"
+      className="flex h-full shrink-0 items-center [-webkit-app-region:no-drag]"
       data-panel-layout-controls
     >
       {showThreadPanelControl ? threadPanelControl : null}
@@ -92,10 +92,10 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
               onPressedChange={onToggleTerminal}
               aria-label="Toggle terminal drawer"
               variant="ghost"
-              size="sm"
+              size="xs"
               disabled={!terminalAvailable}
             >
-              <PanelBottomIcon className="size-4" />
+              <PanelBottomIcon className="size-3.5" />
             </Toggle>
           </TooltipTrigger>
           <TooltipPopup side="bottom">
@@ -115,10 +115,10 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
               aria-label="Toggle right panel"
               data-right-panel-toggle
               variant="ghost"
-              size="sm"
+              size="xs"
               disabled={!rightPanelAvailable}
             >
-              <PanelRightIcon className="size-4" />
+              <PanelRightIcon className="size-3.5" />
             </Toggle>
           </TooltipTrigger>
           <TooltipPopup side="bottom">
@@ -150,9 +150,9 @@ export const RightPanelMaximizeControl = memo(function RightPanelMaximizeControl
             onPressedChange={onToggle}
             aria-label={label}
             variant="ghost"
-            size="sm"
+            size="xs"
           >
-            <MorphIcon className="size-4" icon={maximized ? Minimize2 : Maximize2} />
+            <MorphIcon className="size-3.5" icon={maximized ? Minimize2 : Maximize2} />
           </Toggle>
         }
       />
@@ -184,7 +184,7 @@ export function WorkspaceTitlebarControls(props: {
 }) {
   return (
     <div
-      className="pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] z-50 mr-px flex h-[var(--workspace-topbar-height)] items-center gap-1 [-webkit-app-region:no-drag]"
+      className="pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] z-50 mr-px flex h-[var(--workspace-topbar-height)] items-center [-webkit-app-region:no-drag]"
       data-workspace-titlebar-controls
     >
       {props.showMaximizeControl ? (

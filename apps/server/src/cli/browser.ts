@@ -226,7 +226,7 @@ const browserSetupCommand = Command.make("setup", { baseDir: baseDirFlag }).pipe
           );
         }
         yield* Console.log(
-          "Installed the browser's fonts. Restart the T3 server if browser tabs were already open.",
+          "Installed the browser's fonts. Restart the Ghost server if browser tabs were already open.",
         );
       }
 

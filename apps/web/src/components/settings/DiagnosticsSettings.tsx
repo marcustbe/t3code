@@ -267,7 +267,7 @@ function ProcessNameCell({
           aria-label={isExpanded ? `Collapse ${name}` : `Expand ${name}`}
           onClick={() => onToggle(process.pid)}
         >
-          <MorphIcon className="size-3.5" icon={isExpanded ? ChevronDown : ChevronRight} />
+          <MorphIcon className="size-3" icon={isExpanded ? ChevronDown : ChevronRight} />
         </Button>
       ) : (
         <span className="size-5 shrink-0" aria-hidden="true" />
@@ -875,7 +875,7 @@ function DiagnosticsSettingsBody() {
         toastManager.add({
           type: "info",
           title: "Process already exited",
-          description: "The process is not a child of the T3 Server. It might already have exited.",
+          description: "The process is not a child of the Ghost Server. It might already have exited.",
         });
         return;
       }
@@ -998,7 +998,7 @@ function DiagnosticsSettingsBody() {
           <StatBlock
             label="CPU Time"
             value={resourceData ? formatCpuTime(resourceData.totalCpuSecondsApprox) : "..."}
-            tooltip="Approximate active CPU time for the T3 server root process and its descendants during the selected window. It grows only while sampled processes use CPU and older samples leave as the window moves."
+            tooltip="Approximate active CPU time for the Ghost server root process and its descendants during the selected window. It grows only while sampled processes use CPU and older samples leave as the window moves."
           />
           <StatBlock
             label="Samples"

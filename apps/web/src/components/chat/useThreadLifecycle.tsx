@@ -647,6 +647,17 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
         }),
       );
     };
+  // ⌘W on a chat with no right-panel tab open settles it (ChatView), his ask. Settle only: an
+  // already settled chat stays settled, and a held key doesn't settle the next chat too.
+  const settleActiveThreadFromClose = (event: KeyboardEvent): boolean => {
+    if (event.repeat) return true;
+    if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) return false;
+    if (!activeThreadShell || !activeThreadRef || !serverConfigLoaded) return false;
+    if (activeThreadSettled) return true;
+    if (settleAndAdvance(activeThreadRef)) return true;
+    void settleThread(activeThreadRef).then(toastThreadActionFailure("Failed to settle thread"));
+    return true;
+  };
   const shortcuts = {
     "thread.settle": () => {
       if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) return false;
@@ -679,6 +690,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   } satisfies ChatShortcutCommands;
   return {
     shortcuts,
+    settleActiveThreadFromClose,
     acknowledgeActiveThreadWoke,
     activeBranchMismatchKey,
     // A Stop that went unanswered needs the user; one in progress is the thread's work.

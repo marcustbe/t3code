@@ -889,7 +889,7 @@ function PullRequestCodeTab({
           toggleFile(item.id);
         }}
       >
-        <MorphIcon className="size-4" icon={collapsed ? ChevronRight : ChevronDown} />
+        <MorphIcon className="size-3" icon={collapsed ? ChevronRight : ChevronDown} />
       </Button>
     );
   };
@@ -1223,7 +1223,7 @@ function PullRequestCodeTab({
             <TooltipTrigger
               render={
                 <DropdownMenuTrigger
-                  render={<Button size="icon-sm" variant="ghost" />}
+                  render={<Button size="icon-xs" variant="ghost" />}
                   className="@lg:hidden"
                   aria-label="Diff options"
                 />
@@ -1273,7 +1273,7 @@ function PullRequestCodeTab({
                     ignoreWhitespace ? "Show whitespace changes" : "Hide whitespace changes"
                   }
                   variant="ghost"
-                  size="sm"
+                  size="xs"
                   pressed={ignoreWhitespace}
                   onPressedChange={(pressed) => changeIgnoreWhitespace(Boolean(pressed))}
                 />
@@ -1310,7 +1310,7 @@ function PullRequestCodeTab({
                 <Toggle
                   aria-label={wordWrap ? "Disable diff line wrapping" : "Enable diff line wrapping"}
                   variant="ghost"
-                  size="sm"
+                  size="xs"
                   pressed={wordWrap}
                   onPressedChange={(pressed) => {
                     setWordWrap(Boolean(pressed));
@@ -1331,7 +1331,7 @@ function PullRequestCodeTab({
               render={
                 <Button
                   type="button"
-                  size="icon-sm"
+                  size="icon-xs"
                   variant="ghost"
                   aria-label={allFilesCollapsed ? "Expand all files" : "Collapse all files"}
                   onClick={toggleAllFiles}
@@ -1355,7 +1355,7 @@ function PullRequestCodeTab({
                 <Toggle
                   aria-label="Hide test files"
                   variant="ghost"
-                  size="sm"
+                  size="xs"
                   pressed={hideTestFiles}
                   onPressedChange={(pressed) => setHideTestFiles(Boolean(pressed))}
                 />
@@ -1375,7 +1375,7 @@ function PullRequestCodeTab({
                 <Toggle
                   aria-label={fileTreeOpen ? "Hide file tree" : "Show file tree"}
                   variant="ghost"
-                  size="sm"
+                  size="xs"
                   pressed={fileTreeOpen}
                   onPressedChange={(pressed) => setFileTreeOpen(Boolean(pressed))}
                 />

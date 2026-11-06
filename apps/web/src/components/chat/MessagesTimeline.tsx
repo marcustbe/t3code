@@ -2,7 +2,9 @@ import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import type { ToolCallDiffTarget } from "../../diffPanelStore";
 import { AudioPreviewUnmountContext } from "../files/AudioPreview";
+import { CompanionGhost } from "../ghost/GhostGlyph";
 import { ThreadFindTimelineContext } from "./ThreadFindProvider";
+import { TimelineScrollbar } from "./TimelineScrollbar";
 import { MarkdownFindContext } from "./markdownFindContext";
 import { useChatCanvas } from "./ChatCanvasContext";
 import { WorkLogBlock } from "./WorkLog";
@@ -136,6 +138,7 @@ import {
 import { useThreadFindPositionReader } from "./useThreadFindPositionReader";
 import { ThreadActivityAnnouncer } from "./ThreadActivityAnnouncer";
 import { useStableHandoffRuns, useIncrementalTimelineRows, useStableRows } from "./useTimelineRows";
+import { useCopyWholeChat } from "./useCopyWholeChat";
 import type { MessageEditInput, MessageVersionSwitch } from "./useMessageVersions";
 
 function timelineListStateFor(identity: string): {
@@ -757,6 +760,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   const [timelineViewportElement, setTimelineViewportElement] = useState<HTMLDivElement | null>(
     null,
   );
+  useCopyWholeChat(timelineViewportElement, timelineEntries);
   const {
     target: readyCitationRequest,
     positioning: citationPositioning,
@@ -1125,10 +1129,12 @@ const ConversationTimeline = memo(function ConversationTimeline({
 
   const canvas = useChatCanvas();
   const registerTimeline = canvas?.registerTimeline;
+  const [timelineScrollNode, setTimelineScrollNode] = useState<HTMLElement | null>(null);
   // Stable so the list attaches once per mount, not on every render.
   const setTimelineList = useStableCallback((list: LegendListRef | null) => {
     listRef.current = list;
     const scrollNode: HTMLElement | null = list?.getScrollableNode() ?? null;
+    setTimelineScrollNode(scrollNode);
     registerTimeline?.(scrollNode);
     const viewport = scrollNode ? attachTimelineViewport(scrollNode) : null;
     viewportRef.current = viewport;
@@ -1383,6 +1389,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
               ListHeaderComponent={listHeader}
               ListFooterComponent={timelineListFooter}
             />
+            <TimelineScrollbar scrollNode={timelineScrollNode} />
             <TimelineMinimap
               items={minimapItems}
               hasPersistentGutter={minimapHasPersistentGutter}
@@ -1676,6 +1683,7 @@ function TurnFoldTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "turn-
   return (
     <div className="group/timeline-row border-b border-border/60 pb-2 pe-0.5 pt-1">
       <div className="relative flex items-center gap-1">
+        {row.companion ? <CompanionGhost className="ms-1 size-5 shrink-0" /> : null}
         <button
           type="button"
           aria-expanded={row.expanded}

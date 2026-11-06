@@ -44,6 +44,8 @@ const THREAD_KEYBINDING_COMMANDS = [
   "thread.settle",
   "thread.pin",
   "thread.undo",
+  // Un-settles the most recently settled chat and opens it, like reopening a closed tab.
+  "thread.reopenSettled",
   ...THREAD_JUMP_KEYBINDING_COMMANDS,
 ] as const;
 

@@ -184,7 +184,7 @@ describe("deriveMessagesTimelineRows", () => {
       toolSource: { key: "mcp:node_repl", name: "node repl", kind: "integration" as const },
       input: {
         title: "Restrict the breakpoint to Git actions",
-        code: "await sky.type_text({app:'T3 Code (Nightly)',text:'debug(ga.run)'});",
+        code: "await sky.type_text({app:'Ghost (Nightly)',text:'debug(ga.run)'});",
       },
     };
     const entries = deriveTimelineEntriesFromVisibleTurnItems({
@@ -1018,6 +1018,34 @@ describe("deriveMessagesTimelineRows", () => {
       "user-entry",
       "turn-fold:turn-1",
       "assistant-final-entry",
+    ]);
+    expect(foldRow?.companion).toBe(true);
+    const followUpRows = deriveMessagesTimelineRows({
+      timelineEntries: [
+        ...timelineEntries,
+        {
+          id: "user-follow-up-entry",
+          kind: "message" as const,
+          createdAt: "2026-01-01T00:01:00Z",
+          message: {
+            id: "user-2" as never,
+            role: "user" as const,
+            text: "And then?",
+            runId: null,
+            createdAt: "2026-01-01T00:01:00Z",
+            updatedAt: "2026-01-01T00:01:00Z",
+            streaming: false,
+          },
+        },
+      ],
+      isWorking: true,
+      activeTurnStartedAt: "2026-01-01T00:01:00Z",
+      turnDiffSummaries: [],
+      supportsConversationRollback: false,
+    });
+    expect(followUpRows.find((row) => row.kind === "turn-fold")).not.toHaveProperty("companion");
+    expect(followUpRows.filter((row) => "companion" in row).map((row) => row.kind)).toEqual([
+      "working",
     ]);
 
     const expandedRows = deriveMessagesTimelineRows({
@@ -3850,7 +3878,12 @@ it("keeps the working header in place across worktree setup handoff", () => {
     worktreeSetup: snapshot,
   });
   expect(withoutMessages).toEqual([
-    { kind: "working", id: "working-indicator-row", createdAt: snapshot.startedAt },
+    {
+      kind: "working",
+      id: "working-indicator-row",
+      createdAt: snapshot.startedAt,
+      companion: true,
+    },
     {
       kind: "worktree-setup",
       id: "worktree-setup-row",

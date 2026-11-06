@@ -12,7 +12,7 @@ export function InlineAudioPreview(props: {
   readonly src?: string;
   readonly copyMarkdown?: string;
   readonly onOpen?: () => void;
-  readonly variant?: "chip" | "bubble";
+  readonly variant?: "chip" | "bubble" | "card";
 }) {
   const container = useRef<HTMLSpanElement>(null);
   const [visible, setVisible] = useState(false);
@@ -39,7 +39,12 @@ export function InlineAudioPreview(props: {
   }, []);
 
   return (
-    <span ref={container} data-markdown-copy={props.copyMarkdown}>
+    <span
+      ref={container}
+      data-markdown-copy={props.copyMarkdown}
+      // Stacked cards get their spacing here, not from the line break between embeds.
+      className={props.variant === "card" ? "my-1.5 block [&+br]:hidden" : undefined}
+    >
       <AudioPreview
         compact
         variant={props.variant ?? "chip"}

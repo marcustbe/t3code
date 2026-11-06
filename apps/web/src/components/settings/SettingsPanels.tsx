@@ -473,13 +473,17 @@ export function useSettingsRestore(onRestored?: () => void) {
       ? ["Background grain"]
       : []),
     ...(settings.topBarBlur !== DEFAULT_UNIFIED_SETTINGS.topBarBlur ? ["Top bar blur"] : []),
+    ...(settings.topBarOpacity !== DEFAULT_UNIFIED_SETTINGS.topBarOpacity
+      ? ["Top bar opacity"]
+      : []),
     ...(settings.primaryTextStrength !== DEFAULT_UNIFIED_SETTINGS.primaryTextStrength
       ? ["Text strength"]
       : []),
     ...(settings.letterSpacing !== DEFAULT_UNIFIED_SETTINGS.letterSpacing
       ? ["Letter spacing"]
       : []),
-    ...(settings.messageBubbleColor !== DEFAULT_UNIFIED_SETTINGS.messageBubbleColor
+    ...(settings.messageBubbleColor !== DEFAULT_UNIFIED_SETTINGS.messageBubbleColor ||
+    settings.messageBubbleColorDark !== DEFAULT_UNIFIED_SETTINGS.messageBubbleColorDark
       ? ["Message colour"]
       : []),
     ...(settings.messageBubbleOpacity !== DEFAULT_UNIFIED_SETTINGS.messageBubbleOpacity
@@ -494,7 +498,9 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.diffColorScheme !== DEFAULT_UNIFIED_SETTINGS.diffColorScheme
       ? ["Diff colors"]
       : []),
-    ...(settings.chatWidth !== DEFAULT_UNIFIED_SETTINGS.chatWidth ? ["Chat width"] : []),
+    ...(settings.chatWidthPercent !== DEFAULT_UNIFIED_SETTINGS.chatWidthPercent
+      ? ["Chat width"]
+      : []),
     ...(settings.chatScrollsBehindComposer !== DEFAULT_UNIFIED_SETTINGS.chatScrollsBehindComposer
       ? ["Chat scrolls behind composer"]
       : []),
@@ -506,10 +512,6 @@ export function useSettingsRestore(onRestored?: () => void) {
       : []),
     ...(settings.panelAnimationDurationMs !== DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs
       ? ["Panel animations"]
-      : []),
-    ...(settings.environmentIdentificationMode !==
-    DEFAULT_UNIFIED_SETTINGS.environmentIdentificationMode
-      ? ["Environment identification"]
       : []),
     ...(settings.timestampFormat !== DEFAULT_UNIFIED_SETTINGS.timestampFormat
       ? ["Time format"]
@@ -675,7 +677,7 @@ export function useSettingsRestore(onRestored?: () => void) {
     updateSettings({
       appearanceContrast: DEFAULT_UNIFIED_SETTINGS.appearanceContrast,
       diffColorScheme: DEFAULT_UNIFIED_SETTINGS.diffColorScheme,
-      chatWidth: DEFAULT_UNIFIED_SETTINGS.chatWidth,
+      chatWidthPercent: DEFAULT_UNIFIED_SETTINGS.chatWidthPercent,
       effortDisplay: DEFAULT_UNIFIED_SETTINGS.effortDisplay,
       mathRenderingEnabled: DEFAULT_UNIFIED_SETTINGS.mathRenderingEnabled,
       timestampFormat: DEFAULT_UNIFIED_SETTINGS.timestampFormat,
@@ -701,8 +703,10 @@ export function useSettingsRestore(onRestored?: () => void) {
       windowBlurRadius: DEFAULT_UNIFIED_SETTINGS.windowBlurRadius,
       backgroundGrain: DEFAULT_UNIFIED_SETTINGS.backgroundGrain,
       topBarBlur: DEFAULT_UNIFIED_SETTINGS.topBarBlur,
+      topBarOpacity: DEFAULT_UNIFIED_SETTINGS.topBarOpacity,
       primaryTextStrength: DEFAULT_UNIFIED_SETTINGS.primaryTextStrength,
       messageBubbleColor: DEFAULT_UNIFIED_SETTINGS.messageBubbleColor,
+      messageBubbleColorDark: DEFAULT_UNIFIED_SETTINGS.messageBubbleColorDark,
       letterSpacing: DEFAULT_UNIFIED_SETTINGS.letterSpacing,
       messageBubbleOpacity: DEFAULT_UNIFIED_SETTINGS.messageBubbleOpacity,
       composerPromptLayout: DEFAULT_UNIFIED_SETTINGS.composerPromptLayout,
@@ -1097,7 +1101,7 @@ export function GeneralSettingsPanel() {
         {isElectron ? (
           <SettingsRow
             {...searchableSetting("prevent-sleep")}
-            description="Keep the computer from going to sleep while T3 Code is open, even with nothing running."
+            description="Keep the computer from going to sleep while Ghost is open, even with nothing running."
             resetAction={
               settings.preventSleepWhileOpen !== DEFAULT_UNIFIED_SETTINGS.preventSleepWhileOpen ? (
                 <SettingResetButton
@@ -2160,7 +2164,7 @@ export function AboutSettingsPanel() {
           {...searchableSetting("privacy-policy")}
           description={
             telemetryOff === undefined
-              ? "How we handle your data, including the anonymous usage data T3 Code collects."
+              ? "How we handle your data, including the anonymous usage data Ghost collects."
               : `How we handle your data. ${telemetryOff}`
           }
           control={
@@ -2175,7 +2179,7 @@ export function AboutSettingsPanel() {
         />
         <SettingsRow
           {...searchableSetting("open-source-licenses")}
-          description="Notices for dependencies, assets, and optional tools used by T3 Code."
+          description="Notices for dependencies, assets, and optional tools used by Ghost."
           control={
             <Button
               render={<Link to="/settings/open-source-licenses" />}

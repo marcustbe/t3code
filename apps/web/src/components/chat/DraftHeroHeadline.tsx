@@ -50,6 +50,7 @@ import {
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { InlineButton } from "../ui/button";
 import { DraftProjectName } from "./DraftProjectName";
+import { GhostModel } from "../ghost/GhostModel";
 import { DraftHeroProjectHeading } from "./DraftHeroProjectHeading";
 import { TriageDraftHero } from "./TriageDraftHero";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
@@ -417,6 +418,7 @@ export function DraftHeroHeadline({
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
+      <GhostModel className="mb-4 size-32" />
       {isScratchDraft ? (
         // The picker sits in the question like a project's name: "What should we build without
         // a project?"

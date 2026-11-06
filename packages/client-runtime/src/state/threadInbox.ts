@@ -102,6 +102,8 @@ type TrackedInboxThread = WorkingThreadInput &
       | "snoozedUntil"
       | "activeOrderKey"
       | "pendingGuestMessageCount"
+      | "latestUserAuthoredMessageAt"
+      | "lineage"
     >
   >;
 
@@ -119,11 +121,52 @@ const WORKING_EXIT_GRACE_MS = 2_000;
  * `observe` when the shells or the snapshot version change, or with null while the beta
  * is off. Its result stays fixed, so a list built from it can be cached.
  */
-export function createInboxReturnTracker() {
+/** How long a just-sent chat reads as working while its run is being set up. */
+const WORKING_START_GRACE_MS = 5_000;
+
+const finishedRunStatuses = new Set(["completed", "interrupted", "failed", "cancelled"]);
+
+/**
+ * The latest run reached its end: the moment the row's dot leaves Working. Only counts as
+ * an edge when the previous observation still saw that run open; a chat held by awaited
+ * background work (a build) already had a finished run, and its wake-up run follows the
+ * hold's end by a moment, so that gap gets the exit grace instead of flashing Done.
+ */
+function latestRunFinished(thread: TrackedInboxThread): boolean {
+  const run = thread.latestRun;
+  return run !== null && run.completedAt !== null && finishedRunStatuses.has(run.status);
+}
+
+/**
+ * When a send that no run has picked up yet happened (a new chat counts from its creation).
+ * A fork starts with nothing sent of its own, so it counts only from its first send.
+ */
+function unstartedSendAt(thread: TrackedInboxThread): number | null {
+  const run = thread.latestRun;
+  const isFork = thread.lineage?.relationshipToParent === "fork";
+  const sentAt =
+    toSortableTimestamp(thread.latestUserAuthoredMessageAt ?? undefined) ??
+    (run === null && !isFork ? toSortableTimestamp(thread.createdAt) : undefined);
+  if (sentAt == null) return null;
+  const requestedAt = toSortableTimestamp(run?.requestedAt ?? undefined);
+  return requestedAt != null && requestedAt >= sentAt ? null : sentAt;
+}
+
+export interface InboxReturnTrackerOptions {
+  /**
+   * Follow the run's edges instead of only the runtime: a chat reads as working from the
+   * moment its message is sent (for a few seconds until the run starts), and leaves at once
+   * when its run finishes. Brief gaps without a finished run still get the exit grace.
+   */
+  readonly followRunEdges?: boolean;
+}
+
+export function createInboxReturnTracker(options?: InboxReturnTrackerOptions) {
+  const followRunEdges = options?.followRunEdges === true;
   const keyOf = (thread: ThreadKeyInput) => `${thread.environmentId}:${thread.id}`;
   const states = new Map<
     string,
-    { working: boolean; deadline: number | null; placement: string | null }
+    { working: boolean; deadline: number | null; placement: string | null; runOpen: boolean }
   >();
   const returns = new Map<string, number>();
   const listeners = new Set<() => void>();
@@ -187,7 +230,7 @@ export function createInboxReturnTracker() {
         const previous = states.get(key);
         const actual = isThreadWorking(thread);
         const placement =
-          actual || previous?.working
+          actual || previous?.working || followRunEdges
             ? JSON.stringify([
                 thread.archivedAt,
                 thread.deletedAt,
@@ -215,13 +258,32 @@ export function createInboxReturnTracker() {
           thread.settledOverride === "settled" ||
           effectiveSnoozed(thread, { now: observedAt });
         // Only shelf placement is held: execution state and attention requests stay authoritative.
-        const deadline =
-          !actual && previous?.working && !actionable && !moved && !excluded
+        const held = !actual && !actionable && !moved && !excluded;
+        const runFinished = latestRunFinished(thread);
+        const runJustFinished = runFinished && previous?.runOpen === true;
+        const exitDeadline =
+          held && previous?.working && !(followRunEdges && runJustFinished)
             ? (previous.deadline ?? at + WORKING_EXIT_GRACE_MS)
             : null;
+        const sentAt = followRunEdges && held ? unstartedSendAt(thread) : null;
+        const startDeadline =
+          sentAt !== null && sentAt + WORKING_START_GRACE_MS > at
+            ? sentAt + WORKING_START_GRACE_MS
+            : null;
+        const deadline =
+          exitDeadline === null
+            ? startDeadline
+            : startDeadline === null
+              ? exitDeadline
+              : Math.max(exitDeadline, startDeadline);
         const working = actual || (deadline !== null && deadline > at);
         if (previous?.working && !working) returns.set(key, at);
-        states.set(key, { working, deadline: working ? deadline : null, placement });
+        states.set(key, {
+          working,
+          deadline: working ? deadline : null,
+          placement,
+          runOpen: thread.latestRun !== null && !runFinished,
+        });
       }
       for (const key of states.keys()) {
         if (!present.has(key)) {

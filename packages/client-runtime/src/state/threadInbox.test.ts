@@ -60,6 +60,78 @@ describe("createInboxReturnTracker", () => {
     expect(held.returnedAt(thread("a", false))).toBeUndefined();
   });
 
+  it("follows run edges: in at send, out when the run finishes, gaps still held", () => {
+    const tracker = createInboxReturnTracker({ followRunEdges: true });
+    const run = (status: "running" | "completed", completedAt: string | null) => ({
+      runId: RunId.make("run-1"),
+      status,
+      requestedAt: "1970-01-01T00:00:10.500Z",
+      startedAt: null,
+      completedAt,
+      assistantMessageId: null,
+    });
+    // A chat created just now with no run yet reads as working right away.
+    const fresh = { ...thread("a", false), createdAt: "1970-01-01T00:00:10.000Z" };
+    expect(tracker.observe([fresh]).isWorking(fresh)).toBe(true);
+    // A gap without a finished run is still held.
+    const started = { ...thread("a", true), latestRun: run("running", null) };
+    tracker.observe([started]);
+    const gap = { ...thread("a", false), latestRun: run("running", null) };
+    expect(tracker.observe([gap]).isWorking(gap)).toBe(true);
+    tracker.observe([started]);
+    // A finished run leaves at once.
+    const done = { ...thread("a", false), latestRun: run("completed", "1970-01-01T00:00:12.000Z") };
+    const observed = tracker.observe([done]);
+    expect(observed.isWorking(done)).toBe(false);
+    expect(observed.returnedAt(done)).toBe(10_000);
+  });
+
+  it("holds the gap between an awaited build ending and its wake-up run", () => {
+    const tracker = createInboxReturnTracker({ followRunEdges: true });
+    const finished = {
+      runId: RunId.make("run-1"),
+      status: "completed" as const,
+      requestedAt: "1970-01-01T00:00:01.000Z",
+      startedAt: null,
+      completedAt: "1970-01-01T00:00:02.000Z",
+      assistantMessageId: null,
+    };
+    // Parked on a build: the run is finished but the runtime idles, so it reads as working.
+    const parked = { ...thread("a", true), latestRun: finished };
+    tracker.observe([parked]);
+    // The build ends; the wake-up run has not started yet.
+    const gap = { ...thread("a", false), latestRun: finished };
+    expect(tracker.observe([gap]).isWorking(gap)).toBe(true);
+    vi.advanceTimersByTime(2_000);
+    expect(tracker.isWorking(gap)).toBe(false);
+  });
+
+  it("never reads a fresh fork as working before its first send", () => {
+    const tracker = createInboxReturnTracker({ followRunEdges: true });
+    const fork = {
+      ...thread("a", false),
+      createdAt: "1970-01-01T00:00:10.000Z",
+      latestUserAuthoredMessageAt: null,
+      lineage: {
+        parentThreadId: ThreadId.make("source"),
+        relationshipToParent: "fork" as const,
+        rootThreadId: ThreadId.make("source"),
+      },
+    };
+    expect(tracker.observe([fork]).isWorking(fork)).toBe(false);
+    // Its first send still reads as working right away.
+    const sent = { ...fork, latestUserAuthoredMessageAt: "1970-01-01T00:00:10.000Z" };
+    expect(tracker.observe([sent]).isWorking(sent)).toBe(true);
+  });
+
+  it("lets an unstarted send fall back to Done after the start grace", () => {
+    const tracker = createInboxReturnTracker({ followRunEdges: true });
+    const fresh = { ...thread("a", false), createdAt: "1970-01-01T00:00:10.000Z" };
+    tracker.observe([fresh]);
+    vi.advanceTimersByTime(5_000);
+    expect(tracker.isWorking(fresh)).toBe(false);
+  });
+
   it("holds only placement, then expires and notifies without another shell event", () => {
     const tracker = createInboxReturnTracker();
     const notify = vi.fn();

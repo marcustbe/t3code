@@ -253,7 +253,7 @@ function UnknownWhenVariableWarning({
 
   return (
     <WarningTooltipIcon label={label} focusable={focusable} className="size-4.5">
-      T3 Code does not recognize this condition yet. It can still be saved, but it may not match
+      Ghost does not recognize this condition yet. It can still be saved, but it may not match
       unless the runtime provides it.
     </WarningTooltipIcon>
   );
@@ -324,8 +324,8 @@ function WhenExpressionRemoveButton({
           <Button
             type="button"
             variant="ghost"
-            size="icon-sm"
-            className={cn("size-7", className)}
+            size="icon-xs"
+            className={className}
             aria-label={label}
             onClick={onRemove}
           />
@@ -924,7 +924,7 @@ function KeybindingRowMenu({
           <Button
             type="button"
             variant="ghost-muted"
-            size="icon-sm"
+            size="icon-xs"
             disabled={isSaving}
             aria-label={`Actions for ${commandLabel(row.command)}`}
           />
@@ -1202,7 +1202,7 @@ function NewKeybindingCancelIcon({
           <Button
             type="button"
             variant="ghost-muted"
-            size="icon-sm"
+            size="icon-xs"
             disabled={isSaving}
             aria-label="Cancel new keybinding"
             onClick={onCancel}
@@ -1280,7 +1280,7 @@ function BrowserKeybindingNotice() {
         delay={200}
         render={
           <Button size="icon-micro" variant="ghost-muted" aria-label={message}>
-            <TriangleAlertIcon className="size-3.5 text-warning" />
+            <TriangleAlertIcon className="size-3 text-warning" />
           </Button>
         }
       />
@@ -1489,7 +1489,7 @@ export function KeybindingsSettingsPanel() {
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon"
+                  size="icon-sm"
                   disabled={!keybindingsConfigPath || !canOpenKeybindingsFile}
                   onClick={openKeybindingsFile}
                   aria-label="Open keybindings.json"

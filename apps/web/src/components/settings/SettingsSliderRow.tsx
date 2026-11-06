@@ -18,7 +18,7 @@ export function SettingsSliderRow({
   min = MIN_WINDOW_SURFACE_OPACITY,
   max = MAX_WINDOW_SURFACE_OPACITY,
   unit = "%",
-  step = 5,
+  step = 1,
   format,
 }: {
   searchId: SettingsSearchItemId;
@@ -37,7 +37,8 @@ export function SettingsSliderRow({
   const ratio = (value - min) / (max - min);
   const sliderStyle = {
     "--settings-slider-progress": `${ratio * 100}%`,
-    "--settings-slider-fill-offset": `${0.5 - ratio}rem`,
+    // The fill ends under the 20px knob's centre.
+    "--settings-slider-fill-offset": `${10 - ratio * 20}px`,
   } as CSSProperties;
   return (
     <SettingsRow

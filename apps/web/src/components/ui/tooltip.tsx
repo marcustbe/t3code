@@ -143,7 +143,7 @@ function TooltipPopup({
               ? "popup-glass before:hidden"
               : "border bg-popover not-dark:bg-clip-padding shadow-md/5",
             variant === "code"
-              ? "max-w-120 wrap-anywhere text-left font-mono text-[11px] leading-relaxed"
+              ? "max-w-120 wrap-anywhere text-left font-mono text-xs leading-relaxed"
               : "max-w-80 wrap-anywhere whitespace-normal leading-snug",
             className,
           )}

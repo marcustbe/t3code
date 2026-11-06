@@ -38,7 +38,6 @@ import {
   useCloseAppModal,
   useNavigateToMainApp,
 } from "./mainAppLocation";
-import { SidebarThreadUndoNotice } from "./SidebarThreadUndoNotice";
 import { SidebarProviderUpdatePill } from "./SidebarProviderUpdatePill";
 import { SidebarUpdateArchitectureWarning, SidebarUpdatePill } from "./SidebarUpdatePill";
 import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
@@ -123,7 +122,9 @@ export function SidebarBrandWidthProbe({
 /** Back and forward, beside the sidebar toggle; desktop only. */
 export function HistoryNavigationButtons({ onBackdrop }: { onBackdrop: boolean }) {
   return (
-    <div className="pointer-events-auto flex items-center -space-x-1">
+    // 24px hover boxes like the top bar's right-side toggles; 2px inset keeps the arrows where the
+    // overlapping 28px buttons had them.
+    <div className="pointer-events-auto ml-0.5 flex items-center">
       <HistoryNavigationButton direction="back" onBackdrop={onBackdrop} />
       <HistoryNavigationButton direction="forward" onBackdrop={onBackdrop} />
     </div>
@@ -156,7 +157,7 @@ function HistoryNavigationButton({
             )}
             disabled={!enabled}
             onClick={() => navigateHistory(direction)}
-            size="icon-sm"
+            size="icon-xs"
             variant={onBackdrop ? "media-navigation" : "ghost"}
           />
         }
@@ -294,7 +295,6 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
           ) : null}
         </>
       )}
-      <SidebarThreadUndoNotice />
       {isOnUtilityPage ? null : (
         <SidebarUtilityItem
           // 2px out so the chart's ink, not its padded box, sits 18px from the edge like the rest.

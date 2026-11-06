@@ -59,7 +59,6 @@ import {
 } from "../../composer-logic";
 import { resolvePlanFollowUpSubmission } from "../../proposedPlan";
 import { type ChatMessage } from "../../types";
-import { recordPromptSent } from "../GitHubStarPrompt";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { newMessageId, newThreadId } from "~/lib/utils";
 import { useNewThreadHandler } from "../../hooks/useHandleNewThread";
@@ -144,6 +143,7 @@ import type { useQueuedRunEdit } from "./useQueuedRunEdit";
 import type { useTimelineFollow } from "./useTimelineFollow";
 import type { useUsageLimitsPanel } from "./useUsageLimitsPanel";
 import type { useWorktreeSetup } from "./useWorktreeSetup";
+import { armHeroGhostFlight } from "../ghost/liveGhost";
 
 const ENVIRONMENT_UNAVAILABLE_SEND_TOAST_TRAIL_SIZE = 3;
 
@@ -997,6 +997,7 @@ export function useComposerSend(input: ComposerSendInput) {
       });
       const dockTransition = runMobileComposerTransition(
         () => {
+          armHeroGhostFlight();
           flushSync(() => {
             captureDraftHeroComposerRect();
             setDockedDraftHeroThreadKey(activeThreadKey);
@@ -1435,7 +1436,6 @@ export function useComposerSend(input: ComposerSendInput) {
         ) {
           handleNewThreadInActiveProject();
         }
-        void recordPromptSent(environmentId);
       }
     }
 

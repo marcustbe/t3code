@@ -79,7 +79,7 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
                 render={
                   <Button
                     type="button"
-                    size="icon-xs"
+                    size="icon-micro"
                     variant="ghost-muted"
                     aria-label={
                       allDirectoriesExpanded ? "Collapse all folders" : "Expand all folders"

@@ -166,7 +166,7 @@ export async function saveDiagnosticsReport(window: Electron.BrowserWindow): Pro
   const stack = await captureRendererStack(contents);
   const events = recentEvents.get(contents) ?? [];
   const lines = [
-    `T3 Code diagnostics, ${new Date().toISOString()}`,
+    `Ghost diagnostics, ${new Date().toISOString()}`,
     `App ${Electron.app.getVersion()} · Electron ${process.versions.electron} · Chrome ${process.versions.chrome} · macOS ${process.getSystemVersion()}`,
     "",
     "Window",

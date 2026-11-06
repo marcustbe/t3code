@@ -860,7 +860,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           className="me-1 text-2xs text-muted-foreground/70"
           data-user-message-attribution="t3code"
         >
-          Sent by T3 Code
+          Sent by Ghost
         </p>
       ) : null}
       {/* The row's heading already names the guest for screen readers. */}
@@ -1120,7 +1120,7 @@ function RevertUserMessageButton({
         render={
           <Button
             type="button"
-            size="icon-xs"
+            size="icon-micro"
             variant="ghost"
             disabled={activity.isRevertingCheckpoint || activity.isWorking}
             onClick={() => ctx.onRevertToTurnCount(turnCount, messageId)}
@@ -1144,7 +1144,7 @@ function EditUserMessageButton({ onEdit }: { onEdit: () => void }) {
         render={
           <Button
             type="button"
-            size="icon-xs"
+            size="icon-micro"
             variant="ghost"
             disabled={activity.isWorking}
             onClick={onEdit}

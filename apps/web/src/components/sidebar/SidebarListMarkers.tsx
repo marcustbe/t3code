@@ -128,12 +128,14 @@ export function SidebarSectionHeader(props: {
       marker={props.marker}
       data-testid={`sidebar-${props.marker}`}
       // Nudged half a pixel right (index.css) so its hover sits exactly under the chat rows'.
-      className={cn("relative h-7.5", props.className)}
+      // 12px above each shelf heading so Working / Snoozed / Settled read as their own groups.
+      className={cn("relative mt-3 h-7.5", props.className)}
     >
       <CollapsibleSectionHeader
         data-sidebar-row={`shelf:${shelf}`}
         onClick={props.toggle.onToggle}
         expanded={props.toggle.expanded}
+        chevronAfterLabel
         tone={props.isDropTarget ? "accent" : props.dragging ? "emphasized" : "muted"}
         data-testid={`sidebar-${shelf}-shelf-toggle`}
         // The count sits 4px from the chevron (the row's 8px gap less 4px).

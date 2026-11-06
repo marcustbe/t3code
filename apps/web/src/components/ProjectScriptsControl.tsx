@@ -207,7 +207,6 @@ export default function ProjectScriptsControl({
                   type="button"
                   variant="ghost"
                   size="icon-xs"
-                  className="size-6"
                   aria-label={`Edit ${script.name}`}
                   onPointerDown={(event) => {
                     event.preventDefault();

@@ -171,7 +171,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
           <MenuTrigger
             render={<Button aria-label="Plan actions" size="icon-xs" variant="outline" />}
           >
-            <EllipsisIcon aria-hidden="true" className="size-4" />
+            <EllipsisIcon aria-hidden="true" className="size-3.5" />
           </MenuTrigger>
           <MenuPopup align="end">
             <MenuItem onClick={handleCopyPlan}>

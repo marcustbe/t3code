@@ -46,7 +46,7 @@ export function MarkdownMermaidCodeBlock({
                 <Button
                   type="button"
                   variant="ghost-muted"
-                  size="icon-xs"
+                  size="icon-micro"
                   onClick={() => setShowCode((value) => !value)}
                   aria-label={toggleLabel}
                 />

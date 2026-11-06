@@ -17,7 +17,7 @@ export function PullRequestEditButton({
         className,
       )}
     >
-      <Button {...props} size="icon-xs" variant="ghost-muted">
+      <Button {...props} size="icon-micro" variant="ghost-muted">
         <PencilIcon aria-hidden className="size-3" />
       </Button>
     </span>

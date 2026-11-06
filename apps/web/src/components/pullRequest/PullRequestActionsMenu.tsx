@@ -220,7 +220,7 @@ export function PullRequestActionsMenu({
               {refreshing ? (
                 <RefreshIcon refreshing size="md" />
               ) : (
-                <MoreHorizontalIcon className="size-4" />
+                <MoreHorizontalIcon className="size-3.5" />
               )}
             </MenuTrigger>
           }

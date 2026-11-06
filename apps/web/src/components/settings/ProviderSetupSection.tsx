@@ -282,7 +282,7 @@ function ProviderSetupActions({
                   <TooltipTrigger
                     render={
                       <Button
-                        size="icon-sm"
+                        size="icon-xs"
                         variant="ghost"
                         className="col-start-1 row-start-1"
                         aria-label="Remove downloaded runtime"

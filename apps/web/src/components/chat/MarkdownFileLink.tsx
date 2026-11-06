@@ -46,7 +46,8 @@ interface MarkdownFileLinkProps {
   revealLabel?: string | undefined;
 }
 
-const MARKDOWN_FILE_LINK_CLASS_NAME = "chat-markdown-file-link";
+// File links use the same blue as URL links in chat markdown (`.chat-markdown a` in index.css).
+const MARKDOWN_FILE_LINK_CLASS_NAME = "chat-markdown-file-link [--context-chip-accent:#0176f9]";
 
 export const MarkdownFileLink = memo(function MarkdownFileLink({
   environmentId,

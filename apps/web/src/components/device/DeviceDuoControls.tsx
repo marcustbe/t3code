@@ -52,7 +52,7 @@ export function DeviceDuoControls(props: {
       <TooltipTrigger
         render={
           <Button
-            size="icon"
+            size="icon-sm"
             variant={pressed ? "secondary" : "ghost"}
             disabled={!props.enabled || waits}
             aria-label={label}

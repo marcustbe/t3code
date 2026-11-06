@@ -455,17 +455,12 @@ function SidebarUpdateControl() {
       aria-label={idleTooltip?.detail ? `${tooltip}: ${idleTooltip.detail}` : tooltip}
       aria-disabled={isInteractionDisabled || undefined}
       className={cn(
-        "inline-flex size-7 items-center justify-center rounded-(--control-radius) outline-hidden ring-ring transition-colors focus-visible:ring-2 focus-visible:ring-inset",
+        // Same box, hover and grey as the Settings/Usage buttons beside it (24px hover inside a
+        // 28px footprint), in every state: the icon's shape is what says an update is ready.
+        "inline-flex size-7 items-center justify-center rounded-(--control-radius) border-2 border-transparent bg-clip-padding outline-hidden ring-ring transition-colors focus-visible:ring-2 focus-visible:ring-inset",
         isInteractionDisabled ? "cursor-not-allowed" : "cursor-pointer",
-        // An available update shows in the icon's full colour only: no resting fill (the control
-        // surface read as a whitish square), hovering like the other footer buttons.
-        showUpdateIconState
-          ? cn("text-sidebar-foreground", !isInteractionDisabled && "hover:bg-sidebar-row-selected")
-          : cn(
-              "text-(--sidebar-icon-color)",
-              !isInteractionDisabled &&
-                "hover:bg-sidebar-row-selected hover:text-sidebar-foreground",
-            ),
+        "text-(--sidebar-icon-color)",
+        !isInteractionDisabled && "hover:bg-sidebar-row-selected hover:text-sidebar-foreground",
         disabled && !showUpdateIconState && "opacity-60",
       )}
       onClick={handleAction}
@@ -497,7 +492,8 @@ function SidebarUpdateControl() {
   );
 
   return (
-    <SidebarMenuItem className="shrink-0">
+    // 4px in toward Settings: the menu's 4px gap plus both 2px clear borders left the icons 18px apart.
+    <SidebarMenuItem className="-ml-1 shrink-0">
       <Popover
         handle={releaseNotesPopoverHandle}
         open={releaseNotesOpen && showReleaseNotesPopover}

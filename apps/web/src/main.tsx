@@ -1,7 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 
-import "@fontsource-variable/inter";
+// Inter with its optical-size axis: small text uses the Text cut, big headings the Display cut.
+import "@fontsource-variable/inter/opsz.css";
 import "./index.css";
 
 import { hasCloudPublicConfig } from "./cloud/publicConfig";

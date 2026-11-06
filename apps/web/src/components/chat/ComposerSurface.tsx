@@ -28,7 +28,7 @@ function Shell({
 
 // The outline darkens while the pill has focus, so clicking into it shows.
 const outlineClasses =
-  "after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:border after:border-(--chat-composer-outline) after:transition-[border-color] after:duration-150 focus-within:after:border-(--chat-composer-outline-focus) dark:after:inset-shadow-2xs dark:after:inset-shadow-(color:--chat-composer-highlight)";
+  "after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:border after:border-(--chat-composer-outline) after:transition-[border-color] after:duration-150 focus-within:after:border-(--chat-composer-outline-focus)";
 
 // The pill is painted by Main, so the rows under it (model, context, branch) stay bare.
 function Host({ className, ...props }: ComponentProps<"div">) {

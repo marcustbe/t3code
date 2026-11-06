@@ -107,7 +107,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --sidebar-side-inset: 0.25rem;
   --sidebar-control-gap: 0.5rem;
   --sidebar-row-content-inset: 0.5rem;
-  /* Settings › Appearance › Layout and Top bar blur; appearanceLayout.ts overrides these. */
+  /* Settings › Appearance › Layout and Top bar blur/opacity; appearanceLayout.ts overrides these. */
   --sidebar-side-padding: 12px;
   --sidebar-bottom-padding: 12px;
   --topbar-side-padding: 1rem;
@@ -115,6 +115,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --browser-top-padding: 0px;
   --browser-bottom-padding: 0.5rem;
   --top-bar-blur: 16px;
+  --top-bar-opacity: 75%;
   --command-shell-inset: 0.5rem;
   --command-content-inset: 1rem;
   --floating-content-inset: 0.75rem;
@@ -150,8 +151,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 
   @variant dark {
     --appearance-contrast-target: white;
-    --app-scrollbar-thumb: rgb(255 255 255 / 8%);
-    --app-scrollbar-thumb-hover: rgb(255 255 255 / 12%);
+    --app-scrollbar-thumb: rgb(255 255 255 / 18%);
+    --app-scrollbar-thumb-hover: rgb(255 255 255 / 28%);
     --glass-blur: 16px;
     --glass-saturation: 1.08;
   }
@@ -200,10 +201,11 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
      3xs is 10px. Provider icon overlays use 4xs (8px) and 5xs (7px) to fit
      their smaller badges. Registered with tailwind-merge in
      lib/utils.ts so cn() treats them as font sizes, not colours. */
-  --text-2xs: 0.6875rem;
+  /* 2xs follows Interface size (--ui-text-2xs, appearanceFonts.ts); 3xs is the same step. */
+  --text-2xs: var(--ui-text-2xs, 0.6875rem);
   --text-2xs--line-height: calc(1 / 0.6875);
-  --text-3xs: 0.625rem;
-  --text-3xs--line-height: calc(0.875 / 0.625);
+  --text-3xs: var(--ui-text-2xs, 0.6875rem);
+  --text-3xs--line-height: calc(1 / 0.6875);
   --text-4xs: 0.5rem;
   --text-4xs--line-height: 1;
   --text-5xs: 0.4375rem;
@@ -277,6 +279,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --color-diff-deletion-foreground: var(--diff-deletion-foreground);
   --color-info-foreground: var(--info-foreground);
   --color-info: var(--info);
+  --color-ghost-eye: var(--ghost-eye);
   --color-guest: var(--guest);
   --color-guest-foreground: var(--guest-foreground);
   --color-guest-surface: var(--guest-surface);
@@ -393,8 +396,14 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   }
 }
 
+/* Glass inside the main area of the transparent window: `--background` is cleared there, so the fill
+   uses the main area's captured tint (`--translucent-content-tint`) or it came out see-through. */
 @utility surface-glass {
-  background: color-mix(in srgb, var(--background) var(--glass-opacity), transparent);
+  background: color-mix(
+    in srgb,
+    var(--translucent-content-tint, var(--background)) var(--glass-opacity),
+    transparent
+  );
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
 
@@ -410,7 +419,11 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
       color-mix(in srgb, var(--alert-glass-tint) 4%, transparent),
       color-mix(in srgb, var(--alert-glass-tint) 4%, transparent)
     ),
-    color-mix(in srgb, var(--background) var(--glass-opacity), transparent) !important;
+    color-mix(
+      in srgb,
+      var(--translucent-content-tint, var(--background)) var(--glass-opacity),
+      transparent
+    ) !important;
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
 
@@ -1066,85 +1079,64 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     padding-inline: 0;
   }
 
+  /* Matches macOS 26's NSSlider, measured from a real one rendered on macOS 27:
+     6pt track, 20x16pt white capsule knob with a soft shadow, accent fill up to the
+     knob's centre, empty track = text colour at 10%. Fixed px like AppKit's points. */
   .settings-slider {
     --settings-slider-progress: 0%;
-    --settings-slider-fill-offset: 0.5rem;
+    --settings-slider-fill-offset: 10px;
     --settings-slider-fill-position: calc(
       var(--settings-slider-progress) + var(--settings-slider-fill-offset)
     );
+    --settings-slider-empty: color-mix(in srgb, var(--contrast-foreground) 10%, transparent);
+    --settings-slider-knob-shadow:
+      0 0 0 0.5px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.12), 0 2px 6px rgb(0 0 0 / 0.12);
     appearance: none;
-    height: 1.5rem;
+    height: 20px;
     background: transparent;
-    cursor: pointer;
+    cursor: default;
   }
 
   .settings-slider::-webkit-slider-runnable-track {
-    height: 0.375rem;
+    height: 6px;
     border-radius: 9999px;
     background: linear-gradient(
       to right,
       var(--primary) 0 var(--settings-slider-fill-position),
-      color-mix(in srgb, var(--contrast-muted-foreground) 22%, transparent)
-        var(--settings-slider-fill-position) 100%
+      var(--settings-slider-empty) var(--settings-slider-fill-position) 100%
     );
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--contrast-border) 55%, transparent);
   }
 
   .settings-slider::-moz-range-track {
-    height: 0.375rem;
+    height: 6px;
     border-radius: 9999px;
-    background: color-mix(in srgb, var(--contrast-muted-foreground) 22%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--contrast-border) 55%, transparent);
+    background: var(--settings-slider-empty);
   }
 
   .settings-slider::-moz-range-progress {
-    height: 0.375rem;
+    height: 6px;
     border-radius: 9999px;
     background: var(--primary);
   }
 
   .settings-slider::-webkit-slider-thumb {
     appearance: none;
-    width: 1rem;
-    height: 1rem;
-    margin-top: -0.3125rem;
-    border: 2px solid var(--primary);
+    width: 20px;
+    height: 16px;
+    margin-top: -5px;
+    border: 0;
     border-radius: 9999px;
-    background: var(--background);
-    box-shadow: 0 1px 2px color-mix(in srgb, var(--contrast-foreground) 12%, transparent);
-    transition:
-      transform 120ms ease,
-      box-shadow 120ms ease;
+    background: #fff;
+    box-shadow: var(--settings-slider-knob-shadow);
   }
 
   .settings-slider::-moz-range-thumb {
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid var(--primary);
+    width: 20px;
+    height: 16px;
+    border: 0;
     border-radius: 9999px;
-    background: var(--background);
-    box-shadow: 0 1px 2px color-mix(in srgb, var(--contrast-foreground) 12%, transparent);
-    transition:
-      transform 120ms ease,
-      box-shadow 120ms ease;
-  }
-
-  .settings-slider:hover::-webkit-slider-thumb {
-    transform: scale(1.08);
-    box-shadow: 0 1px 3px color-mix(in srgb, var(--contrast-foreground) 20%, transparent);
-  }
-
-  .settings-slider:hover::-moz-range-thumb {
-    transform: scale(1.08);
-    box-shadow: 0 1px 3px color-mix(in srgb, var(--contrast-foreground) 20%, transparent);
-  }
-
-  .settings-slider:active::-webkit-slider-thumb {
-    transform: scale(0.94);
-  }
-
-  .settings-slider:active::-moz-range-thumb {
-    transform: scale(0.94);
+    background: #fff;
+    box-shadow: var(--settings-slider-knob-shadow);
   }
 
   .settings-slider:focus-visible {
@@ -1153,14 +1145,14 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 
   .settings-slider:focus-visible::-webkit-slider-thumb {
     box-shadow:
-      inset 0 0 0 1px var(--background),
-      inset 0 0 0 3px var(--ring);
+      var(--settings-slider-knob-shadow),
+      0 0 0 3px color-mix(in srgb, var(--ring) 60%, transparent);
   }
 
   .settings-slider:focus-visible::-moz-range-thumb {
     box-shadow:
-      inset 0 0 0 1px var(--background),
-      inset 0 0 0 3px var(--ring);
+      var(--settings-slider-knob-shadow),
+      0 0 0 3px color-mix(in srgb, var(--ring) 60%, transparent);
   }
 
   @media (forced-colors: active) {
@@ -1266,6 +1258,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   /* Messages from a guest link, and the sidebar Request status. */
   --guest: var(--color-fuchsia-500);
   --guest-foreground: var(--color-fuchsia-600);
+  /* The new-chat Ghost's eye (GhostMark.tsx). */
+  --ghost-eye: var(--color-sky-500);
   --guest-surface: color-mix(in srgb, var(--guest) 14%, var(--message-surface));
   --success: var(--color-emerald-500);
   --success-foreground: var(--color-emerald-700);
@@ -1328,6 +1322,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     --input: --alpha(var(--color-white) / 11%);
     --info-foreground: var(--color-blue-400);
     --guest-foreground: var(--color-fuchsia-300);
+    --ghost-eye: var(--color-sky-300);
     --success-foreground: var(--color-emerald-400);
     --warning-foreground: var(--color-amber-400);
     --warning-surface: color-mix(in srgb, var(--warning) 16%, transparent);
@@ -1437,13 +1432,10 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   background-color: rgb(255 255 255 / 8%);
 }
 
-/* Message actions sit 8px apart icon to icon (their 24px hover squares overlap by 4px), and
-   the time beside them keeps the same 8px. */
+/* Message actions sit 8px apart icon to icon (20px hover squares around 12px icons, touching),
+   and the time beside them keeps the same 8px. */
 [data-message-actions] {
   gap: 0;
-}
-[data-message-actions] > * + * {
-  margin-inline-start: -4px;
 }
 [data-message-actions] + * {
   margin-inline-start: -4px;
@@ -1463,30 +1455,59 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 .messages-timeline-scroll {
   scroll-timeline: --chat-timeline-scroll block;
 }
-/* The bar blurs what scrolls under it over a 75% fill of the main area's colour. Chromium only blurs
-   over an opaque backdrop in the transparent macOS window (probed in Electron 44: over a 85% fill
-   the text comes through half sharp, over nothing not blurred at all), so it is a full blur while
-   Main area opacity is 100% and weakens below that. */
+/* The bar blurs what scrolls under it over a fill of the main area's colour (Top bar opacity,
+   default 75%). Chromium only blurs over an opaque backdrop in the transparent macOS window (probed
+   in Electron 44: over a 85% fill the text comes through half sharp, over nothing not blurred at
+   all), so it is a full blur while Main area opacity is 100% and weakens below that. */
 [data-chat-header] {
-  background-color: color-mix(in srgb, var(--background) 75%, transparent);
-  /* Settings › Appearance › Top bar blur. */
-  backdrop-filter: blur(var(--top-bar-blur, 16px));
+  /* Settings › Appearance › Top bar opacity. */
+  --chat-header-fill: color-mix(
+    in srgb,
+    var(--background) var(--top-bar-opacity, 75%),
+    transparent
+  );
   border-bottom-color: transparent;
   animation: chat-header-separator linear both;
   animation-timeline: --chat-timeline-scroll;
   animation-range: 0px 8px;
 }
+/* backdrop-filter only samples what is behind its own box, so text entering the bar jumped from
+   sharp to blurred in hard bands. The layer reaches a bar's height below and is masked back to the
+   bar, letting content below feed the blur (the sidebar's native blur does this on its own). */
+[data-chat-header]::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 -100% 0;
+  z-index: -1;
+  pointer-events: none;
+  /* app-region inherits (see `.drag-region > *`); the part below the bar must not drag the window. */
+  -webkit-app-region: initial;
+  background-color: var(--chat-header-fill);
+  /* Settings › Appearance › Top bar blur, as six shrinking passes (radii add in quadrature to about
+     the setting). One big blur is downscaled ~32x and scaled back up linearly, so the glow came out
+     as polygons with straight 1-shade steps; the small last passes round them into smooth curves
+     (compared against a true Gaussian in an Electron 44 capture). */
+  --chat-header-blur: var(--top-bar-blur, 16px);
+  backdrop-filter: blur(calc(var(--chat-header-blur) * 0.75))
+    blur(calc(var(--chat-header-blur) * 0.5)) blur(calc(var(--chat-header-blur) * 0.3125))
+    blur(calc(var(--chat-header-blur) * 0.1875)) blur(calc(var(--chat-header-blur) * 0.09375))
+    blur(calc(var(--chat-header-blur) * 0.046875));
+  mask-image: linear-gradient(to bottom, #000 50%, transparent 50%);
+}
 /* In the transparent window the fill is the main area's own tint, invisible at 100% opacity. */
 html[data-window-translucent] [data-chat-header] {
-  background-color: color-mix(in srgb, var(--translucent-content-tint) 75%, transparent);
+  --chat-header-fill: color-mix(
+    in srgb,
+    var(--translucent-content-tint) var(--top-bar-opacity, 75%),
+    transparent
+  );
 }
 /* Main area under 100% (appInit sets the attribute): a blur can't work over the see-through tint
    (sharp text shows through, foggy) and any fill or filter on the bar reads lighter than the main
    area, so the bar paints nothing and the conversation stops at its line
    (`.messages-timeline-under-header`). */
-html[data-content-translucent] [data-chat-header] {
-  background-color: transparent;
-  backdrop-filter: none;
+html[data-content-translucent] [data-chat-header]::before {
+  display: none;
 }
 @keyframes chat-header-separator {
   to {
@@ -1684,7 +1705,7 @@ html[data-theme-token-probe] *::after {
 /* The chat header is clear: the main area paints the colour (a themed toolbar fill showed as a
    darker band, and in the transparent window it resolved to the solid root colour). */
 html[data-theme-id] [data-chat-header] {
-  background-color: transparent;
+  --chat-header-fill: transparent;
   color: var(--contrast-toolbar-foreground);
 }
 
@@ -1695,6 +1716,40 @@ html[data-theme-id] [data-chat-header] [data-toolbar-control] {
   background-color: var(--toolbar-control);
   border-color: var(--contrast-toolbar-border);
   color: var(--contrast-toolbar-control-foreground);
+}
+
+/* The top-right panel toggles draw their icons like the sidebar toggle on the left: the sidebar's
+   icon colour at full strength (the ghost toggle's 80% icon read greyer than the left side). The
+   thread details toggle becomes a popover trigger in popover mode, which swaps its data-slot. */
+[data-panel-layout-controls]
+  :is([data-slot="toggle"], [data-slot="popover-trigger"]):not(:disabled)
+  svg,
+[data-workspace-titlebar-controls]
+  :is([data-slot="toggle"], [data-slot="popover-trigger"]):not(:disabled)
+  svg {
+  color: var(--sidebar-icon-color);
+  opacity: 1;
+}
+
+/* Every top-bar button's icon brightens to the sidebar's text colour while hovered or on, like the
+   sidebar rows and footer buttons (it stayed grey under the hover square). */
+[data-panel-layout-controls]
+  :is([data-slot="toggle"], [data-slot="popover-trigger"]):not(:disabled):is(
+    :hover,
+    [data-pressed],
+    [data-popup-open]
+  )
+  svg,
+[data-workspace-titlebar-controls]
+  :is([data-slot="toggle"], [data-slot="popover-trigger"]):not(:disabled):is(
+    :hover,
+    [data-pressed],
+    [data-popup-open]
+  )
+  svg,
+[data-sidebar-control] button:not(:disabled):hover svg,
+[data-history-navigation] button:not(:disabled):hover svg {
+  color: var(--contrast-sidebar-foreground);
 }
 
 /* The panel layout toggles stay ghost: they render both inside the header and
@@ -1820,7 +1875,9 @@ html[data-theme-id="t3-chat"] [data-app-sidebar] {
 :root,
 [data-app-sidebar],
 [data-sidebar-control],
-[data-history-navigation] {
+[data-history-navigation],
+[data-panel-layout-controls],
+[data-workspace-titlebar-controls] {
   --contrast-toolbar-foreground: color-mix(
     in oklab,
     color-mix(
@@ -1933,6 +1990,13 @@ html[data-theme-id="t3-chat"] [data-app-sidebar] {
   );
   /* Sidebar icons match the muted text beside them. */
   --sidebar-icon-color: var(--contrast-sidebar-muted-foreground);
+}
+
+:root {
+  --message-bubble: var(--message-bubble-light);
+}
+:root.dark {
+  --message-bubble: var(--message-bubble-dark);
 }
 
 body {
@@ -2540,17 +2604,19 @@ code {
   --diff-deletion-foreground: light-dark(var(--color-red-700), var(--color-red-400));
 }
 
-/* Chat width setting. Comfortable keeps the default --chat-content-max-width,
-   which sizes the timeline lane, the composer, and ChatCanvas's width probe. */
-:root[data-chat-width="wide"] {
-  --chat-content-max-width: 72rem;
+/* Chat width slider: appInit sets --chat-width-fraction (0 keeps the 45rem default, 1 fills the
+   main area less its 1rem side gaps). The width comes from the canvas's measured width
+   (--chat-canvas-width, ChatCanvas), not a percentage, which each element would resolve against
+   its own parent and so give the conversation and the composer different widths. It sizes the
+   timeline lane, the composer, and ChatCanvas's width probe. */
+:root[data-chat-wide] [data-chat-canvas] {
+  --chat-content-max-width: max(
+    45rem,
+    calc(45rem + (var(--chat-canvas-width, 100%) - 2rem - 45rem) * var(--chat-width-fraction, 0))
+  );
 }
-
-:root[data-chat-width="full"] {
-  --chat-content-max-width: 100%;
-}
-/* Wide and Full: the conversation starts where the composer's corners end, not at its edge. */
-:root:is([data-chat-width="wide"], [data-chat-width="full"]) .chat-content-lane {
+/* Wider than default: the conversation starts where the composer's corners end. */
+:root[data-chat-wide] .chat-content-lane {
   padding-inline: var(--radius-composer);
 }
 
@@ -2943,7 +3009,9 @@ html.dark[data-window-translucent] {
    with the desktop itself: macOS composites the window over it afterwards. */
 html.dark[data-window-translucent] [data-app-sidebar],
 html.dark[data-window-translucent] [data-sidebar-control],
-html.dark[data-window-translucent] [data-history-navigation] {
+html.dark[data-window-translucent] [data-history-navigation],
+html.dark[data-window-translucent] [data-panel-layout-controls],
+html.dark[data-window-translucent] [data-workspace-titlebar-controls] {
   --accent: rgb(255 255 255 / 6%);
   --muted: rgb(255 255 255 / 4%);
   --foreground: color-mix(
@@ -2964,7 +3032,9 @@ html[data-window-translucent]:not(.dark) {
 
 html[data-window-translucent]:not(.dark) [data-app-sidebar],
 html[data-window-translucent]:not(.dark) [data-sidebar-control],
-html[data-window-translucent]:not(.dark) [data-history-navigation] {
+html[data-window-translucent]:not(.dark) [data-history-navigation],
+html[data-window-translucent]:not(.dark) [data-panel-layout-controls],
+html[data-window-translucent]:not(.dark) [data-workspace-titlebar-controls] {
   --accent: rgb(0 0 0 / 5%);
   --muted: rgb(0 0 0 / 3%);
   --foreground: color-mix(
@@ -2998,10 +3068,16 @@ html[data-window-translucent]:not(.dark) [data-history-navigation] {
   }
 }
 
-/* The composer reads clearly lighter than the surface around it in dark mode: an 8% white wash
-   over its fill (about #303030 on his page). */
-.dark [data-chat-composer-main-surface] {
-  background-image: linear-gradient(rgb(255 255 255 / 8%), rgb(255 255 255 / 8%));
+/* Dark composer: a solid #303030. A wash over the see-through glass fill landed anywhere from
+   #2d2d2d to #373737 depending on what showed through. */
+html.dark:not([data-theme-id]) [data-chat-composer-main-surface] {
+  background-color: #303030;
+  backdrop-filter: none;
+}
+/* Attached images and files in the composer use the primary blue, like the context ring. */
+[data-chat-composer-main-surface] {
+  --context-chip-image: var(--color-primary);
+  --context-chip-file: var(--color-primary);
 }
 
 /* Every separator line is 1px at one strength (the Figma's 0.8px line, which Chromium can only
@@ -3050,28 +3126,46 @@ html[data-window-translucent]:not(.dark) [data-history-navigation] {
 [data-chat-above-composer] .messages-timeline-scroll {
   --composer-cover-overlap: 24px;
 }
-/* The chat's scrollbar is a plain rounded thumb with no track rail (macOS draws one when scroll bars
-   always show), and it ends at the composer's top edge instead of running 24px into it. */
+/* The chat draws its own scrollbar (`TimelineScrollbar`); the native one only keeps its 10px
+   gutter, so the lane layout doesn't shift. */
 .messages-timeline-scroll::-webkit-scrollbar {
   width: calc(var(--app-scrollbar-width) + 4px);
 }
 html[data-content-translucent] .messages-timeline-under-header {
   --under-header-visible: 0%;
 }
-.messages-timeline-scroll::-webkit-scrollbar-track {
-  background: transparent;
-  margin-bottom: calc(var(--composer-cover, 0px) + 32px);
-}
+.messages-timeline-scroll::-webkit-scrollbar-track,
 .messages-timeline-scroll::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
+  background: transparent;
+}
+/* Like Codex's: from under the header past the composer to the window's bottom corner, a 5px pill
+   that widens to 7px toward the left while the lane is hovered or the thumb dragged. */
+.timeline-scrollbar {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  bottom: 6px;
+  z-index: 30;
+  width: calc(var(--app-scrollbar-width) + 4px);
+}
+.timeline-scrollbar[data-hidden] {
+  visibility: hidden;
+}
+.timeline-scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  width: 5px;
   border-radius: 9999px;
-  background: var(--app-scrollbar-thumb) padding-box;
+  background: var(--app-scrollbar-thumb);
+  transition-property: width, background-color;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
-.messages-timeline-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--app-scrollbar-thumb-hover) padding-box;
-}
-.messages-timeline-under-header::-webkit-scrollbar-track {
-  margin-top: var(--workspace-topbar-height);
+.timeline-scrollbar:hover .timeline-scrollbar-thumb,
+.timeline-scrollbar[data-dragging] .timeline-scrollbar-thumb {
+  width: 7px;
+  background: var(--app-scrollbar-thumb-hover);
 }
 
 /* The conversation scrolls on under the top bar, which blurs it (`[data-chat-header]`); with the
@@ -3151,17 +3245,122 @@ html.dark[data-window-translucent] [data-slot="sidebar-inset"] {
 
 /* Right panel: buttons and tabs follow Text strength (the foreground) like the left sidebar's,
    instead of the fixed muted grey; plain sub-labels stay muted. Hover/pressed colours (e.g.
-   destructive) keep their own. */
+   destructive) keep their own. Only a bare `text-muted-foreground` class counts, not a variant
+   like `disabled:text-muted-foreground` (that turned a side chat's send arrow black). */
 [data-preview-panel-mode]
-  :is(
-    button,
-    a,
-    [role="tab"],
-    [role="button"],
-    [role="menuitem"]
-  )[class*="text-muted-foreground"]:not(:hover):not([data-pressed]):not(:disabled),
+  :is(button, a, [role="tab"], [role="button"], [role="menuitem"]):is(
+    [class^="text-muted-foreground"],
+    [class*=" text-muted-foreground"]
+  ):not(:hover):not([data-pressed]):not(:disabled),
 [data-preview-panel-mode]
   :is(button, a, [role="tab"], [role="button"])
-  svg[class*="text-muted-foreground"] {
+  svg:is([class^="text-muted-foreground"], [class*=" text-muted-foreground"]) {
   color: var(--foreground);
+}
+
+/* New-chat Ghost (GhostMark.tsx): parts move only on a glance, blink or shell spread. */
+[data-ghost-mark] [data-ghost-part] {
+  transform-origin: 512px 512px;
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-ghost-mark] [data-ghost-part="lid"] {
+  transition-duration: 110ms;
+}
+[data-ghost-mark] [data-ghost-part="plate"] {
+  transition:
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 420ms ease-out;
+}
+[data-ghost-mark][data-spread="true"] [data-ghost-part="plate"] {
+  transform: translate(var(--spread-x), var(--spread-y));
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-ghost-mark] [data-ghost-part] {
+    transition: none;
+  }
+}
+
+/* "Thinking" Ghost (GhostGlyph.tsx): one smooth quarter turn while the plates part along their
+   own axes and close again; the eye dims during the turn. Runs only in a live row. */
+@keyframes ghost-glyph-turn {
+  0% {
+    transform: rotate(0deg);
+  }
+  70%,
+  100% {
+    transform: rotate(90deg);
+  }
+}
+@keyframes ghost-glyph-part {
+  0%,
+  70%,
+  100% {
+    translate: 0 0;
+  }
+  35% {
+    translate: var(--part-x) var(--part-y);
+  }
+}
+@keyframes ghost-glyph-eye {
+  0%,
+  70%,
+  100% {
+    opacity: 1;
+  }
+  35% {
+    opacity: 0.4;
+  }
+}
+[data-ghost-glyph] [data-ghost-glyph-part] {
+  animation-duration: 1.6s;
+  animation-iteration-count: infinite;
+  animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+  animation-play-state: var(--visible-animation-state, paused);
+}
+[data-ghost-glyph] [data-ghost-glyph-part="shell"] {
+  transform-box: view-box;
+  transform-origin: 512px 512px;
+  animation-name: ghost-glyph-turn;
+}
+[data-ghost-glyph] [data-ghost-glyph-part="plate"] {
+  animation-name: ghost-glyph-part;
+}
+[data-ghost-glyph] [data-ghost-glyph-part="eye"] {
+  animation-name: ghost-glyph-eye;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-ghost-glyph] [data-ghost-glyph-part] {
+    animation: none;
+  }
+}
+
+/* Live activity icon swap (LiveIconSwap.tsx): the old icon shrinks and blurs away while the new
+   one grows in from the same spot. */
+@keyframes live-icon-out {
+  to {
+    opacity: 0;
+    scale: 0.55;
+    filter: blur(2px);
+  }
+}
+@keyframes live-icon-in {
+  from {
+    opacity: 0;
+    scale: 0.55;
+    filter: blur(2px);
+  }
+}
+[data-live-icon="out"] {
+  animation: live-icon-out 180ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+[data-live-icon="in"] {
+  animation: live-icon-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) 60ms both;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-live-icon="out"] {
+    display: none;
+  }
+  [data-live-icon="in"] {
+    animation: none;
+  }
 }

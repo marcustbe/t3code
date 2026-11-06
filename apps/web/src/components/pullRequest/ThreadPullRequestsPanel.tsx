@@ -312,7 +312,7 @@ function LinkRowImpl({
                 aria-label={`Actions for #${link.number}`}
                 className="relative"
               >
-                <MoreHorizontalIcon className="size-3.5" />
+                <MoreHorizontalIcon className="size-3" />
               </Button>
             }
           />

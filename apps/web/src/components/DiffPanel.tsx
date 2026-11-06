@@ -173,7 +173,7 @@ function DiffFileCollapseToggle({
         }
       >
         <MorphIcon
-          className="size-4 text-muted-foreground/80"
+          className="size-3 text-muted-foreground/80"
           icon={collapsed ? ChevronRight : ChevronDown}
         />
       </TooltipTrigger>
@@ -1152,7 +1152,7 @@ export default function DiffPanel({
               render={
                 <Button
                   type="button"
-                  size="icon-sm"
+                  size="icon-xs"
                   variant="ghost"
                   aria-label={allDiffFilesCollapsed ? "Expand all files" : "Collapse all files"}
                   onClick={toggleDiffFileCollapse}
@@ -1194,7 +1194,7 @@ export default function DiffPanel({
               <Toggle
                 aria-label={wordWrap ? "Disable diff line wrapping" : "Enable diff line wrapping"}
                 variant="ghost"
-                size="sm"
+                size="xs"
                 pressed={wordWrap}
                 onPressedChange={(pressed) => {
                   setWordWrap(Boolean(pressed));
@@ -1216,7 +1216,7 @@ export default function DiffPanel({
                   diffIgnoreWhitespace ? "Show whitespace changes" : "Hide whitespace changes"
                 }
                 variant="ghost"
-                size="sm"
+                size="xs"
                 pressed={diffIgnoreWhitespace}
                 onPressedChange={(pressed) => {
                   setDiffIgnoreWhitespace(Boolean(pressed));
@@ -1237,7 +1237,7 @@ export default function DiffPanel({
                 <Toggle
                   aria-label="Hide test files"
                   variant="ghost"
-                  size="sm"
+                  size="xs"
                   pressed={hideTestFiles}
                   onPressedChange={(pressed) => setHideTestFiles(Boolean(pressed))}
                 />
@@ -1259,7 +1259,7 @@ export default function DiffPanel({
                 <Toggle
                   aria-label={fileTreeOpen ? "Hide file tree" : "Show file tree"}
                   variant="ghost"
-                  size="sm"
+                  size="xs"
                   pressed={fileTreeOpen}
                   onPressedChange={(pressed) => setFileTreeOpen(Boolean(pressed))}
                 />

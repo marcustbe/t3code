@@ -79,7 +79,6 @@ type TypographySettings = Pick<
   | "fontFamilyCode"
   | "fontFamilyTerminal"
   | "fontSizeInterface"
-  | "fontSizePrompt"
   | "fontSizeChat"
   | "fontWeightChat"
   | "fontSizeCode"
@@ -92,8 +91,7 @@ export function getChangedTypographySettingLabels(settings: TypographySettings):
     settings.fontSizeInterface !== DEFAULT_UNIFIED_SETTINGS.fontSizeInterface
       ? ["Interface font"]
       : []),
-    ...(settings.fontFamilyComposer !== DEFAULT_UNIFIED_SETTINGS.fontFamilyComposer ||
-    settings.fontSizePrompt !== DEFAULT_UNIFIED_SETTINGS.fontSizePrompt
+    ...(settings.fontFamilyComposer !== DEFAULT_UNIFIED_SETTINGS.fontFamilyComposer
       ? ["Prompt font"]
       : []),
     ...(settings.fontSizeChat !== DEFAULT_UNIFIED_SETTINGS.fontSizeChat ||
@@ -169,7 +167,7 @@ export function getChangedBrowserSettingLabels(settings: BrowserDefaultSettings)
       ? ["Floating preview"]
       : []),
     ...(settings.pullRequestLinksOpenInApp !== DEFAULT_UNIFIED_SETTINGS.pullRequestLinksOpenInApp
-      ? ["Open pull requests in T3 Code"]
+      ? ["Open pull requests in Ghost"]
       : []),
   ];
 }

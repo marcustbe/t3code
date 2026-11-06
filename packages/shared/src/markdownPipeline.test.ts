@@ -253,6 +253,48 @@ it("keeps an image on its own line under a label but leaves inline images inline
   expect(render("Hard-wrapped\nprose")).toBe("Hard-wrapped\nprose");
 });
 
+it("reads absolute path destinations with spaces as embeds and links", () => {
+  const processor = unified()
+    .use(remarkParse)
+    .use(CHAT_MARKDOWN_REMARK_PLUGINS)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(CHAT_MARKDOWN_REHYPE_PLUGINS);
+  type Node = {
+    type: string;
+    value?: string;
+    tagName?: string;
+    properties?: Record<string, unknown>;
+    children?: Node[];
+  };
+  const shape = (node: Node): string =>
+    node.type === "text"
+      ? (node.value ?? "")
+      : node.tagName === "br"
+        ? "<br>"
+        : node.tagName === "img"
+          ? `<img ${String(node.properties?.alt)} ${decodeURI(String(node.properties?.dataLocalSrc ?? node.properties?.src))}>`
+          : node.tagName === "a"
+            ? `<a ${decodeURI(String(node.properties?.href))}>${(node.children ?? []).map(shape).join("")}</a>`
+            : (node.children ?? []).map(shape).join("");
+  const render = (markdown: string) => shape(processor.runSync(processor.parse(markdown)) as Node);
+
+  const dir = "/Users/me/Second brain/Stemmeprøver/runde 7";
+  expect(
+    render(`**Sofie**\n\n![Current (ElevenLabs)](${dir}/sofie_NUVÆRENDE.mp3)\n![Kore](${dir}/Kore.mp3)`),
+  ).toBe(
+    `Sofie\n<img Current (ElevenLabs) ${dir}/sofie_NUVÆRENDE.mp3><br>\n<img Kore ${dir}/Kore.mp3>`,
+  );
+  expect(render("See [the report](/tmp/Q3 report (final).pdf) now")).toBe(
+    "See <a /tmp/Q3 report (final).pdf>the report</a> now",
+  );
+  expect(render(String.raw`![clip](C:\Users\me\My Videos\clip.mp4 "Clip")`)).toBe(
+    String.raw`<img clip C:\Users\me\My Videos\clip.mp4>`,
+  );
+  expect(render("![a](relative dir/a.mp3) and `![b](/x y/b.mp3)`")).toBe(
+    "![a](relative dir/a.mp3) and ![b](/x y/b.mp3)",
+  );
+});
+
 it("moves a <picture>'s color-scheme sources onto its <img>, which the renderer resolves", () => {
   const processor = unified()
     .use(remarkParse)

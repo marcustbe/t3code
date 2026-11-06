@@ -322,7 +322,7 @@ function ProviderEnvironmentFieldRow(props: {
           {props.variable ? (
             <Button
               type="button"
-              size="icon-sm"
+              size="icon-xs"
               variant="ghost-destructive"
               onClick={() => props.onRemove(props.field)}
               aria-label={`Clear ${props.field.label}`}
@@ -1051,7 +1051,7 @@ export function ProviderInstanceCard({
                   render={
                     <Button
                       type="button"
-                      size="icon-xs"
+                      size="icon-micro"
                       variant="ghost-muted"
                       className="shrink-0"
                       onClick={() => copyToClipboard(updateCommand, { providerName: displayName })}

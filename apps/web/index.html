@@ -433,10 +433,65 @@
         height: 96px;
       }
 
+      /* Grey Ghost (same mark and motion as the "Thinking" icon, GhostGlyph.tsx). */
       #boot-shell-logo {
-        width: 64px;
-        height: 64px;
-        object-fit: contain;
+        width: 52px;
+        height: 52px;
+        overflow: visible;
+        fill: currentColor;
+        opacity: 0.45;
+      }
+
+      #boot-shell-logo .shell {
+        transform-box: view-box;
+        transform-origin: 512px 512px;
+        animation: boot-ghost-turn 1.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+      }
+
+      #boot-shell-logo .plate {
+        animation: boot-ghost-part 1.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+      }
+
+      #boot-shell-logo .eye {
+        animation: boot-ghost-eye 1.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+      }
+
+      @keyframes boot-ghost-turn {
+        0% {
+          transform: rotate(0deg);
+        }
+        70%,
+        100% {
+          transform: rotate(90deg);
+        }
+      }
+
+      @keyframes boot-ghost-part {
+        0%,
+        70%,
+        100% {
+          translate: 0 0;
+        }
+        35% {
+          translate: var(--part-x) var(--part-y);
+        }
+      }
+
+      @keyframes boot-ghost-eye {
+        0%,
+        70%,
+        100% {
+          opacity: 1;
+        }
+        35% {
+          opacity: 0.4;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #boot-shell-logo * {
+          animation: none !important;
+        }
       }
 
       /* App CSS locks body and #root scrolling once main loads, so the error screen scrolls itself. */
@@ -668,13 +723,31 @@
         white-space: nowrap;
       }
     </style>
-    <title>T3 Code (Beta)</title>
+    <title>Ghost</title>
   </head>
   <body>
     <div id="root">
       <div id="boot-shell">
-        <div id="boot-shell-card" aria-label="T3 Code splash screen">
-          <img id="boot-shell-logo" src="/apple-touch-icon.png" alt="T3 Code" />
+        <div id="boot-shell-card" role="img" aria-label="Loading">
+          <svg id="boot-shell-logo" viewBox="-24 -24 1072 1072" aria-hidden="true">
+            <g class="shell">
+              <path class="plate" style="--part-x: -15.4px; --part-y: 68.6px" d="M506 734v265l-51 25-176-265 139-140 88 115z" />
+              <path class="plate" style="--part-x: -68.6px; --part-y: 15.4px" d="M291 519H25L0 569l266 178 138-139-113-89z" />
+              <path class="plate" style="--part-x: -15.4px; --part-y: -68.6px" d="M506 291V25L455 0 279 267l139 139 88-115z" />
+              <path class="plate" style="--part-x: -68.6px; --part-y: -15.4px" d="M292 505H26L1 456l264-178 139 139-113 88z" />
+              <path class="plate" style="--part-x: 15.4px; --part-y: 68.6px" d="M519 734v265l50 25 177-265-139-140-88 115z" />
+              <path class="plate" style="--part-x: 68.6px; --part-y: 15.4px" d="M733 518h266l25 51-266 177-138-140 113-88z" />
+              <path class="plate" style="--part-x: 15.4px; --part-y: -68.6px" d="M519 291V25l50-25 177 267-139 139-88-115z" />
+              <path class="plate" style="--part-x: 68.6px; --part-y: -15.4px" d="M732 506h266l25-51-265-177-139 140 113 88z" />
+            </g>
+            <g class="eye">
+              <path
+                fill-rule="evenodd"
+                d="M512 407a112 112 0 1 1 0 224 112 112 0 0 1 0-224Zm0 34a78 78 0 1 0 0 156 78 78 0 0 0 0-156Z"
+              />
+              <circle cx="512" cy="519" r="34" />
+            </g>
+          </svg>
         </div>
       </div>
     </div>

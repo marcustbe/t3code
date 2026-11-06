@@ -11,6 +11,7 @@ import { memo, use, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import { workEntryDisplayIndicatesToolFailure } from "../../session-logic";
 import ChatMarkdown from "../ChatMarkdown";
+import { CompanionGhost } from "../ghost/GhostGlyph";
 import { Minimize2Icon, XIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { getVirtualizedScrollFadeClassName } from "../ui/scroll-area";
@@ -54,6 +55,7 @@ import {
   workEntryIconName,
 } from "./TimelineWorkEntryRow.logic";
 import { formatWorkingTimerNow } from "./TimelineWorkGroupRows.logic";
+import { LiveIconSwap } from "./LiveIconSwap";
 
 export const WorkGroupSection = memo(function WorkGroupSection({
   anchorKey,
@@ -294,6 +296,9 @@ export function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
   return (
     <div className="border-b border-border/60 pb-2 pt-1">
       <div className="flex h-6 min-w-0 items-baseline gap-2 px-1 text-sm leading-relaxed text-muted-foreground tabular-nums">
+        {row.companion ? (
+          <CompanionGhost className="size-5 shrink-0 -translate-y-[2.75px] self-center" spinning />
+        ) : null}
         <span
           ref={shimmer ? observeVisibleAnimation : undefined}
           className="relative shrink-0 overflow-hidden whitespace-nowrap"
@@ -410,10 +415,17 @@ function LiveActivityRow({
         failed={failed}
         announceFailure={failed}
         active={animated && !shimmer}
+        iconHandoffSlot={animated ? "live" : undefined}
       />
       {showShimmer ? (
         <ActivityShimmerOverlay>
-          <LiveActivityContent label={label} iconName={iconName} toolIcon={toolIcon} highlighted />
+          <LiveActivityContent
+            label={label}
+            iconName={iconName}
+            toolIcon={toolIcon}
+            highlighted
+            iconHandoffSlot="live-highlighted"
+          />
         </ActivityShimmerOverlay>
       ) : null}
     </div>
@@ -428,6 +440,7 @@ function LiveActivityContent({
   announceFailure = false,
   active = false,
   highlighted = false,
+  iconHandoffSlot,
 }: {
   label: ReactNode;
   iconName: WorkEntryIconName | undefined;
@@ -436,6 +449,8 @@ function LiveActivityContent({
   announceFailure?: boolean;
   active?: boolean;
   highlighted?: boolean;
+  /** Live rows pass a slot so the next live row's icon animates in from this one. */
+  iconHandoffSlot?: string | undefined;
 }) {
   const showTrailingFailureMark =
     failed && iconName !== undefined && !toolIconAcceptsTint(toolIcon);
@@ -456,12 +471,17 @@ function LiveActivityContent({
             role={announceFailure ? "img" : undefined}
             aria-label={announceFailure ? "Tool call failed" : undefined}
           >
-            <ToolActivityIconView
-              icon={toolIcon}
-              fallbackName={iconName}
-              className="block size-4 shrink-0 stroke-2"
-              muted={!highlighted}
-            />
+            <LiveIconSwap
+              iconKey={`${iconName}:${toolIcon ? JSON.stringify(toolIcon) : ""}`}
+              slot={iconHandoffSlot}
+            >
+              <ToolActivityIconView
+                icon={toolIcon}
+                fallbackName={iconName}
+                className="block size-4 shrink-0 stroke-2"
+                muted={!highlighted}
+              />
+            </LiveIconSwap>
           </span>
         ) : null
       }

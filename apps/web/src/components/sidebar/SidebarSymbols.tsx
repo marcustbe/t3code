@@ -2,8 +2,8 @@ import {
   CalendarIcon,
   ChartNoAxesColumnIcon,
   ChevronDownIcon,
+  createLucideIcon,
   FolderPlusIcon,
-  ListFilterIcon,
   type LucideIcon,
   SearchIcon,
   SettingsIcon,
@@ -111,17 +111,6 @@ const SfAddProjectSymbol = makeSymbol(
   "AddProjectSymbol",
 );
 
-// square.and.pencil (small), the new-thread icon beside the filter.
-const SfComposeSymbol = makeSymbol(
-  "0.6 0.6 8.4 8.4",
-  [
-    "M3.43354 6.30741L4.31366 5.93119L7.23731 3.00327C7.23511 2.99807 7.23288 2.9929 7.23064 2.98776C7.16717 2.8426 7.0833 2.7178 6.98083 2.61519C6.88029 2.5124 6.76095 2.42927 6.62313 2.3661L3.68577 5.30777L3.28864 6.15692C3.25108 6.23754 3.34231 6.34503 3.43354 6.30741Z",
-    "M8.24197 1.99713L7.60872 1.37907L7.20986 1.77852C7.33513 1.85501 7.44849 1.94416 7.54969 2.0455C7.65576 2.15173 7.74936 2.27378 7.8292 2.41051L8.24197 1.99713Z",
-    "M2.90762 8.99999H5.84312C6.58371 8.99999 7.16329 8.77964 7.54432 8.40343C7.94144 8.0111 8.15074 7.43066 8.15074 6.69436V3.74919C8.15074 3.49365 8.12424 3.25624 8.0737 3.03921L7.37258 3.74297L7.37259 3.74919V6.69436C7.37259 7.19418 7.23842 7.57576 6.97547 7.83374C6.72323 8.08634 6.33684 8.22607 5.84312 8.22607H2.90762C2.4139 8.22607 2.0275 8.08634 1.77528 7.83374C1.51232 7.57576 1.37815 7.19418 1.37815 6.69436V3.74919C1.37815 3.25474 1.51769 2.86778 1.76992 2.61519C2.0275 2.35184 2.40853 2.21748 2.90762 2.21748H5.84312C5.85638 2.21748 5.86955 2.21757 5.88264 2.21776L6.57531 1.52328C6.35316 1.47055 6.10885 1.44357 5.84312 1.44357H2.90762C2.16704 1.44357 1.59281 1.65317 1.20106 2.0455C0.820034 2.42708 0.6 3.0129 0.6 3.74919V6.69436C0.6 7.43066 0.809296 8.0111 1.20642 8.40343C1.58745 8.78501 2.16704 8.99999 2.90762 8.99999ZM7.20986 1.77852L6.62313 2.3661C6.76095 2.42927 6.88029 2.5124 6.98083 2.61519C7.0833 2.7178 7.16717 2.8426 7.23064 2.98776C7.23288 2.9929 7.23511 2.99807 7.23731 3.00327L7.8292 2.41051C7.74936 2.27378 7.65576 2.15173 7.54969 2.0455C7.44849 1.94416 7.33513 1.85501 7.20986 1.77852ZM8.89132 1.34145L8.56933 1.66929L7.94144 1.04048L8.2688 0.718024C8.40834 0.57291 8.63373 0.556785 8.77326 0.696516L8.89132 0.814762C9.03622 0.959865 9.03622 1.18559 8.89132 1.34145Z",
-  ],
-  "ComposeSymbol",
-);
-
 // chevron.left; "Settled" points right with a 180° turn.
 const SfChevronLeftSymbol = makeSymbol(
   "0 0 3.37447 6",
@@ -157,14 +146,31 @@ const SIDEBAR_ICON_SET = "t3" as "t3" | "sf";
 
 // T3's icons keep upstream's sizes: the caller's size classes are tuned for the SF set, so the
 // T3 size goes last and wins.
-function t3Icon(Icon: LucideIcon, sizeClassName: string, displayName: string) {
+function t3Icon(
+  Icon: LucideIcon,
+  sizeClassName: string,
+  displayName: string,
+  strokeWidth?: number,
+) {
   function T3Icon({ className, ...props }: SymbolProps) {
     return (
-      <Icon aria-hidden="true" className={cn("shrink-0", className, sizeClassName)} {...props} />
+      <Icon
+        aria-hidden="true"
+        className={cn("shrink-0", className, sizeClassName)}
+        {...(strokeWidth === undefined ? {} : { strokeWidth })}
+        {...props}
+      />
     );
   }
   T3Icon.displayName = displayName;
   return T3Icon;
+}
+
+// The New/Routines/Search row icons: 13px (his pick, 2026-11-05). Lucide's default stroke, so the
+// app-wide rule draws the same 1.25px line as every other icon (1.75 drew ~0.95px and felt skinny,
+// 2026-11-06).
+function navRowIcon(Icon: LucideIcon, displayName: string) {
+  return t3Icon(Icon, "size-[13px]", displayName);
 }
 
 function pick<T>(sf: T, t3: T): T {
@@ -172,7 +178,9 @@ function pick<T>(sf: T, t3: T): T {
 }
 
 function T3SidebarToggle({ className, open }: { className?: string; open?: boolean }) {
-  return <MorphIcon className={cn(className, "size-4")} icon={open ? PanelLeftClose : PanelLeft} />;
+  return (
+    <MorphIcon className={cn(className, "size-3.5")} icon={open ? PanelLeftClose : PanelLeft} />
+  );
 }
 
 export const SidebarToggleSymbol = pick<
@@ -201,41 +209,43 @@ function T3ArrowLeft({ className, ...props }: SymbolProps) {
 export const ArrowLeftSymbol = pick(SfArrowLeftSymbol, T3ArrowLeft);
 // The arrows' size class: `size-icon-sm` is a custom token tailwind-merge can't weigh against
 // `size-5`, so each set names its own.
-export const HISTORY_ARROW_SIZE = pick("size-icon-sm", "size-4.5");
+export const HISTORY_ARROW_SIZE = pick("size-icon-sm", "size-3.5");
 export const HISTORY_ARROW_STROKE = pick<Partial<typeof SF_HISTORY_ARROW_STROKE>>(
   SF_HISTORY_ARROW_STROKE,
   {},
 );
-export const NewChatSymbol = pick(
-  SfNewChatSymbol,
-  t3Icon(SquarePenIcon, "size-4", "NewChatSymbol"),
+export const NewChatSymbol = pick(SfNewChatSymbol, navRowIcon(SquarePenIcon, "NewChatSymbol"));
+export const RoutinesSymbol = pick(SfRoutinesSymbol, navRowIcon(CalendarIcon, "RoutinesSymbol"));
+export const SearchSymbol = pick(SfSearchSymbol, navRowIcon(SearchIcon, "SearchSymbol"));
+// Lucide's list-filter, narrower and shorter than stock (lines 18.4/11.5/4.6 units at y 5.2/11.5/17.8)
+// and centred on folder-plus beside it (y 11.5): the stock one read bigger and sat low, stretching it
+// to the folder's full height read taller still, and his pick "C" (16/10/4 at 6/11.5/17) a bit small,
+// so this is C scaled up 15% (2026-11-06).
+const SidebarFilterIcon = createLucideIcon("sidebar-filter", [
+  ["path", { d: "M2.8 5.2h18.4", key: "top" }],
+  ["path", { d: "M6.25 11.5h11.5", key: "middle" }],
+  ["path", { d: "M9.7 17.8h4.6", key: "bottom" }],
+]);
+export const FilterSymbol = pick(
+  SfFilterSymbol,
+  t3Icon(SidebarFilterIcon, "size-3.5", "FilterSymbol"),
 );
-export const RoutinesSymbol = pick(
-  SfRoutinesSymbol,
-  t3Icon(CalendarIcon, "size-4", "RoutinesSymbol"),
-);
-export const SearchSymbol = pick(SfSearchSymbol, t3Icon(SearchIcon, "size-4", "SearchSymbol"));
-export const FilterSymbol = pick(SfFilterSymbol, t3Icon(ListFilterIcon, "size-4", "FilterSymbol"));
 export const AddProjectSymbol = pick(
   SfAddProjectSymbol,
-  t3Icon(FolderPlusIcon, "size-4", "AddProjectSymbol"),
-);
-export const ComposeSymbol = pick(
-  SfComposeSymbol,
-  t3Icon(SquarePenIcon, "size-4", "ComposeSymbol"),
+  t3Icon(FolderPlusIcon, "size-3.5", "AddProjectSymbol"),
 );
 export const SettingsSymbol = pick(
   SfSettingsSymbol,
-  t3Icon(SettingsIcon, "size-4", "SettingsSymbol"),
+  t3Icon(SettingsIcon, "size-3.5", "SettingsSymbol"),
 );
 export const UsageSymbol = pick(
   SfUsageSymbol,
-  t3Icon(ChartNoAxesColumnIcon, "size-4", "UsageSymbol"),
+  t3Icon(ChartNoAxesColumnIcon, "size-3.5", "UsageSymbol"),
 );
 
 // The section header's chevron: upstream points ChevronDown down when open and right when closed.
 export const SECTION_CHEVRON_IS_SF = SIDEBAR_ICON_SET === "sf";
 export const SectionChevronSymbol = pick(
   SfChevronLeftSymbol,
-  t3Icon(ChevronDownIcon, "size-3", "SectionChevronSymbol"),
+  t3Icon(ChevronDownIcon, "size-2.5", "SectionChevronSymbol"),
 );

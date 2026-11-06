@@ -702,12 +702,8 @@ export const layer: Layer.Layer<
       // A side chat shares its parent's worktree; the turn that gets its context asks before acting.
       const resolvedPolicy = yield* runtimePolicy
         .resolve({
-          thread:
-            projection.thread.lineage.sideChat === true &&
-            (sideChatHandoff !== undefined ||
-              !projection.runs.some((previous) => previous.ordinal < run.ordinal))
-              ? { ...projection.thread, runtimeMode: "approval-required" }
-              : projection.thread,
+          // Ghost: side chats follow their own (inherited) mode, never clamped to approval.
+          thread: projection.thread,
           modelSelection: run.modelSelection,
         })
         .pipe(Effect.result);

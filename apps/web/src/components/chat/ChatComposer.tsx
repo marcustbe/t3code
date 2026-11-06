@@ -288,6 +288,9 @@ function consumePasteAsTextShortcut(deadline: { current: number }): boolean {
   return armed;
 }
 
+/** A CSS hex colour with at least one letter, so `#123` still finds PR 123. */
+const HEX_COLOR_QUERY = /^(?=[\da-f]*[a-f])(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/iu;
+
 export interface ChatComposerHandle {
   focusAtEnd: () => void;
   focusAt: (cursor: number) => void;
@@ -1005,7 +1008,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     return collapseExpandedComposerCursor(value, value.length, isLiteralPendingAnswer);
   });
   const {
-    trigger: composerTrigger,
+    trigger: detectedComposerTrigger,
     setTrigger: setComposerTrigger,
     resolveTrigger: resolveComposerTrigger,
     dismissTrigger: dismissComposerTrigger,
@@ -1013,6 +1016,14 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   } = useComposerTriggerState(() =>
     isLiteralPendingAnswer ? null : detectComposerTrigger(prompt, prompt.length),
   );
+  // `#` opens the pull-request menu only where it can list PRs, and never for a hex colour.
+  const composerTrigger =
+    detectedComposerTrigger?.kind === "pull-request" &&
+    (pullRequestProjectId === null ||
+      pullRequestRepository === null ||
+      HEX_COLOR_QUERY.test(detectedComposerTrigger.query))
+      ? null
+      : detectedComposerTrigger;
   const [composerHighlightedItemId, setComposerHighlightedItemId] = useState<string | null>(null);
   const composerSuggestionId = useId();
   const composerSuggestionListId = `${composerSuggestionId}-${encodeURIComponent(draftId ?? activeThreadId ?? "new")}-suggestions`;
@@ -1559,6 +1570,29 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     measure();
     return observeResize(box, measure);
   }, [promptWrapped]);
+
+  // While the prompt shares the row with + and send, attached images and files start and end where
+  // its text does instead of at the box edge. The insets go on the row's parent as CSS variables so
+  // measuring doesn't re-render the composer.
+  const promptInputRowRef = useRef<HTMLDivElement>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- measures the prompt text's edges via ResizeObserver and writes them as CSS variables for the attachment row
+  useLayoutEffect(() => {
+    const row = promptInputRowRef.current;
+    const box = promptEditorBoxRef.current;
+    const host = row?.parentElement;
+    if (!row || !box || !host) return;
+    const measure = () => {
+      const rowBounds = row.getBoundingClientRect();
+      const boxBounds = box.getBoundingClientRect();
+      const boxStyle = getComputedStyle(box);
+      const start = boxBounds.left - rowBounds.left + Number.parseFloat(boxStyle.paddingLeft);
+      const end = rowBounds.right - boxBounds.right + Number.parseFloat(boxStyle.paddingRight);
+      host.style.setProperty("--composer-text-start", `${Math.max(0, start)}px`);
+      host.style.setProperty("--composer-text-end", `${Math.max(0, end)}px`);
+    };
+    measure();
+    return observeResize([row, box], measure);
+  }, [promptMultiline]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reads draft images as data URLs and persists them to the draft store, dropping stale results on cleanup
   useEffect(() => {
@@ -3384,7 +3418,15 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
               {composerQueuedAttachmentRow ||
               composerAttachmentMediaRow ||
               composerAttachmentFileList ? (
-                <div data-chat-composer-attachments="true" className="px-4 pt-3">
+                <div
+                  data-chat-composer-attachments="true"
+                  className={cn(
+                    "pt-3",
+                    promptMultiline
+                      ? "px-4"
+                      : "ps-(--composer-text-start,1rem) pe-(--composer-text-end,1rem)",
+                  )}
+                >
                   {composerQueuedAttachmentRow}
                   {composerAttachmentMediaRow}
                   {composerAttachmentFileList}
@@ -3395,6 +3437,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   over + and send) once it wraps. The prompt's scroll box reaches the box edge, so
                   that edge is the clip. */}
               <div
+                ref={promptInputRowRef}
                 data-chat-composer-input-row="true"
                 data-multiline={promptMultiline || undefined}
                 className="flex flex-wrap items-end"
@@ -3439,13 +3482,15 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                       skills={selectedProviderSkills}
                       className={cn(
                         "my-0 min-h-11",
-                        promptMultiline ? "pt-3 pb-1" : "py-2.5",
+                        // One line: a 24px line in the 44px box centres the text on + and send
+                        // (leading-relaxed left it 1.5–2.5px high, more with Inter).
+                        promptMultiline ? "pt-3 pb-1" : "py-2.5 leading-6",
                         showMobilePendingAnswerActions && "max-sm:pb-12",
                       )}
                       placeholderClassName={cn(
                         // Quieter than other fields' placeholders.
                         "truncate opacity-65",
-                        promptMultiline ? "pt-3 pb-1" : "py-2.5",
+                        promptMultiline ? "pt-3 pb-1" : "py-2.5 leading-6",
                       )}
                       onChange={onPromptChangeStable}
                       onCommandKeyDown={onComposerCommandKeyStable}

@@ -113,8 +113,12 @@ function startClientAppearance(): void {
     if (previous?.diffColorScheme !== settings.diffColorScheme) {
       root.dataset.diffColorScheme = settings.diffColorScheme;
     }
-    if (previous?.chatWidth !== settings.chatWidth) {
-      root.dataset.chatWidth = settings.chatWidth;
+    if (previous?.chatWidthPercent !== settings.chatWidthPercent) {
+      // index.css turns the fraction into one width from the chat canvas's measured width, so the
+      // conversation and the composer always get the same width.
+      const percent = settings.chatWidthPercent;
+      root.style.setProperty("--chat-width-fraction", String(Math.min(percent, 100) / 100));
+      root.toggleAttribute("data-chat-wide", percent > 0);
     }
     if (previous?.appearanceContrast !== settings.appearanceContrast) {
       applyAppearanceContrast(root, settings.appearanceContrast);
@@ -138,8 +142,10 @@ function startClientAppearance(): void {
     if (
       previous?.backgroundGrain !== settings.backgroundGrain ||
       previous.topBarBlur !== settings.topBarBlur ||
+      previous.topBarOpacity !== settings.topBarOpacity ||
       previous.primaryTextStrength !== settings.primaryTextStrength ||
       previous.messageBubbleColor !== settings.messageBubbleColor ||
+      previous.messageBubbleColorDark !== settings.messageBubbleColorDark ||
       previous.letterSpacing !== settings.letterSpacing ||
       previous.messageBubbleOpacity !== settings.messageBubbleOpacity ||
       previous.sidebarSidePadding !== settings.sidebarSidePadding ||
@@ -160,7 +166,6 @@ function startClientAppearance(): void {
       previous.fontFamilyCode !== settings.fontFamilyCode ||
       previous.fontFamilyComposer !== settings.fontFamilyComposer ||
       previous.fontSizeInterface !== settings.fontSizeInterface ||
-      previous.fontSizePrompt !== settings.fontSizePrompt ||
       previous.fontSizeChat !== settings.fontSizeChat ||
       previous.fontWeightChat !== settings.fontWeightChat ||
       previous.fontSizeCode !== settings.fontSizeCode ||
@@ -172,7 +177,6 @@ function startClientAppearance(): void {
         code: settings.fontFamilyCode,
         composer: settings.fontFamilyComposer,
         sizeInterface: settings.fontSizeInterface,
-        sizePrompt: settings.fontSizePrompt,
         sizeChat: settings.fontSizeChat,
         weightChat: settings.fontWeightChat,
         sizeCode: settings.fontSizeCode,

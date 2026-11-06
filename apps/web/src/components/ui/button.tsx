@@ -33,24 +33,26 @@ const buttonVariants = cva(
     },
     variants: {
       size: {
+        // Icon buttons come in three tiers (Context Profile › Design › Icon buttons): icon-micro
+        // 20px box / 12px icon, icon-xs 24/14, icon-sm 28/16. None of them shrinks when pressed.
         compact:
           "h-7 gap-1 rounded-md px-[calc(--spacing(2)-1px)] text-xs before:rounded-[calc(var(--radius-md)-1px)] [&_svg:not([class*='size-'])]:size-3.5",
         default: "h-9 px-[calc(--spacing(3)-1px)] sm:h-8",
-        icon: "size-9 sm:size-8",
-        "icon-lg": "size-10 sm:size-9",
+        icon: "size-9 sm:size-8 active:scale-100!",
+        "icon-lg": "size-10 sm:size-9 active:scale-100!",
         "icon-micro":
-          "size-5 rounded-sm p-0 before:rounded-[calc(var(--radius-sm)-1px)] [&_svg:not([class*='size-'])]:size-3",
-        "icon-tiny": "size-4 p-0 [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm": "size-8 sm:size-7",
+          "size-5 rounded-sm p-0 before:rounded-[calc(var(--radius-sm)-1px)] [&_svg:not([class*='size-'])]:size-3 active:scale-100!",
+        "icon-tiny": "size-4 p-0 [&_svg:not([class*='size-'])]:size-3 active:scale-100!",
+        "icon-sm": "size-8 sm:size-7 active:scale-100!",
         // 4px corners, concentric inside the composer (its attach button).
-        "icon-sm-composer": "size-8 rounded-md before:rounded-md sm:size-7",
+        "icon-sm-composer": "size-8 rounded-md before:rounded-md sm:size-7 active:scale-100!",
         "icon-xl":
-          "size-11 sm:size-10 [&_svg:not([class*='size-'])]:size-5 sm:[&_svg:not([class*='size-'])]:size-4.5",
+          "size-11 sm:size-10 [&_svg:not([class*='size-'])]:size-5 sm:[&_svg:not([class*='size-'])]:size-4.5 active:scale-100!",
         "icon-xs":
-          "size-7 sm:size-6 not-in-data-[slot=input-group]:[&_svg:not([class*='size-'])]:size-4 sm:not-in-data-[slot=input-group]:[&_svg:not([class*='size-'])]:size-3.5",
+          "size-7 sm:size-6 rounded-md before:rounded-[calc(var(--radius-md)-1px)] active:scale-100! not-in-data-[slot=input-group]:[&_svg:not([class*='size-'])]:size-4 sm:not-in-data-[slot=input-group]:[&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-10 px-[calc(--spacing(3.5)-1px)] sm:h-9",
         micro:
-          "h-5 gap-1 rounded-sm px-[calc(--spacing(1.5)-1px)] text-[11px] before:rounded-[calc(var(--radius-sm)-1px)] sm:text-[11px] [&_svg:not([class*='size-'])]:size-3 sm:[&_svg:not([class*='size-'])]:size-3",
+          "h-5 gap-1 rounded-sm px-[calc(--spacing(1.5)-1px)] text-xs before:rounded-[calc(var(--radius-sm)-1px)] sm:text-xs [&_svg:not([class*='size-'])]:size-3 sm:[&_svg:not([class*='size-'])]:size-3",
         multiline:
           "min-h-9 px-[calc(--spacing(3)-1px)] py-[calc(--spacing(1.5)-1px)] whitespace-normal sm:min-h-8",
         sm: "h-8 gap-1.5 px-[calc(--spacing(2.5)-1px)] sm:h-7",

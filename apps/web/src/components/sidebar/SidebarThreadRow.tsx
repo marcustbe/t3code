@@ -60,7 +60,11 @@ import { useNowMinute } from "../../hooks/useNowMinute";
 import { vcsEnvironment } from "../../state/vcs";
 import { useEnvironmentQuery } from "../../state/query";
 import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
-import { formatRelativeTimeLabel, parseTimestampDate } from "../../timestampFormat";
+import {
+  formatRelativeTimeAgo,
+  formatRelativeTimeLabel,
+  parseTimestampDate,
+} from "../../timestampFormat";
 import type { SidebarThreadSummary } from "../../types";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import { cn } from "~/lib/utils";
@@ -105,6 +109,11 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { MiddleTruncate } from "../ui/middle-truncate";
 import { useThreadHasUnsentDraft } from "../../composerDraftStore";
 import { useClientSettings } from "../../hooks/useSettings";
+
+// Hover actions on a thread row (discard draft, snooze, stop, settle): 20px squares that fill the
+// title line inside the row's padding.
+const ROW_ACTION_BUTTON_CLASS =
+  "inline-flex w-5 cursor-pointer items-center justify-center rounded-md bg-transparent text-xs text-foreground hover:bg-sidebar-row-selected hover:text-foreground";
 
 // The fields thread rows show. Provider status pushes refresh `checkedAt`,
 // status and auth on every provider; leaving those out keeps each
@@ -157,12 +166,20 @@ function threadTimeTimestamp(thread: SidebarThreadSummary): string {
   return thread.latestUserMessageAt ?? thread.updatedAt;
 }
 
+/** The hover card's time, worded like the message times ("5 minutes ago"); ticks each minute. */
+function HoverCardTimeLabel(props: { timestamp: string }) {
+  const nowMinute = useNowMinute();
+  return formatRelativeTimeAgo(props.timestamp, Date.parse(`${nowMinute}:00.000Z`));
+}
+
 function terminalProcessLabel(count: number): string {
   return `${count} terminal ${count === 1 ? "process" : "processes"} running`;
 }
 
 function SidebarThreadTooltip({
   thread,
+  timestamp,
+  settled,
   project,
   projectDisplayName,
   environmentLabel,
@@ -177,6 +194,8 @@ function SidebarThreadTooltip({
   terminalProcessCount,
 }: {
   thread: SidebarThreadSummary;
+  timestamp: string | null;
+  settled: boolean;
   project: ProjectFaviconProject | null;
   projectDisplayName: string | null;
   environmentLabel: string | null;
@@ -214,6 +233,15 @@ function SidebarThreadTooltip({
           <div className="flex min-w-0 items-center gap-2">
             {project ? <ProjectFavicon project={project} className="size-3 shrink-0" /> : null}
             <div className="min-w-0 truncate text-foreground/75">{projectDisplayName}</div>
+          </div>
+        ) : null}
+        {timestamp ? (
+          <div className="flex min-w-0 items-center gap-2">
+            <ClockIcon aria-hidden className="size-3 shrink-0 stroke-muted-foreground" />
+            <div className="min-w-0 truncate text-foreground/75">
+              {settled ? "Settled " : null}
+              <HoverCardTimeLabel timestamp={timestamp} />
+            </div>
           </div>
         ) : null}
         {environmentLabel ? (
@@ -324,7 +352,7 @@ function SnoozeMenuButton(props: {
                   aria-label="Snooze thread"
                   onClick={(event) => event.stopPropagation()}
                   onDoubleClick={(event) => event.stopPropagation()}
-                  className="inline-flex h-full cursor-pointer items-center rounded-md bg-transparent px-1 text-xs text-foreground hover:bg-sidebar-row-selected hover:text-foreground"
+                  className={ROW_ACTION_BUTTON_CLASS}
                 />
               }
             />
@@ -452,7 +480,15 @@ const dropVerbBadge: Record<SidebarDropVerb, ReactNode> = {
 
 /** A coloured dot in the time slot, like Cursor; the label is for screen readers and the tooltip.
     Not a live region: BackgroundThreadAnnouncer and the open thread's timeline speak changes. */
-// Working pulses so it reads apart from the solid dots without relying on colour alone.
+// Working and Waiting pulse (both still running) so they read apart from the solid dots without
+// relying on colour alone.
+// Every pulsing dot shares one clock (start time 0 on the document timeline), so dots that mounted
+// at different moments never sit at different opacities.
+function syncPulseToDocumentClock(element: SVGSVGElement | null) {
+  if (!element) return;
+  for (const animation of element.getAnimations()) animation.startTime = 0;
+}
+
 function StatusDot(props: { label: string; className: string; pulse: boolean }) {
   return (
     <Tooltip>
@@ -473,6 +509,7 @@ function StatusDot(props: { label: string; className: string; pulse: boolean }) 
         <svg
           aria-hidden
           viewBox="0 0 6 6"
+          ref={props.pulse ? syncPulseToDocumentClock : undefined}
           className={cn(
             "size-status-dot translate-x-[1.5px]",
             props.pulse && "motion-safe:animate-pulse",
@@ -579,7 +616,9 @@ function ThreadRenameInput(props: {
       }}
       onClick={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
-      className="-mx-1 min-w-0 flex-1 rounded-md bg-transparent px-1 text-sm font-medium text-foreground outline-none ring-1 ring-foreground/15 ring-inset"
+      // Negative margins let the field breathe (28px tall, 8px sides) without
+      // growing the row or moving the text more than 4px.
+      className="-my-1 -ms-1 h-7 min-w-0 flex-1 rounded-lg bg-foreground/[0.04] px-2 text-sm font-medium text-foreground outline-none ring-1 ring-foreground/12 ring-inset focus:ring-foreground/20"
     />
   );
 }
@@ -694,7 +733,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         ? {
             label: "Waiting",
             icon: "waiting" as const,
-            className: "text-muted-foreground",
+            // Same grey as Working: every running dot shows the same opacity.
+            className: "text-sidebar-foreground/40",
           }
         : status === "approval"
           ? {
@@ -767,6 +807,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   const detailsTooltip = (
     <SidebarThreadTooltip
       thread={thread}
+      timestamp={
+        variantAction === "unsettle"
+          ? resolveSettledThreadTimestamp(thread)
+          : threadTimeTimestamp(thread)
+      }
+      settled={variantAction === "unsettle"}
       project={props.project}
       projectDisplayName={props.projectDisplayName}
       environmentLabel={props.environmentLabel}
@@ -840,6 +886,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     event.stopPropagation();
     onSettle(threadRef);
   };
+  // Waiting chats still hold a run or awaited background work; interrupting stops both.
+  const canStop = status === "working" || status === "preparing" || status === "waiting";
   const handleStopClick = (event: ReactMouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
@@ -894,8 +942,13 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   if (snoozeGateOpened && snoozeGateOpensAt !== null) {
     setSnoozeGateClock({ thread, now: new Date(snoozeGateOpensAt).toISOString() });
   }
+  // Filter menu › "Snooze button" off hides it; the context menu still snoozes.
+  const snoozeButtonEnabled = useClientSettings((settings) => settings.sidebarShowSnoozeButton);
   const showSnoozeButton =
-    canOperateThread && props.snoozeSupported && canSnooze(thread, { now: snoozeGateNow });
+    snoozeButtonEnabled &&
+    canOperateThread &&
+    props.snoozeSupported &&
+    canSnooze(thread, { now: snoozeGateNow });
   // Closing here, not just masking, keeps the menu from reopening when the button returns.
   if (snoozeMenuOpenRaw && !showSnoozeButton) setSnoozeMenuOpen(false);
   const snoozeMenuOpen = snoozeMenuOpenRaw && showSnoozeButton;
@@ -911,6 +964,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
 
   // Filter menu › "Project icon only": the project's icon leads the title and its name line goes.
   const projectIconOnly = useClientSettings((settings) => settings.sidebarProjectIconOnly);
+  // Filter menu › "Show timestamps": off hides the age; status dots and Woke still show.
+  const showTimestamps = useClientSettings((settings) => settings.sidebarShowTimestamps);
   const rowSurfaceClassName = cn(
     "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-xl text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
     props.isActive
@@ -981,8 +1036,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       className={cn(
         "min-w-0 flex-1 text-start text-sm font-medium transition-opacity motion-reduce:transition-none",
         // Long titles fade out before the time instead of ending in an ellipsis; -me-1
-        // lets the fully faded tail reach into the gap before the time.
-        "-me-1",
+        // lets the fully faded tail reach into the gap before the time. With timestamps
+        // hidden the fade runs to the row's right inset, where the time would end.
+        showTimestamps ? "-me-1" : "-me-2.5",
         variant !== "slim"
           ? cn(
               "line-fade-end",
@@ -1201,8 +1257,10 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               ) : (
                 <span
                   className={cn(
-                    "relative ml-auto flex h-6 min-w-8 shrink-0 items-center justify-end",
-                    props.sweepAction !== null && "hidden",
+                    "relative ml-auto flex h-6 shrink-0 items-center justify-end",
+                    showTimestamps && "min-w-8",
+                    // Row actions beside the rename field read as its confirm button.
+                    (props.sweepAction !== null || isRenaming) && "hidden",
                   )}
                 >
                   <span
@@ -1239,9 +1297,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       <StatusDot
                         label={topStatus.label}
                         className={topStatus.className}
-                        pulse={topStatus.icon === "working"}
+                        pulse={topStatus.icon === "working" || topStatus.icon === "waiting"}
                       />
-                    ) : (
+                    ) : !showTimestamps ? null : (
                       <span className="text-xs">
                         <RelativeTimeLabel
                           timestamp={
@@ -1261,7 +1319,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                         onClick={handleUnsnoozeClick}
                         onPointerDown={handleActionPointerDown}
                         className={cn(
-                          "pointer-events-none absolute inset-y-0 right-0 -mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100",
+                          "pointer-events-none absolute inset-y-0 right-0 -mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground opacity-0 transition-opacity hover:bg-sidebar-row-selected hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100",
                           isWoke && "group-any-hover/sidebar-row:static",
                         )}
                       >
@@ -1278,7 +1336,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                             onClick={handleUnsettleClick}
                             onPointerDown={handleActionPointerDown}
                             className={cn(
-                              "pointer-events-none absolute inset-y-0 right-0 -mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100",
+                              "pointer-events-none absolute inset-y-0 right-0 -mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground opacity-0 transition-opacity hover:bg-sidebar-row-selected hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100",
                               isWoke && "group-any-hover/sidebar-row:static",
                             )}
                           />
@@ -1382,7 +1440,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   className={cn(
                     // No reserved width: the title runs until 10px before the time.
                     "group/sidebar-status-slot relative ml-auto flex h-5 shrink-0 items-stretch justify-end ps-1 text-xs",
-                    props.sweepAction !== null && "hidden",
+                    // Row actions beside the rename field read as its confirm button.
+                    (props.sweepAction !== null || isRenaming) && "hidden",
                   )}
                 >
                   <span
@@ -1419,17 +1478,23 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                         <StatusDot
                           label={topStatus.label}
                           className={topStatus.className}
-                          pulse={topStatus.icon === "working"}
+                          pulse={topStatus.icon === "working" || topStatus.icon === "waiting"}
                         />
                       )
-                    ) : (
-                      <RelativeTimeLabel timestamp={threadTimeTimestamp(thread)} />
-                    )}
+                    ) : showTimestamps ? (
+                      <RelativeTimeLabel
+                        timestamp={
+                          variantAction === "unsettle"
+                            ? resolveSettledThreadTimestamp(thread)
+                            : threadTimeTimestamp(thread)
+                        }
+                      />
+                    ) : null}
                   </span>
                   {props.settlementSupported ||
                   showSnoozeButton ||
                   hasUnsentDraft ||
-                  status === "working" ? (
+                  canStop ? (
                     <span
                       className={cn(
                         // Mouse clicks leave Settle focused; focus-within would pin controls over
@@ -1446,7 +1511,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                                 type="button"
                                 aria-label="Discard draft"
                                 onClick={handleDiscardDraftClick}
-                                className="inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-xs text-foreground hover:bg-sidebar-row-selected hover:text-foreground"
+                                className={ROW_ACTION_BUTTON_CLASS}
                               />
                             }
                           >
@@ -1464,8 +1529,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                           environmentId={thread.environmentId}
                         />
                       ) : null}
-                      {status === "working" ? (
-                        // While it works, the row offers Stop instead of Settle.
+                      {canStop ? (
+                        // While it runs (incl. waiting on a build or delegate), Stop replaces Settle.
                         <Tooltip>
                           <TooltipTrigger
                             render={
@@ -1473,13 +1538,30 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                                 type="button"
                                 aria-label="Stop"
                                 onClick={handleStopClick}
-                                className="-mr-1 inline-flex w-5.5 cursor-pointer items-center justify-center rounded-md bg-transparent text-xs text-foreground hover:bg-sidebar-row-selected hover:text-foreground"
+                                className={cn("-mr-1", ROW_ACTION_BUTTON_CLASS)}
                               />
                             }
                           >
                             <SquareIcon className="size-2.5 fill-current" strokeWidth={0} />
                           </TooltipTrigger>
                           <TooltipPopup>Stop</TooltipPopup>
+                        </Tooltip>
+                      ) : props.settlementSupported && variantAction === "unsettle" ? (
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <button
+                                type="button"
+                                aria-label="Un-settle thread"
+                                onClick={handleUnsettleClick}
+                                onPointerDown={handleActionPointerDown}
+                                className={cn("-mr-1", ROW_ACTION_BUTTON_CLASS)}
+                              />
+                            }
+                          >
+                            <Undo2Icon className="size-3.5" />
+                          </TooltipTrigger>
+                          <TooltipPopup>Un-settle thread</TooltipPopup>
                         </Tooltip>
                       ) : props.settlementSupported ? (
                         <Tooltip>
@@ -1490,7 +1572,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                                 aria-label="Settle thread"
                                 onClick={handleSettleClick}
                                 onPointerDown={handleActionPointerDown}
-                                className="-mr-1 inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-xs text-foreground hover:bg-sidebar-row-selected hover:text-foreground"
+                                className={cn("-mr-1", ROW_ACTION_BUTTON_CLASS)}
                               />
                             }
                           >
@@ -1694,6 +1776,8 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
         </TooltipTrigger>
         <SidebarThreadTooltip
           thread={thread}
+          timestamp={threadTimeTimestamp(thread)}
+          settled={false}
           project={props.project}
           projectDisplayName={props.projectDisplayName}
           environmentLabel={props.environmentLabel}

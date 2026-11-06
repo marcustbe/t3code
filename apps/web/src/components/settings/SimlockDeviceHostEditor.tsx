@@ -287,7 +287,7 @@ function SimlockTokenField(props: {
         {props.token.kind !== "cleared" ? (
           <Button
             type="button"
-            size="icon-sm"
+            size="icon-xs"
             variant="ghost-destructive"
             aria-label="Clear agent token"
             disabled={props.busy}

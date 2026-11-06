@@ -3,7 +3,6 @@ import { type ToolActivityIcon } from "@t3tools/contracts";
 import { toolActivityFaviconUrl } from "@t3tools/shared/favicon";
 import { getProjectFaviconCacheKey } from "@t3tools/shared/projectFavicon";
 import { use, useState } from "react";
-import { T3Wordmark } from "../T3Wordmark";
 import {
   BotIcon,
   BrainIcon,
@@ -26,6 +25,7 @@ import {
 import { useAssetUrlState } from "../../assets/assetUrls";
 import { cn } from "~/lib/utils";
 import { TimelineRowCtx } from "./timelineRowContext";
+import { GhostGlyph } from "../ghost/GhostGlyph";
 
 export const failedToolIconClassName = "text-tool-error-icon/40";
 
@@ -245,7 +245,7 @@ function WorkEntryIcon({ name, className }: { name: WorkEntryIconName; className
     case "device":
       return <SmartphoneIcon className={className} aria-hidden />;
     case "t3-code":
-      return <T3Wordmark className={className} aria-hidden />;
+      return <GhostGlyph className={className} still />;
     case "check":
       return <CheckIcon className={className} aria-hidden />;
     case "list-todo":

@@ -41,7 +41,7 @@ export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind
   return (
     <>
       <div className="relative min-w-0 px-1 py-0.5">
-        <MessageAuthorHeading>T3 Code</MessageAuthorHeading>
+        <MessageAuthorHeading>Ghost</MessageAuthorHeading>
         <div data-thread-find-text="true">
           <AssistantCitationSource
             messageId={row.message.id}
@@ -113,7 +113,7 @@ function AssistantForkButton({
         render={
           <Button
             type="button"
-            size="icon-xs"
+            size="icon-micro"
             variant="ghost"
             disabled={busy}
             onClick={() => {
@@ -185,7 +185,7 @@ function AssistantMessageMeta({
         </span>
       ) : null}
       {/* Pulled left by the buttons' inset so the first icon lines up with the text. */}
-      <div data-message-actions="" className="flex items-center gap-0.5 first:-ml-1.5">
+      <div data-message-actions="" className="flex items-center gap-0.5 first:-ml-1">
         <AssistantCopyButton
           message={message}
           showCopyButton={showCopyButton}

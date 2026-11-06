@@ -255,7 +255,9 @@ import {
   useThreadHistory,
   useQuietThreadShell,
   useThreadCheckpointSummaries,
+  readThreadShell,
 } from "../state/entities";
+import { readNewChatOrigin } from "../newChatOrigin";
 import { useEnvironmentShellHasSnapshot } from "../state/shell";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
 import { DraftHeroHeadline } from "./chat/DraftHeroHeadline";
@@ -2341,6 +2343,36 @@ export default function ChatView(props: ChatViewProps) {
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- The scroll-to-bottom button changes the overlay's height without resizing the observed node first.
     showScrollToBottom,
   ]);
+  // On the new-chat screen the composer grows up to the heading text and no further: its editor
+  // gets a max height that keeps the composer's top a gap below the heading's last line.
+  const draftHeroHeadlineAreaRef = useRef<HTMLDivElement>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- measures the hero heading against the composer stack before paint to cap the editor height
+  useLayoutEffect(() => {
+    const area = draftHeroHeadlineAreaRef.current;
+    const stack = composerOverlayElement?.querySelector<HTMLElement>(
+      '[data-chat-composer-stack="true"]',
+    );
+    if (!isDraftHeroState || !area || !stack) return;
+    const update = () => {
+      const editor = stack.querySelector<HTMLElement>('[data-testid="composer-editor"]');
+      const heading = area.querySelector("h1") ?? area.firstElementChild;
+      if (!editor || !heading) return;
+      const stackRect = stack.getBoundingClientRect();
+      const chrome = stackRect.height - editor.getBoundingClientRect().height;
+      const room = stackRect.bottom - heading.getBoundingClientRect().bottom - 16;
+      stack.style.setProperty(
+        "--composer-editor-max-height",
+        `${Math.max(0, Math.floor(room - chrome))}px`,
+      );
+    };
+    update();
+    const inner = area.firstElementChild;
+    const stop = observeResize(inner ? [area, inner, stack] : [area, stack], update);
+    return () => {
+      stop();
+      stack.style.removeProperty("--composer-editor-max-height");
+    };
+  }, [composerMounted, composerOverlayElement, isDraftHeroState]);
   const openPanelPullRequestUrl = useOpenPanelPullRequestUrl(activeThreadRef);
   const activeThreadReferenceCopyTarget =
     activeThreadRef === null || !isServerThread
@@ -2429,6 +2461,7 @@ export default function ChatView(props: ChatViewProps) {
     showBranchMismatchBanner,
     threadStatusLine,
     shortcuts: threadLifecycleShortcuts,
+    settleActiveThreadFromClose,
   } = useThreadLifecycle({
     environmentId,
     routeThreadKey,
@@ -2714,6 +2747,23 @@ export default function ChatView(props: ChatViewProps) {
       ...terminalShortcuts,
       ...rightPanelShortcuts,
       ...threadLifecycleShortcuts,
+      // ⌘W closes the open right-panel tab; with none open it settles the chat, or on an
+      // unsent new chat goes back to the chat it was opened from.
+      "rightPanel.close": (args) => {
+        if (rightPanelShortcuts["rightPanel.close"](args) !== false) return;
+        if (draftId !== null) {
+          const origin = readNewChatOrigin(draftId);
+          if (!origin || readThreadShell(origin) === null) return false;
+          if (!args.event.repeat) {
+            void navigate({
+              to: "/$environmentId/$threadId",
+              params: buildThreadRouteParams(origin),
+            });
+          }
+          return;
+        }
+        if (!settleActiveThreadFromClose(args.event)) return false;
+      },
       "thread.copyReference": ({ event }) => {
         if (!event.repeat) copyActiveThreadReference();
       },
@@ -2774,6 +2824,7 @@ export default function ChatView(props: ChatViewProps) {
     serverConfig?.environment.capabilities.sideChats === true;
   const sideChat = useSideChat({
     threadRef: sideChatsOffered && isServerThread ? activeThreadRef : null,
+    runtimeMode,
     onError: (message) => {
       if (activeThread) setThreadError(activeThread.id, message);
     },
@@ -2792,7 +2843,7 @@ export default function ChatView(props: ChatViewProps) {
         : serverConfig === null
           ? "Side chats are not ready yet. Try again in a moment."
           : serverConfig.environment.capabilities.sideChats !== true
-            ? "Update this environment's T3 Code server to use side chats."
+            ? "Update this environment's Ghost server to use side chats."
             : sideChatsOffered && !isServerThread
               ? "Side chats start after the first message."
               : sideChat.available &&
@@ -3520,7 +3571,10 @@ export default function ChatView(props: ChatViewProps) {
             {isDraftHeroState ? (
               // The new-chat heading sits centred in the chat area; the composer stays docked at
               // the bottom like in any chat.
-              <div className="pointer-events-none absolute inset-0 z-20 flex items-center px-4 pb-24">
+              <div
+                ref={draftHeroHeadlineAreaRef}
+                className="pointer-events-none absolute inset-0 z-20 flex items-center px-4 pb-24"
+              >
                 <div
                   className="pointer-events-auto mx-auto w-full max-w-5xl"
                   style={

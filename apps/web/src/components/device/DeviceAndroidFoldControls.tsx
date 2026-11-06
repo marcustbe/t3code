@@ -80,7 +80,7 @@ export function DeviceAndroidFoldControls(props: {
           <TooltipTrigger
             render={
               <Button
-                size="icon"
+                size="icon-sm"
                 variant={fold.posture === "closed" ? "secondary" : "ghost"}
                 aria-label="Fold device"
                 aria-pressed={fold.posture === "closed"}
@@ -97,7 +97,7 @@ export function DeviceAndroidFoldControls(props: {
           <TooltipTrigger
             render={
               <Button
-                size="icon"
+                size="icon-sm"
                 variant={fold.posture === "opened" ? "secondary" : "ghost"}
                 aria-label="Unfold device"
                 aria-pressed={fold.posture === "opened"}

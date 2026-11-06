@@ -42,8 +42,8 @@ export function shouldContinueDesktopUpdateCheckAnimation({
 
 function DesktopUpdateAvailableIcon() {
   return (
-    <span className="relative grid size-4 place-items-center">
-      <DownloadIcon className="size-4" />
+    <span className="relative grid size-3.5 place-items-center">
+      <DownloadIcon className="size-3.5" />
       <span
         aria-hidden="true"
         className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-current ring-2 ring-sidebar-control-surface"
@@ -57,7 +57,7 @@ function DesktopUpdateDownloadingIcon({ percent }: { readonly percent: number | 
   const progressOffset = DOWNLOAD_PROGRESS_CIRCUMFERENCE * (1 - normalizedPercent / 100);
 
   return (
-    <span className="relative grid size-8 place-items-center">
+    <span className="relative grid size-6 place-items-center">
       <svg
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 size-full -rotate-90"
@@ -84,15 +84,15 @@ function DesktopUpdateDownloadingIcon({ percent }: { readonly percent: number | 
           className="transition-[stroke-dashoffset] duration-300 ease-out motion-reduce:transition-none"
         />
       </svg>
-      <DownloadIcon className="size-4" />
+      <DownloadIcon className="size-3.5" />
     </span>
   );
 }
 
 function DesktopUpdateDownloadedIcon() {
   return (
-    <span className="relative grid size-4 place-items-center">
-      <RotateCwIcon className="size-4" />
+    <span className="relative grid size-3.5 place-items-center">
+      <RotateCwIcon className="size-3.5" />
       <span className="absolute -right-1 -bottom-1 grid size-2.5 place-items-center rounded-full bg-foreground text-background ring-2 ring-background">
         <CheckIcon className="size-2" strokeWidth={3} />
       </span>
@@ -100,6 +100,7 @@ function DesktopUpdateDownloadedIcon() {
   );
 }
 
+// 14px like the other footer icons (Settings, Usage).
 export function DesktopUpdateStatusIcon({
   downloadPercent,
   isCheckAnimating,
@@ -116,11 +117,11 @@ export function DesktopUpdateStatusIcon({
     return <DesktopUpdateDownloadingIcon percent={downloadPercent ?? null} />;
   }
   if (status === "downloaded") return <DesktopUpdateDownloadedIcon />;
-  if (status === "everything") return <CircleArrowUpIcon className="size-4" />;
+  if (status === "everything") return <CircleArrowUpIcon className="size-3.5" />;
 
   return (
     <RefreshIcon
-      className="size-4"
+      className="size-3.5"
       refreshing={status === "checking" && isCheckAnimating === true}
       onAnimationIteration={onCheckAnimationIteration}
     />

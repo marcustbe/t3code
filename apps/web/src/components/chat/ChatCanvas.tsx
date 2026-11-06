@@ -102,6 +102,7 @@ export function ChatCanvas({
         style={
           {
             "--chat-timeline-gutter": `${measurements.timelineGutter}px`,
+            ...(measurements.width > 0 ? { "--chat-canvas-width": `${measurements.width}px` } : {}),
             "--chat-lane-inset-start": `${layout.chat.insetStart}px`,
             "--chat-lane-inset-end": `${layout.chat.insetEnd}px`,
           } as CSSProperties

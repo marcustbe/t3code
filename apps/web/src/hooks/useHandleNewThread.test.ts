@@ -336,6 +336,27 @@ describe("useNewThreadHandler", () => {
     expect(testState.draftStore.setPrompt).not.toHaveBeenCalled();
   });
 
+  it("reopens the project's unsent draft with its text instead of starting another", async () => {
+    testState.reset({
+      draftId: "draft-written",
+      environmentId: "environment-ssh",
+      promotedTo: null,
+      threadId: "thread-written",
+    });
+    testState.giveUserText("draft-written");
+
+    const opened = await useNewThreadHandler()({
+      environmentId: "environment-ssh",
+      projectId: "project-remote",
+    } as never);
+
+    expect(opened?.draftId).toBe("draft-written");
+    expect(testState.router.navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ params: { draftId: "draft-written" } }),
+    );
+    expect(testState.draftStore.setDraftThreadContext).not.toHaveBeenCalled();
+  });
+
   it("seeds the prompt into the empty draft that is already open", async () => {
     testState.reset(null);
     testState.openEmptyDraft("draft-open");

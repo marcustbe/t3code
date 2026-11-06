@@ -170,7 +170,7 @@ function ReviewStateBadge({ state }: { state: string }) {
 function OpenOnHostButton({ url, onOpen }: { url: string | null; onOpen: (url: string) => void }) {
   return url === null ? null : (
     <Button
-      size="icon-xs"
+      size="icon-micro"
       variant="ghost-muted"
       className="-mr-1 shrink-0"
       aria-label="Open activity on host"

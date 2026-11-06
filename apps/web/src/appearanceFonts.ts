@@ -3,17 +3,14 @@ import {
   DEFAULT_CHAT_FONT_WEIGHT,
   DEFAULT_CODE_FONT_SIZE,
   DEFAULT_INTERFACE_FONT_SIZE,
-  DEFAULT_PROMPT_FONT_SIZE,
   MAX_CHAT_FONT_SIZE,
   MAX_CHAT_FONT_WEIGHT,
   MAX_CODE_FONT_SIZE,
   MAX_INTERFACE_FONT_SIZE,
-  MAX_PROMPT_FONT_SIZE,
   MIN_CHAT_FONT_SIZE,
   MIN_CHAT_FONT_WEIGHT,
   MIN_CODE_FONT_SIZE,
   MIN_INTERFACE_FONT_SIZE,
-  MIN_PROMPT_FONT_SIZE,
 } from "@t3tools/contracts";
 
 export const DEFAULT_SANS_FONT_STACK =
@@ -69,7 +66,6 @@ export interface AppearanceFontPreferences {
   readonly code: string;
   readonly composer: string;
   readonly sizeInterface: number;
-  readonly sizePrompt: number;
   readonly sizeChat: number;
   readonly weightChat: number;
   readonly sizeCode: number;
@@ -115,14 +111,12 @@ export function applyAppearanceFontVariables(
   for (const [variable, px] of INTERFACE_TEXT_SIZES) {
     root.style.setProperty(variable, `${Math.round(px * textScale)}px`);
   }
-  root.style.setProperty(
-    "--font-size-prompt",
-    preferences.separate ? `${clampPromptFontSize(preferences.sizePrompt)}px` : "var(--text-sm)",
-  );
-  root.style.setProperty(
-    "--font-size-chat",
-    `${clampFontSize(preferences.sizeChat, MIN_CHAT_FONT_SIZE, MAX_CHAT_FONT_SIZE, DEFAULT_CHAT_FONT_SIZE)}px`,
-  );
+  // The dense step under text-xs (text-2xs/3xs), never below Apple's 10px macOS minimum.
+  root.style.setProperty("--ui-text-2xs", `${Math.max(10, Math.round(11 * textScale))}px`);
+  const chatSize = `${clampFontSize(preferences.sizeChat, MIN_CHAT_FONT_SIZE, MAX_CHAT_FONT_SIZE, DEFAULT_CHAT_FONT_SIZE)}px`;
+  root.style.setProperty("--font-size-chat", chatSize);
+  // The prompt is written at the size it will read at in the chat.
+  root.style.setProperty("--font-size-prompt", chatSize);
   root.style.setProperty(
     "--font-weight-chat",
     String(
@@ -157,10 +151,6 @@ function clampInterfaceFontSize(value: number): number {
     MAX_INTERFACE_FONT_SIZE,
     DEFAULT_INTERFACE_FONT_SIZE,
   );
-}
-
-function clampPromptFontSize(value: number): number {
-  return clampFontSize(value, MIN_PROMPT_FONT_SIZE, MAX_PROMPT_FONT_SIZE, DEFAULT_PROMPT_FONT_SIZE);
 }
 
 function clampCodeFontSize(value: number): number {

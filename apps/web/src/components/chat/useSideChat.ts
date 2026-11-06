@@ -1,4 +1,4 @@
-import type { ScopedThreadRef } from "@t3tools/contracts";
+import type { RuntimeMode, ScopedThreadRef } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { deriveThreadTitleSeed } from "@t3tools/client-runtime/operations";
 import {
@@ -23,6 +23,8 @@ import { useOrchestrationCommand } from "../../state/use-orchestration-command";
  */
 export function useSideChat(input: {
   readonly threadRef: ScopedThreadRef | null;
+  /** The main chat's permission mode; the side chat keeps it. */
+  readonly runtimeMode: RuntimeMode;
   readonly onError: (message: string) => void;
 }) {
   const pendingRef = useRef(false);
@@ -63,14 +65,13 @@ export function useSideChat(input: {
     const text = prompt?.trim();
     // Send before showing the tab: closing a tab whose side chat has no run deletes it.
     if (text) {
-      // The server asks before edits on a side chat's first turn whatever mode is sent.
       const turn = await startThreadTurn({
         environmentId: threadRef.environmentId,
         input: {
           threadId: targetThreadId,
           message: { messageId: newMessageId(), role: "user", text, attachments: [] },
           titleSeed: deriveThreadTitleSeed({ text, attachments: [] }),
-          runtimeMode: "approval-required",
+          runtimeMode: input.runtimeMode,
           interactionMode: "default",
           createdAt: new Date().toISOString(),
         },

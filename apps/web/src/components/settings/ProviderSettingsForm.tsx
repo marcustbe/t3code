@@ -381,7 +381,7 @@ function SecretSettingsControl({
       {configured ? (
         <Button
           type="button"
-          size="icon-sm"
+          size="icon-xs"
           variant="ghost-destructive"
           onClick={() => onChange(nextProviderConfigWithFieldValue(value, field, ""))}
           aria-label={`Clear ${field.label}`}
@@ -531,7 +531,7 @@ function ProviderSettingsFieldRow({
           {secretConfigured ? (
             <Button
               type="button"
-              size="icon-sm"
+              size="icon-xs"
               variant="ghost-destructive"
               onClick={() => onChange(nextProviderConfigWithFieldValue(value, field, ""))}
               aria-label={`Clear ${field.label}`}

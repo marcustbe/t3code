@@ -187,7 +187,7 @@ export function MarkdownCodeBlock({
           <Button
             type="button"
             variant="ghost-muted"
-            size="icon-xs"
+            size="icon-micro"
             onClick={handleCopy}
             aria-label={copyLabel}
           />
@@ -227,7 +227,7 @@ export function MarkdownCodeBlock({
                   <Button
                     type="button"
                     variant={wrapped ? "secondary" : "ghost-muted"}
-                    size="icon-xs"
+                    size="icon-micro"
                     aria-pressed={wrapped}
                     onClick={() => setWrapped((value) => !value)}
                     aria-label={wrapLabel}
@@ -246,7 +246,7 @@ export function MarkdownCodeBlock({
                   <Button
                     type="button"
                     variant="ghost-muted"
-                    size="icon-xs"
+                    size="icon-micro"
                     onClick={() => onRunShellCommand(command)}
                     aria-label="Run in terminal"
                   />

@@ -188,7 +188,7 @@ export function threadReadTargetId(entry: Pick<WorkLogEntry, "structuredPayload"
   return typeof threadId === "string" && threadId.trim().length > 0 ? threadId.trim() : null;
 }
 
-const THREAD_READ_OBJECT = " a T3 thread";
+const THREAD_READ_OBJECT = " a Ghost thread";
 
 export function threadReadTargetTitle(
   shell: Pick<ThreadShell, "title" | "archivedAt" | "deletedAt"> | null,
@@ -552,6 +552,7 @@ type MessagesTimelineRowContent =
       createdAt: string | null;
       /** A running compaction owns the working row, so its divider appears only once it ends. */
       compacting?: true;
+      companion?: true;
     }
   | {
       kind: "thinking";
@@ -582,6 +583,7 @@ type MessagesTimelineRowContent =
       runId: RunId;
       label: string;
       expanded: boolean;
+      companion?: true;
     }
   | {
       kind: "attempt-fold";
@@ -2170,7 +2172,9 @@ export function deriveMessagesTimelineRows(input: {
   const result = attachTrailingToolGroupsToAssistant(
     attachCreatedThreadSummaries(nextRows, timelineEntries, collapsedFoldMemberIds),
   );
+  const companionIndex = ghostCompanionIndex(result);
   return result.map((row, index) => {
+    if (index === companionIndex) return { ...row, companion: true };
     if (timelineRowIsWorkLog(row) && timelineRowIsWorkLog(result[index + 1])) {
       return { ...row, continuesWorkLog: true };
     }
@@ -2183,6 +2187,21 @@ export function deriveMessagesTimelineRows(input: {
     if (!groupedWithNext && !groupedWithPrevious) return row;
     return { ...row, groupedWithNext, groupedWithPrevious, continuesSteer };
   });
+}
+
+/**
+ * The 3D Ghost is one companion that follows the newest exchange: it sits on the Working or
+ * Worked-for row after the last user message, and nowhere else.
+ */
+function ghostCompanionIndex(rows: ReadonlyArray<MessagesTimelineRow>) {
+  for (let index = rows.length - 1; index >= 0; index--) {
+    const row = rows[index]!;
+    if (row.kind === "message" && row.message.role === "user") return -1;
+    if (row.kind === "working" || row.kind === "turn-fold") {
+      return index;
+    }
+  }
+  return -1;
 }
 
 function timelineRowIsOwnUserMessage(

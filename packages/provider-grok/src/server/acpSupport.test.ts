@@ -6,7 +6,7 @@ import * as EffectAcpErrors from "effect-acp/errors";
 import { applyGrokAcpModelSelection, grokAcpSpawnArgs } from "./acpSupport.ts";
 
 describe("grokAcpSpawnArgs", () => {
-  it("inherits the Grok CLI config when no T3 runtime mode is set", () => {
+  it("inherits the Grok CLI config when no Ghost runtime mode is set", () => {
     expect(grokAcpSpawnArgs()).toEqual(["agent", "stdio"]);
   });
 

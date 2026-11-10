@@ -1691,14 +1691,19 @@ export function claudeQueryEnvironment(
   appThread: Pick<OrchestrationV2AppThread, "lineage">,
   subagentPromptCacheTtl: "5m" | "1h" | undefined,
 ): NodeJS.ProcessEnv {
+  // Headless Claude Code leaves out its task tools unless asked; Ghost shows their list as a checklist.
+  const withTasks =
+    environment.CLAUDE_CODE_ENABLE_TODO_TOOLS === undefined
+      ? { ...environment, CLAUDE_CODE_ENABLE_TODO_TOOLS: "1" }
+      : environment;
   if (
     appThread.lineage.relationshipToParent !== "subagent" ||
     subagentPromptCacheTtl === undefined ||
-    environment.CLAUDE_CODE_PROMPT_CACHE_TTL !== undefined
+    withTasks.CLAUDE_CODE_PROMPT_CACHE_TTL !== undefined
   ) {
-    return environment;
+    return withTasks;
   }
-  return { ...environment, CLAUDE_CODE_PROMPT_CACHE_TTL: subagentPromptCacheTtl };
+  return { ...withTasks, CLAUDE_CODE_PROMPT_CACHE_TTL: subagentPromptCacheTtl };
 }
 
 // Claude Code's auto tool search sends every MCP schema in full while they fit under a share of the

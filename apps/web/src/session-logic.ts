@@ -5,6 +5,7 @@ import {
   type OrchestrationV2Checkpoint,
   type OrchestrationV2ExecutionNode,
   type OrchestrationV2PlanArtifact,
+  type OrchestrationV2PlanStep,
   type OrchestrationV2ProjectedTurnItem,
   type OrchestrationV2RunAttempt,
   type OrchestrationV2TurnItem,
@@ -288,6 +289,50 @@ export function findLatestProposedPlan(
     )
     .at(-1);
   return plan === undefined ? null : toLatestProposedPlanState(projection, plan);
+}
+
+export interface LatestTodoListState {
+  readonly id: PlanId;
+  readonly updatedAt: string;
+  readonly steps: ReadonlyArray<OrchestrationV2PlanStep>;
+}
+
+/** The agent's newest task list, while it still has open steps or its run is working. */
+export function findPinnedTodoList(
+  projection: ThreadStructure | null,
+  isWorking: boolean,
+): LatestTodoListState | null {
+  if (projection === null) return null;
+  const list = projection.plans
+    .filter((plan) => plan.kind === "todo_list")
+    .map((plan) => ({ plan, updatedAt: planItemTime(projection, plan) }))
+    .toSorted(
+      (left, right) =>
+        left.updatedAt.localeCompare(right.updatedAt) || left.plan.id.localeCompare(right.plan.id),
+    )
+    .at(-1);
+  if (list === undefined || list.plan.steps.length === 0) return null;
+  const open = list.plan.steps.some((step) => step.status !== "completed");
+  if (!open && !isWorking) return null;
+  return { id: list.plan.id, updatedAt: list.updatedAt, steps: list.plan.steps };
+}
+
+const YOUR_CALL_PREFIX = /^your call\s*[:–—-]\s*/i;
+
+/** A step the agent wrote as "Your call: <question>" waits on the user, not on the agent. */
+export function yourCallQuestion(step: Pick<OrchestrationV2PlanStep, "text">): string | null {
+  if (!YOUR_CALL_PREFIX.test(step.text)) return null;
+  const question = step.text.replace(YOUR_CALL_PREFIX, "");
+  return question.charAt(0).toUpperCase() + question.slice(1);
+}
+
+export function openYourCalls(
+  list: LatestTodoListState | null,
+): ReadonlyArray<{ readonly id: string; readonly question: string }> {
+  return (list?.steps ?? []).flatMap((step) => {
+    const question = step.status === "completed" ? null : yourCallQuestion(step);
+    return question === null ? [] : [{ id: step.id, question }];
+  });
 }
 
 export function hasActionableProposedPlan(plan: LatestProposedPlanState | null): boolean {

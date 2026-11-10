@@ -24,6 +24,9 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   deriveCanInterruptRunningThread,
+  findPinnedTodoList,
+  openYourCalls,
+  yourCallQuestion,
   deriveTimelineEntriesFromVisibleTurnItems,
   deriveTimelineEntriesFromVisibleTurnItemsWithState,
   deriveRevertTurnCountByUserMessageId,
@@ -1786,4 +1789,62 @@ it("renders automatic completion as a work entry instead of a user bubble", () =
       ],
     })[0]?.kind,
   ).toBe("message");
+});
+
+describe("pinned todo list", () => {
+  const projectionWith = (
+    lists: ReadonlyArray<{
+      id: string;
+      statuses: ReadonlyArray<"pending" | "running" | "completed">;
+    }>,
+  ) => {
+    const projection = makeThreadProjectionFixture();
+    return {
+      ...projection,
+      plans: lists.map((list) => ({
+        id: PlanId.make(list.id),
+        threadId: projection.thread.id,
+        runId: null,
+        nodeId: NodeId.make(`node-${list.id}`),
+        kind: "todo_list" as const,
+        status: "active" as const,
+        steps: list.statuses.map((status, index) => ({
+          id: `${list.id}-${index}`,
+          text: index === 0 ? "Your call: keep 4pt dots?" : `Step ${index}`,
+          status,
+        })),
+      })),
+    };
+  };
+
+  it("pins the newest list while a step is open or the agent still works", () => {
+    const open = projectionWith([
+      { id: "a", statuses: ["completed"] },
+      { id: "b", statuses: ["pending", "completed"] },
+    ]);
+    expect(findPinnedTodoList(open, false)?.id).toBe("b");
+
+    const finished = projectionWith([{ id: "a", statuses: ["completed", "completed"] }]);
+    expect(findPinnedTodoList(finished, false)).toBeNull();
+    expect(findPinnedTodoList(finished, true)?.id).toBe("a");
+  });
+
+  it("reads a Your call step as the user's question", () => {
+    expect(yourCallQuestion({ text: "Your call: keep 4pt dots?" })).toBe("Keep 4pt dots?");
+    expect(yourCallQuestion({ text: "your call — ship tonight?" })).toBe("Ship tonight?");
+    expect(yourCallQuestion({ text: "Fix the badge" })).toBeNull();
+    expect(
+      openYourCalls(
+        findPinnedTodoList(projectionWith([{ id: "a", statuses: ["pending"] }]), false),
+      ),
+    ).toEqual([{ id: "a-0", question: "Keep 4pt dots?" }]);
+    expect(
+      openYourCalls(
+        findPinnedTodoList(
+          projectionWith([{ id: "a", statuses: ["completed", "pending"] }]),
+          false,
+        ),
+      ),
+    ).toEqual([]);
+  });
 });

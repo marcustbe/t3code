@@ -136,6 +136,8 @@ import {
   deriveActiveWorkStartedAt,
   deriveCanInterruptRunningThread,
   findLatestProposedPlan,
+  findPinnedTodoList,
+  openYourCalls,
   findRevertCheckpoint,
   hasActionableProposedPlan,
   isLatestRunSettled,
@@ -260,6 +262,8 @@ import {
 import { readNewChatOrigin } from "../newChatOrigin";
 import { useEnvironmentShellHasSnapshot } from "../state/shell";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
+import { PlanChecklist } from "./chat/PlanChecklist";
+import { YourCallsBox } from "./chat/YourCallsBox";
 import { DraftHeroHeadline } from "./chat/DraftHeroHeadline";
 import { ExpandedImageDialogHost, openExpandedImagePreview } from "./chat/ExpandedImageDialog";
 import {
@@ -1467,6 +1471,9 @@ export default function ChatView(props: ChatViewProps) {
     (compactionRunning || (compactRequestIsActive && !compactionSettled));
   const isWorking =
     phase === "running" || isSendBusy || isCompacting || runlessWorkStartedAt !== null;
+  const pinnedTodoList = findPinnedTodoList(serverProjection, isWorking);
+  const workingTodoList = isWorking ? pinnedTodoList : null;
+  const yourCalls = isWorking ? [] : openYourCalls(pinnedTodoList);
   const activeContextWindow = deriveLatestContextWindowSnapshot(
     serverVisibleTurnItems ?? [],
     activeThreadLiveTokenUsage,
@@ -3173,8 +3180,31 @@ export default function ChatView(props: ChatViewProps) {
       .join(" · ") || null;
   // The end of the timeline holds the thread's present and next turns: what it is doing now,
   // its lifecycle status, guest messages awaiting you, then your queued messages.
+  // The question lives in the agent's task list, so the chip points at its latest reply.
+  const quotePlanQuestion = (question: string, source: HTMLElement) => {
+    const reply = serverProjection?.messages.findLast((message) => message.role === "assistant");
+    if (!activeThread || !reply) return;
+    const range = document.createRange();
+    range.selectNodeContents(source);
+    citeAssistantText(
+      {
+        version: 1,
+        environmentId: activeThread.environmentId,
+        threadId: activeThread.id,
+        messageId: reply.id,
+        text: question,
+        start: 0,
+        end: question.length,
+        prefix: "",
+        suffix: "",
+      },
+      { source, range, viewport: source },
+    );
+  };
   const timelineFooter =
     pendingHandoff === null &&
+    workingTodoList === null &&
+    yourCalls.length === 0 &&
     !hasThreadNow &&
     threadStatusLine === null &&
     pendingGuestMessageCount === 0 &&
@@ -3197,6 +3227,17 @@ export default function ChatView(props: ChatViewProps) {
           syncPhase={shownThreadSyncPhase}
           goal={goalNow}
         />
+        {workingTodoList === null ? null : (
+          <PlanChecklist key={workingTodoList.id} todoList={workingTodoList} />
+        )}
+        {yourCalls.length === 0 ? null : (
+          <YourCallsBox
+            key={pinnedTodoList?.id}
+            listId={pinnedTodoList?.id ?? ""}
+            calls={yourCalls}
+            onQuote={quotePlanQuestion}
+          />
+        )}
         {threadStatusLine}
         {pendingGuestMessageCount > 0 && isServerThread && activeThread ? (
           <GuestPendingMessages

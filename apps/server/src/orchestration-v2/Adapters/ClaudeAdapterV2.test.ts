@@ -310,9 +310,16 @@ describe("ClaudeAdapterV2 runtime query policy", () => {
     assert.isUndefined(ttl(env, null));
     assert.isUndefined(ttl(env, "fork"));
     assert.equal(ttl({ ...env, CLAUDE_CODE_PROMPT_CACHE_TTL: "1h" }, "subagent"), "1h");
-    assert.strictEqual(
-      ClaudeAdapterV2.claudeQueryEnvironment(env, lineage("subagent"), undefined),
-      env,
+    const plain = ClaudeAdapterV2.claudeQueryEnvironment(env, lineage("subagent"), undefined);
+    assert.isUndefined(plain.CLAUDE_CODE_PROMPT_CACHE_TTL);
+    assert.equal(plain.CLAUDE_CODE_ENABLE_TODO_TOOLS, "1");
+    assert.equal(
+      ClaudeAdapterV2.claudeQueryEnvironment(
+        { ...env, CLAUDE_CODE_ENABLE_TODO_TOOLS: "0" },
+        lineage(null),
+        undefined,
+      ).CLAUDE_CODE_ENABLE_TODO_TOOLS,
+      "0",
     );
   });
 

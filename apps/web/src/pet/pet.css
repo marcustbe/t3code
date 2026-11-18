@@ -1,0 +1,166 @@
+:root {
+  color-scheme: light dark;
+  --pet-surface: rgb(255 255 255 / 0.97);
+  --pet-text: #111;
+  --pet-muted: rgb(0 0 0 / 0.55);
+  --pet-hover: rgb(0 0 0 / 0.06);
+  --pet-border: rgb(0 0 0 / 0.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --pet-surface: rgb(36 36 38 / 0.97);
+    --pet-text: #fff;
+    --pet-muted: rgb(255 255 255 / 0.6);
+    --pet-hover: rgb(255 255 255 / 0.08);
+    --pet-border: rgb(255 255 255 / 0.1);
+  }
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font:
+    13px/1.35 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+  color: var(--pet-text);
+  user-select: none;
+  -webkit-user-select: none;
+}
+#pet {
+  position: relative;
+  height: 100%;
+}
+.pet-ghost {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+/* Same float as the new-chat Ghost (index.css ghost-hover-*): compositor only. */
+@keyframes pet-bob {
+  from {
+    translate: 0 2.5px;
+  }
+  to {
+    translate: 0 -3.5px;
+  }
+}
+@keyframes pet-sway {
+  from {
+    rotate: -2deg;
+  }
+  to {
+    rotate: 2deg;
+  }
+}
+.pet-canvas {
+  animation:
+    pet-bob 2.9s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate,
+    pet-sway 4.7s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pet-canvas {
+    animation: none;
+  }
+}
+.pet-bubble {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--pet-surface);
+  border: 1px solid var(--pet-border);
+  box-shadow:
+    0 8px 24px rgb(0 0 0 / 0.22),
+    0 1px 3px rgb(0 0 0 / 0.12);
+}
+.pet-bubble[hidden] {
+  display: none;
+}
+.pet-row,
+.pet-event {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.pet-row:hover,
+.pet-event:hover {
+  background: var(--pet-hover);
+}
+.pet-event {
+  align-items: flex-start;
+  padding: 6px 8px;
+}
+.pet-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38c6ff;
+}
+.pet-event .pet-dot {
+  margin-top: 5px;
+}
+[data-state="needs"] > .pet-dot {
+  background: #ff9d2e;
+}
+[data-state="done"] > .pet-dot {
+  background: #3ddc6a;
+}
+[data-state="failed"] > .pet-dot {
+  background: #ff4a4a;
+}
+.pet-title {
+  flex: 1;
+  min-width: 0;
+  max-width: 200px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pet-status,
+.pet-detail,
+.pet-empty {
+  color: var(--pet-muted);
+  font-size: 12px;
+}
+.pet-status {
+  flex: none;
+  margin-left: 6px;
+}
+.pet-empty {
+  padding: 4px 8px;
+}
+.pet-event-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.pet-headline {
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pet-detail {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

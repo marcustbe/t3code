@@ -1,3 +1,4 @@
+import { startGhostPetFeed } from "./ghostPetFeed";
 import {
   scopedThreadKey,
   scopeProjectRef,
@@ -387,6 +388,7 @@ export function startAppServices(): AppRouter {
   startLegacyThreadMigrationToast();
   startPermissionUpdateNotices(router);
   startThreadNotifications(appAtomRegistry, router);
+  startGhostPetFeed(appAtomRegistry, router);
   startGuideRunNotifications(appAtomRegistry, router);
   if (isElectron) startDesktopUpdateLaunchNotice();
 

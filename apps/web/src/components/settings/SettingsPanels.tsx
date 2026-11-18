@@ -571,6 +571,9 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.inAppNotificationsEnabled !== DEFAULT_UNIFIED_SETTINGS.inAppNotificationsEnabled
       ? [gt("In-app notifications")]
       : []),
+    ...(settings.ghostPetEnabled !== DEFAULT_UNIFIED_SETTINGS.ghostPetEnabled
+      ? [gt("Ghost pet")]
+      : []),
     ...(settings.sidebarProjectGroupingMode !== DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode
       ? [gt("Project Grouping")]
       : []),
@@ -751,6 +754,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       timestampFormat: DEFAULT_UNIFIED_SETTINGS.timestampFormat,
       notificationMode: DEFAULT_UNIFIED_SETTINGS.notificationMode,
       inAppNotificationsEnabled: DEFAULT_UNIFIED_SETTINGS.inAppNotificationsEnabled,
+      ghostPetEnabled: DEFAULT_UNIFIED_SETTINGS.ghostPetEnabled,
       wordWrap: DEFAULT_UNIFIED_SETTINGS.wordWrap,
       persistComposerContextStrip: DEFAULT_UNIFIED_SETTINGS.persistComposerContextStrip,
       diffFilesCollapsed: DEFAULT_UNIFIED_SETTINGS.diffFilesCollapsed,
@@ -931,6 +935,24 @@ export function GeneralSettingsPanel() {
             />
           }
         />
+        {isElectron ? (
+          <SettingsRow
+            {...setting("ghost-pet")}
+            description={
+              <T>
+                Keep a small Ghost on top of every window that shows when chats are working, done,
+                or need you. Click it to open the chat.
+              </T>
+            }
+            control={
+              <Switch
+                checked={settings.ghostPetEnabled}
+                onCheckedChange={(checked) => updateSettings({ ghostPetEnabled: checked })}
+                aria-label={gt("Ghost pet")}
+              />
+            }
+          />
+        ) : null}
       </SettingsSection>
 
       <SettingsSection id="sidebar" title={gt("Sidebar")}>

@@ -445,7 +445,10 @@ function parseT3McpToolName(value: string): string | null {
     return namespaceMatch.groups.tool ?? null;
   }
 
-  const prefixed = /^(?:mcp[-_]{1,2})?t3[-_ ]?code(?:__|[-_.:/ ])(?<tool>.+)$/i.exec(label);
+  // Ghost's MCP server reports its name as "Ghost", so providers may show that prefix too.
+  const prefixed = /^(?:mcp[-_]{1,2})?(?:t3[-_ ]?code|ghost)(?:__|[-_.:/ ])(?<tool>.+)$/i.exec(
+    label,
+  );
   const candidate = prefixed?.groups?.tool ?? label;
   if (Object.hasOwn(T3_MCP_TOOLS, candidate)) return candidate;
   // OpenCode 2 thread prefixes can contain underscores; choose the longest known tool-name suffix.

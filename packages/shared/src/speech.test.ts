@@ -65,7 +65,7 @@ describe("resolveSpeechVocabulary", () => {
     });
     expect(resolved).toHaveLength(100);
     expect(resolved.slice(0, 3)).toEqual([
-      { term: "Ghost", aliases: [] },
+      { term: "T3 Code", aliases: [] },
       { term: "effect", aliases: ["a fact"] },
       { term: "word0", aliases: [] },
     ]);

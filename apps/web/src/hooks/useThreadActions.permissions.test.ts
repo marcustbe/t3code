@@ -143,6 +143,8 @@ vi.mock("../state/entities", () => ({
       .map((thread) => ({ environmentId, threadId: thread.id })),
   readProject: () => ({ workspaceRoot: "/project" }),
   readDelegatedUnderParent: () => new Set(),
+  threadShellHasRunningRun: () => false,
+  waitForThreadRunEnded: async () => undefined,
 }));
 vi.mock("../components/Sidebar.logic", () => ({
   getFallbackThreadIdAfterDelete: () => null,

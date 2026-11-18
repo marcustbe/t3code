@@ -270,6 +270,10 @@ function createHeroGhost(
   };
 }
 
+// React Compiler cannot lower `import()` inside a component, so the lazy load lives out here.
+const loadThree = () =>
+  Promise.all([import("three"), import("three/addons/geometries/ConvexGeometry.js")]);
+
 export function GhostModel({ className }: { className?: string | undefined }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const twirlRef = useRef<() => void>(() => {});
@@ -297,7 +301,7 @@ export function GhostModel({ className }: { className?: string | undefined }) {
     if (adopted) {
       start(adopted);
     } else {
-      void Promise.all([import("three"), import("three/addons/geometries/ConvexGeometry.js")])
+      void loadThree()
         .then(([THREE, { ConvexGeometry }]) => {
           if (disposed) return;
           const ghost = createHeroGhost(THREE, ConvexGeometry, host.clientWidth || 128);

@@ -880,6 +880,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("notification toast popup completion input approval failure")],
   },
   {
+    id: "ghost-pet",
+    title: msg("Ghost pet"),
+    to: "/settings/general",
+    searchTerms: [msg("floating companion overlay always on top status desktop")],
+    desktopOnly: true,
+  },
+  {
     id: "language",
     title: msg("Language"),
     to: "/settings/general",

@@ -1060,6 +1060,22 @@ export type DesktopMediaRead = typeof DesktopMediaReadSchema.Type;
 export const SystemSettingsPaneSchema = Schema.Literals(["full-disk-access"]);
 export type SystemSettingsPane = typeof SystemSettingsPaneSchema.Type;
 
+/** What the floating Ghost pet shows about one chat. */
+export type GhostPetChatState = "working" | "needs" | "done" | "failed";
+export interface GhostPetChat {
+  readonly environmentId: string;
+  readonly threadId: string;
+  readonly title: string;
+  readonly state: GhostPetChatState;
+}
+export interface GhostPetState {
+  readonly chats: ReadonlyArray<GhostPetChat>;
+}
+/** Sent from the Ghost pet window to the app window. */
+export type GhostPetCommand =
+  | { readonly type: "open"; readonly environmentId: string; readonly threadId: string }
+  | { readonly type: "hide" };
+
 export interface DesktopBridge {
   getAppBranding: () => DesktopAppBranding | null;
   /** `null` until the desktop host has read the login shell's environment; ask again later. */
@@ -1069,6 +1085,9 @@ export interface DesktopBridge {
   restartAudioService?: () => Promise<boolean>;
   setNotificationBadge: (badge: { count: number; image: string | null }) => Promise<void>;
   onNotificationBadgeClear: (listener: () => void) => () => void;
+  /** Shows the floating Ghost pet with these chats; `null` closes it. */
+  setGhostPet?: (state: GhostPetState | null) => Promise<void>;
+  onGhostPetCommand?: (listener: (command: GhostPetCommand) => void) => () => void;
   onTrackpadScrollBegin: (listener: () => void) => () => void;
   onTrackpadScrollEnd: (listener: () => void) => () => void;
   /**

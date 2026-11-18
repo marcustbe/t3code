@@ -132,6 +132,16 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     ipcRenderer.on(IpcChannels.SET_NOTIFICATION_BADGE_CHANNEL, handler);
     return () => ipcRenderer.removeListener(IpcChannels.SET_NOTIFICATION_BADGE_CHANNEL, handler);
   },
+  setGhostPet: (state) => ipcRenderer.invoke(IpcChannels.SET_GHOST_PET_CHANNEL, state),
+  onGhostPetCommand: (listener) => {
+    const handler = (_event: Electron.IpcRendererEvent, command: unknown) => {
+      if (typeof command === "object" && command !== null) {
+        listener(command as Parameters<typeof listener>[0]);
+      }
+    };
+    ipcRenderer.on(IpcChannels.GHOST_PET_COMMAND_CHANNEL, handler);
+    return () => ipcRenderer.removeListener(IpcChannels.GHOST_PET_COMMAND_CHANNEL, handler);
+  },
   onTrackpadScrollBegin: (listener) => {
     const handler = () => listener();
     ipcRenderer.on(IpcChannels.TRACKPAD_SCROLL_BEGIN_CHANNEL, handler);

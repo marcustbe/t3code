@@ -25,6 +25,8 @@
   "79a77a3c49a27cbf": "The Ghost background service is using this T3 home (PID {pid}, port {port}). Stop it with `t3 service uninstall`, passing `--base-dir` with this T3 home, and reopen Ghost. You can also set a separate T3CODE_HOME and pair with the running server.",
   "cbb947227123249d": "Another Ghost server (for example `t3 serve`, or one started over SSH) is using this T3 home (PID {pid}, port {port}, version {version}). If a Ghost app on another machine started it over SSH, that app restarts it: remove or disconnect that SSH environment there, or quit that app. Then stop the server, and reopen Ghost. You can also set a separate T3CODE_HOME and pair with the running server.",
   "014d68c37c4ff44f": "Another Ghost server (for example `t3 serve`, or one started over SSH) is using this T3 home (PID {pid}, port {port}). If a Ghost app on another machine started it over SSH, that app restarts it: remove or disconnect that SSH environment there, or quit that app. Then stop the server, and reopen Ghost. You can also set a separate T3CODE_HOME and pair with the running server.",
+  "9697f5a9ff72d027": "Abrir Ghost",
+  "85b309908b50f855": "Ocultar mascota Ghost",
   "6574442caf8bfd15": "Configurar Grabación de pantalla",
   "a8210440c691b062": "Configurar Accesibilidad",
   "0cbbbd8abd25f9d4": "Configurar Acceso total al disco",

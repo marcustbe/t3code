@@ -12,9 +12,9 @@ import {
   useComposerMenuProps,
 } from "./composerEventScope";
 import { ComposerFooterModeControls, ComposerPermissionsSection } from "./ComposerFooterControls";
-import { runtimeModeConfig, runtimeModeOptions } from "./runtimeModeConfig";
+import { resolveRuntimeModeOption, runtimeModeOptions } from "./runtimeModeConfig";
 
-const options = runtimeModeOptions.map((mode) => ({ mode, ...runtimeModeConfig[mode] }));
+const options = runtimeModeOptions.map((mode) => resolveRuntimeModeOption(mode));
 
 // Mirrors the effort menu: effort radio items first, then the Permissions section.
 function EffortMenu() {
@@ -128,12 +128,9 @@ function PermissionsChip() {
       </button>
       {mode === "full-access" ? null : (
         <ComposerFooterModeControls
-          showInteractionModeToggle={false}
-          interactionMode="default"
           runtimeMode={mode}
           runtimeModeOptions={options}
           accessDisplay="label"
-          onToggleInteractionMode={() => {}}
           onRuntimeModeChange={setMode}
         />
       )}

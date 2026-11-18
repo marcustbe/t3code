@@ -1,17 +1,13 @@
 import { resolveTimelineMinimapPreview, type TimelineMinimapItem } from "./timelineMinimapItems";
 import { useRef, useState, type MouseEvent } from "react";
+import { T, useGT } from "gt-react";
 import {
   resolveTimelineMinimapHeightStyle,
   resolveTimelineMinimapIndexFromPointer,
-  resolveTimelineMinimapInteractiveWidth,
   resolveTimelineMinimapTopPercent,
   TIMELINE_MINIMAP_MIN_ITEMS,
 } from "./MessagesTimeline.logic";
 import { cn } from "~/lib/utils";
-
-function timelineMinimapEventTargetsPreview(target: EventTarget): boolean {
-  return target instanceof Element && target.closest("[data-minimap-preview]") !== null;
-}
 
 // A release outside the window can skip `mouseup`, so the next button-free
 // `mousemove` also counts.
@@ -47,6 +43,7 @@ export function TimelineMinimap({
   onWheel: (event: WheelEvent) => void;
   onSelect: (item: TimelineMinimapItem) => void;
 }) {
+  const gt = useGT();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const wheelTargetRef = (node: HTMLDivElement | null) => {
     if (!node) return;
@@ -66,14 +63,6 @@ export function TimelineMinimap({
     resolvedActiveIndex === null
       ? 0
       : resolveTimelineMinimapTopPercent(resolvedActiveIndex, items.length);
-  const activeTooltipTranslate =
-    resolvedActiveIndex === null
-      ? "-50%"
-      : resolvedActiveIndex === 0
-        ? "0%"
-        : resolvedActiveIndex === items.length - 1
-          ? "-100%"
-          : "-50%";
   const railPadding = `calc(0.5 * ${resolveTimelineMinimapHeightStyle(items.length)} / ${Math.max(1, items.length - 1)})`;
   const resolvedCurrentIndex =
     currentIndex !== null && currentIndex >= 0 && currentIndex < items.length ? currentIndex : null;
@@ -134,20 +123,19 @@ export function TimelineMinimap({
           }}
           style={{
             height: resolveTimelineMinimapHeightStyle(items.length),
-            width: resolveTimelineMinimapInteractiveWidth(hitStripWidth, activeItem !== null),
+            width: hitStripWidth,
           }}
         >
           <button
-            aria-label={`Jump to message: ${activeItem?.userText ?? "User message"}`}
+            aria-label={gt("Jump to message: {text}", {
+              text: activeItem?.userText ?? gt("User message"),
+            })}
             className="absolute left-0 w-full cursor-pointer bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
             // The first and last strips sit on the rail's edges; half a gap past each edge
             // centres every strip in its own hover band.
             style={{ top: `calc(-1 * ${railPadding})`, bottom: `calc(-1 * ${railPadding})` }}
             onBlur={() => setActiveIndex(null)}
             onClick={(event) => {
-              if (timelineMinimapEventTargetsPreview(event.target)) {
-                return;
-              }
               const nextIndex = resolveActiveIndexFromPointer(event);
               const selectedItem = nextIndex === null ? null : (items[nextIndex] ?? null);
               if (selectedItem) {
@@ -181,12 +169,7 @@ export function TimelineMinimap({
               if (event.buttons !== 0 && !pressedOnStripRef.current) return;
               updateActiveIndexFromPointer(event);
             }}
-            onMouseDown={(event) => {
-              if (timelineMinimapEventTargetsPreview(event.target)) {
-                return;
-              }
-              event.preventDefault();
-            }}
+            onMouseDown={(event) => event.preventDefault()}
             type="button"
           >
             <span
@@ -230,18 +213,15 @@ export function TimelineMinimap({
                 );
               })}
               {activeItem ? (
+                // Display-only: it overlaps the message column, and the strip keeps tracking
+                // beneath it.
                 <span
-                  className="pointer-events-auto absolute left-8 w-80 cursor-text select-text"
-                  data-minimap-preview
-                  onMouseMove={(event) => event.stopPropagation()}
-                  style={{
-                    top: `${activeTopPercent}%`,
-                    transform: `translateY(${activeTooltipTranslate})`,
-                  }}
+                  className="pointer-events-none absolute left-8 w-80 -translate-y-1/2"
+                  style={{ top: `${activeTopPercent}%` }}
                 >
                   <span className="popup-glass block rounded-xl p-3 text-left text-popover-foreground">
                     <span className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium leading-5">
-                      {activeItem.userText ?? "User message"}
+                      {activeItem.userText ?? <T>User message</T>}
                     </span>
                     {activeItem.assistantText ? (
                       <span

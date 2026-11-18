@@ -1,8 +1,10 @@
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { ScopedThreadRef } from "@t3tools/contracts";
+import { msg, useGT } from "gt-react";
 import { chatTranscriptMarkdown } from "../components/chat/chatTranscriptMarkdown";
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
 import { deriveTimelineEntriesFromVisibleTurnItems } from "../session-logic";
+import { m } from "../i18n/messages";
 import { orchestrationEnvironment } from "../state/orchestration";
 import { useAtomCommand } from "../state/use-atom-command";
 import { useCopyToClipboard } from "./useCopyToClipboard";
@@ -12,21 +14,22 @@ function failureToast(title: string, error: unknown) {
     stackedThreadToast({
       type: "error",
       title,
-      description: error instanceof Error ? error.message : "An error occurred.",
+      description: error instanceof Error ? error.message : m(msg("An error occurred.")),
     }),
   );
 }
 
 /** Loads a thread's transcript and copies its conversation as Markdown. */
 export function useCopyThreadMarkdown() {
+  const gt = useGT();
   const loadThreadTranscript = useAtomCommand(orchestrationEnvironment.threadTranscript, {
     reportFailure: false,
   });
   const { copyToClipboard } = useCopyToClipboard<void>({
     onCopy: () => {
-      toastManager.add({ type: "success", title: "Chat copied as Markdown" });
+      toastManager.add({ type: "success", title: gt("Chat copied as Markdown") });
     },
-    onError: (error) => failureToast("Failed to copy chat", error),
+    onError: (error) => failureToast(gt("Failed to copy chat"), error),
   });
 
   return async (threadRef: ScopedThreadRef) => {
@@ -35,7 +38,7 @@ export function useCopyThreadMarkdown() {
       input: { threadId: threadRef.threadId },
     });
     if (result._tag !== "Success") {
-      failureToast("Failed to copy chat", squashAtomCommandFailure(result));
+      failureToast(gt("Failed to copy chat"), squashAtomCommandFailure(result));
       return;
     }
     const entries = deriveTimelineEntriesFromVisibleTurnItems({

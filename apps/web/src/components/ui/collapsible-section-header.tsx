@@ -38,12 +38,12 @@ export function CollapsibleSectionHeader({
       )}
     >
       {chevronAfterLabel ? (
-        <span className="flex shrink-0 items-center gap-1">
+        <span className="flex min-w-0 shrink-0 items-center gap-1">
           {children}
           <SectionChevron expanded={expanded} />
         </span>
       ) : (
-        <span className="shrink-0">{children}</span>
+        <span className="min-w-0 truncate">{children}</span>
       )}
       <span
         aria-hidden

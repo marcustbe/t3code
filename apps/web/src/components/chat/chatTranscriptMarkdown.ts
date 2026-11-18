@@ -9,12 +9,16 @@ type Speaker = "You" | "Assistant" | "Agent" | "Automation" | string;
 function userSpeaker(presentation: ReturnType<typeof resolveUserMessagePresentation>): Speaker {
   switch (presentation.attribution) {
     case "agent":
+      // oxlint-disable-next-line t3code/no-untranslated-copy -- markdown written to the clipboard
       return "Agent";
     case "automation":
+      // oxlint-disable-next-line t3code/no-untranslated-copy -- markdown written to the clipboard
       return "Automation";
     case "guest":
+      // oxlint-disable-next-line t3code/no-untranslated-copy -- markdown written to the clipboard
       return presentation.guestName?.trim() || "Guest";
     default:
+      // oxlint-disable-next-line t3code/no-untranslated-copy -- markdown written to the clipboard
       return "You";
   }
 }

@@ -36,7 +36,8 @@ export function TimelineScrollbar({ scrollNode }: { scrollNode: HTMLElement | nu
         trackHeight,
         Math.max(MIN_THUMB_HEIGHT, (trackHeight * clientHeight) / scrollHeight),
       );
-      const offset = (Math.min(Math.max(scrollTop, 0), range) / range) * (trackHeight - thumbHeight);
+      const offset =
+        (Math.min(Math.max(scrollTop, 0), range) / range) * (trackHeight - thumbHeight);
       thumb.style.height = `${thumbHeight}px`;
       thumb.style.transform = `translateY(${offset}px)`;
     };

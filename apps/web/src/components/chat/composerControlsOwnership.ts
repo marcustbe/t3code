@@ -8,7 +8,6 @@ export function resolveComposerControlsOwnership(input: {
   readonly matchesDefault: boolean;
   /** The model has an effort (traits) menu, which then always holds Permissions. */
   readonly hasTraits: boolean;
-  readonly planModeUiEnabled: boolean;
   readonly collapsed: boolean;
   /** How many trailing blocks the width measurement moved into the overflow menu. */
   readonly measuredHiddenBlockCount: number;
@@ -21,7 +20,7 @@ export function resolveComposerControlsOwnership(input: {
       input.hasTraits
       ? ("hidden" as const)
       : ("icon" as const);
-  const showModeBlock = !(accessDisplay === "hidden" && !input.planModeUiEnabled);
+  const showModeBlock = accessDisplay !== "hidden";
   const blockIds = [
     ...(input.hasTraits ? ["traits" as const] : []),
     ...(showModeBlock ? ["mode" as const] : []),
@@ -30,9 +29,7 @@ export function resolveComposerControlsOwnership(input: {
   const overflowShowsPermissionsFor = (hidden: ReadonlyArray<string>) =>
     hidden.includes(input.hasTraits ? "traits" : "mode");
   const overflowHasContent = (hidden: ReadonlyArray<string>) =>
-    hidden.includes("traits") ||
-    (input.planModeUiEnabled && hidden.includes("mode")) ||
-    overflowShowsPermissionsFor(hidden);
+    hidden.includes("traits") || overflowShowsPermissionsFor(hidden);
 
   let hiddenBlockCount = Math.min(input.measuredHiddenBlockCount, blockIds.length);
   // An overflow menu with nothing in it must not exist: overflow one more block instead.

@@ -13,7 +13,8 @@ function splitText(text: Text): PhrasingContent[] | null {
     const url = rawUrl.trimEnd();
     // A destination without whitespace already parsed, so a match here is something else.
     if (!/\s/.test(url)) continue;
-    if (match.index > offset) parts.push({ type: "text", value: text.value.slice(offset, match.index) });
+    if (match.index > offset)
+      parts.push({ type: "text", value: text.value.slice(offset, match.index) });
     const titleProps = title === undefined ? {} : { title };
     parts.push(
       bang

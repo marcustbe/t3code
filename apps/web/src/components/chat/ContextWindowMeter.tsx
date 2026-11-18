@@ -1,11 +1,10 @@
+import { T, useGT, Var } from "gt-react";
 import { Button } from "../ui/button";
 import type { ContextWindowSnapshot } from "@t3tools/client-runtime/state/context-window";
 import { formatContextWindowTokens } from "~/lib/contextWindow";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
-import {
-  formatContextWindowCompactionMessage,
-  formatContextWindowCost,
-} from "./ContextWindowMeter.logic";
+import { formatContextWindowCompactionMessage } from "./compaction.logic";
+import { formatContextWindowCost } from "./ContextWindowMeter.logic";
 import { Minimize2Icon } from "lucide-react";
 import { composerFloatingLayerProps } from "./composerEventScope";
 
@@ -26,7 +25,8 @@ export function ContextWindowMeter(props: {
   compactDisabled?: boolean | undefined;
   compactDisabledReason?: string | null | undefined;
 }) {
-  const { usage, modelDisplayName, onCompact, compactDisabled, compactDisabledReason } = props;
+  const gt = useGT();
+  const { usage, onCompact, compactDisabled, compactDisabledReason } = props;
   const usedPercentage = formatPercentage(usage.usedPercentage);
   const normalizedPercentage = Math.max(0, Math.min(100, usage.usedPercentage ?? 0));
   const totalProcessedTokens = usage.totalProcessedTokens ?? null;
@@ -46,8 +46,10 @@ export function ContextWindowMeter(props: {
             variant="ghost-muted"
             aria-label={
               usage.maxTokens !== null && usedPercentage
-                ? `Context window ${usedPercentage} used`
-                : `Context window ${formatContextWindowTokens(usage.usedTokens)} tokens used`
+                ? gt("Context window {percentage} used", { percentage: usedPercentage })
+                : gt("Context window {tokens} tokens used", {
+                    tokens: formatContextWindowTokens(usage.usedTokens),
+                  })
             }
           >
             <ContextWindowRing percentage={normalizedPercentage} color={usageColor} />
@@ -65,7 +67,9 @@ export function ContextWindowMeter(props: {
       >
         <div className="flex flex-col gap-2 p-(--floating-content-inset)">
           <div className="flex items-center justify-between gap-3">
-            <div className="font-medium text-muted-foreground text-xs">Context Window</div>
+            <div className="font-medium text-muted-foreground text-xs">
+              <T>Context Window</T>
+            </div>
             {usage.maxTokens !== null && usedPercentage ? (
               <div className="text-secondary-label text-2xs tabular-nums">
                 <span>{usedPercentage}</span>
@@ -88,7 +92,7 @@ export function ContextWindowMeter(props: {
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={Math.round(normalizedPercentage)}
-              aria-label="Context window usage"
+              aria-label={gt("Context window usage")}
             >
               <div
                 className="h-full rounded-full transition-[width,background-color] duration-500 ease-out motion-reduce:transition-none"
@@ -98,7 +102,9 @@ export function ContextWindowMeter(props: {
           ) : null}
           {showTotalProcessed ? (
             <div className="flex items-center justify-between gap-3 text-2xs leading-4">
-              <span className="text-secondary-label">Total processed</span>
+              <span className="text-secondary-label">
+                <T>Total processed</T>
+              </span>
               <span className="font-medium tabular-nums text-secondary-label">
                 {formatContextWindowTokens(totalProcessedTokens)}
               </span>
@@ -106,7 +112,9 @@ export function ContextWindowMeter(props: {
           ) : null}
           {usage.cost != null ? (
             <div className="flex items-center justify-between gap-3 text-2xs leading-4">
-              <span className="text-secondary-label">Cost</span>
+              <span className="text-secondary-label">
+                <T>Cost</T>
+              </span>
               <span className="font-medium tabular-nums text-secondary-label">
                 {formatContextWindowCost(usage.cost)}
               </span>
@@ -114,7 +122,7 @@ export function ContextWindowMeter(props: {
           ) : null}
           {usage.compactsAutomatically ? (
             <div className="mt-1 text-pretty text-secondary-label text-2xs font-medium">
-              {formatContextWindowCompactionMessage(modelDisplayName, usage.autoCompactThreshold)}
+              {formatContextWindowCompactionMessage(usage.autoCompactThreshold)}
             </div>
           ) : null}
           {onCompact ? (
@@ -127,7 +135,7 @@ export function ContextWindowMeter(props: {
                 onClick={onCompact}
               >
                 <Minimize2Icon aria-hidden="true" />
-                Compact context
+                <T>Compact context</T>
               </Button>
               {compactDisabled && compactDisabledReason ? (
                 <div className="text-pretty text-secondary-label text-2xs">
@@ -151,6 +159,7 @@ export function SessionLimitMeter(props: {
   label: string;
   resetsAtLabel: string | null;
 }) {
+  const gt = useGT();
   const percentage = Math.max(0, Math.min(100, props.usedPercent));
   const used = formatPercentage(percentage) ?? "0%";
   const color = percentage > 90 ? "var(--color-error)" : "var(--color-primary)";
@@ -164,7 +173,7 @@ export function SessionLimitMeter(props: {
           <Button
             size="icon-xs"
             variant="ghost-muted"
-            aria-label={`${props.label} ${used} used`}
+            aria-label={gt("{label} {used} used", { label: props.label, used })}
           >
             <ContextWindowRing percentage={percentage} color={color} />
           </Button>
@@ -182,7 +191,11 @@ export function SessionLimitMeter(props: {
         <div className="flex flex-col gap-2 p-(--floating-content-inset)">
           <div className="flex items-center justify-between gap-3">
             <div className="font-medium text-muted-foreground text-xs">{props.label}</div>
-            <div className="text-secondary-label text-2xs tabular-nums">{used} used</div>
+            <div className="text-secondary-label text-2xs tabular-nums">
+              <T>
+                <Var>{used}</Var> used
+              </T>
+            </div>
           </div>
           <div
             className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/10"
@@ -190,7 +203,7 @@ export function SessionLimitMeter(props: {
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(percentage)}
-            aria-label={`${props.label} usage`}
+            aria-label={gt("{label} usage", { label: props.label })}
           >
             <div
               className="h-full rounded-full"
@@ -198,7 +211,9 @@ export function SessionLimitMeter(props: {
             />
           </div>
           {props.resetsAtLabel ? (
-            <div className="text-secondary-label text-2xs">Resets {props.resetsAtLabel}</div>
+            <div className="text-secondary-label text-2xs">
+              {gt("Resets {resetsAt}", { resetsAt: props.resetsAtLabel })}
+            </div>
           ) : null}
         </div>
       </PopoverPopup>

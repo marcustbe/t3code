@@ -1,10 +1,11 @@
 import type { CSSProperties } from "react";
+import { useGT } from "gt-react";
 import {
   MAX_WINDOW_SURFACE_OPACITY,
   MIN_WINDOW_SURFACE_OPACITY,
 } from "@t3tools/contracts/settings";
 import { SettingResetButton, SettingsRow } from "./settingsLayout";
-import { searchableSetting, type SettingsSearchItemId } from "./settingsSearch";
+import { useSearchableSetting, type SettingsSearchItemId } from "./settingsSearch";
 
 /** A slider for the transparent window: a surface's opacity (0–100%) or the blur behind it. */
 export function SettingsSliderRow({
@@ -34,6 +35,8 @@ export function SettingsSliderRow({
   step?: number;
   format?: (value: number) => string;
 }) {
+  const gt = useGT();
+  const searchableSetting = useSearchableSetting();
   const ratio = (value - min) / (max - min);
   const sliderStyle = {
     "--settings-slider-progress": `${ratio * 100}%`,
@@ -46,7 +49,10 @@ export function SettingsSliderRow({
       description={description}
       resetAction={
         value !== defaultValue ? (
-          <SettingResetButton label={label.toLowerCase()} onClick={() => onChange(defaultValue)} />
+          <SettingResetButton
+            ariaLabel={gt("Reset {title} to default", { title: label })}
+            onClick={() => onChange(defaultValue)}
+          />
         ) : null
       }
       control={

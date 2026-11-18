@@ -1,3 +1,4 @@
+import { useGT } from "gt-react";
 import { CircleDashedIcon } from "lucide-react";
 
 import { type LatestTodoListState, yourCallQuestion } from "../../session-logic";
@@ -10,13 +11,14 @@ export const PLAN_CHECKLIST_ENABLED = false;
 
 /** The agent's task list at the end of the conversation while it works. */
 export function PlanChecklist({ todoList }: { readonly todoList: LatestTodoListState }) {
+  const gt = useGT();
   // Only what is still ahead; finished steps drop out of the list.
   const ahead = todoList.steps.filter((step) => step.status !== "completed");
   if (ahead.length === 0) return null;
   return (
     <div className="chat-content-lane">
       <ul
-        aria-label="Plan"
+        aria-label={gt("Plan", { $context: "noun, the agent task list" })}
         data-plan-checklist="true"
         className="flex flex-col gap-1.5 rounded-2xl border border-foreground/8 px-4 py-3 text-chat leading-relaxed text-foreground"
       >

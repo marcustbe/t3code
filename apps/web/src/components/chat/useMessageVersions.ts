@@ -7,6 +7,7 @@ import {
 } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId, MessageId, ThreadId } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
+import { useGT } from "gt-react";
 import { newMessageId, newThreadId } from "~/lib/utils";
 import { refreshArchivedThreadsForEnvironment } from "../../lib/archivedThreadsState";
 import { useMessageVersionStore } from "../../messageVersionStore";
@@ -47,6 +48,7 @@ interface MessageVersionsInput {
  */
 export function useMessageVersions(input: MessageVersionsInput) {
   const { environmentId, activeThread, isWorking, setThreadError } = input;
+  const gt = useGT();
   const navigate = useNavigate();
   const forkThreadFromRun = useAtomCommand(threadEnvironment.forkFromRun, {
     reportFailure: false,
@@ -132,11 +134,11 @@ export function useMessageVersions(input: MessageVersionsInput) {
         },
       });
       if (forkResult._tag === "Failure") {
-        reportFailure(thread.id, forkResult, "Failed to edit this message.");
+        reportFailure(thread.id, forkResult, gt("Failed to edit this message."));
         return fail();
       }
       if (!(await waitForThreadShell(scopeThreadRef(environmentId, targetThreadId)))) {
-        setThreadError(thread.id, "The edited version was created but did not reach this app.");
+        setThreadError(thread.id, gt("The edited version was created but did not reach this app."));
         return fail();
       }
     }
@@ -170,7 +172,7 @@ export function useMessageVersions(input: MessageVersionsInput) {
       },
     });
     if (startResult._tag === "Failure") {
-      reportFailure(thread.id, startResult, "Failed to send the edited message.");
+      reportFailure(thread.id, startResult, gt("Failed to send the edited message."));
       return fail();
     }
 
@@ -208,9 +210,9 @@ export function useMessageVersions(input: MessageVersionsInput) {
     if (!(await waitForThreadShell(scopeThreadRef(environmentId, targetThreadId)))) {
       store.setThreadsHidden({ show: [keyFor(targetThreadId), keyFor(target.threadId)] });
       if (unarchived._tag === "Failure") {
-        reportFailure(thread.id, unarchived, "That version is no longer available.");
+        reportFailure(thread.id, unarchived, gt("That version is no longer available."));
       } else {
-        setThreadError(thread.id, "That version is no longer available.");
+        setThreadError(thread.id, gt("That version is no longer available."));
       }
       return;
     }

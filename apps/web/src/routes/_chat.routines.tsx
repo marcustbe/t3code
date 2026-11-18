@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { T, useGT } from "gt-react";
 import { useState } from "react";
 
 import { ScheduledTasksSettings } from "../components/settings/ScheduledTasksSettings";
@@ -13,16 +14,19 @@ import { workspaceAreaProps } from "../lib/workspaceFocus";
 
 // Scheduled tasks as a page of their own, opened from the sidebar's Routines row.
 function RoutinesRoute() {
+  const gt = useGT();
   const target = Route.useSearch();
   const [scope, setScope] = useState<SettingsScopeSearch>({});
-  const contentArea = workspaceAreaProps("routines", 1, "Routines");
+  const contentArea = workspaceAreaProps("routines", 1, gt("Routines"));
   return (
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none">
       <div {...contentArea} className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
         <WorkspacePageHeader electron={isElectron} className="border-b border-border">
-          <WorkspaceBreadcrumb ariaLabel="Routines">
+          <WorkspaceBreadcrumb ariaLabel={gt("Routines")}>
             <WorkspaceBreadcrumbItem current className="truncate">
-              <h1 className="truncate">Routines</h1>
+              <h1 className="truncate">
+                <T>Routines</T>
+              </h1>
             </WorkspaceBreadcrumbItem>
           </WorkspaceBreadcrumb>
         </WorkspacePageHeader>

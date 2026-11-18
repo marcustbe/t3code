@@ -1,4 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
+import { T, useGT } from "gt-react";
 import { type ComponentProps, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 
 import { cn } from "~/lib/utils";
@@ -34,10 +35,11 @@ export function SidebarThreadHeader({
   searchShortcutLabel,
   onNavigate,
 }: SidebarThreadHeaderProps) {
+  const gt = useGT();
   const routinesActive = useLocation({ select: (location) => location.pathname === "/routines" });
   const newThreadLabel = newThreadShortcutLabel
-    ? `New thread (${newThreadShortcutLabel})`
-    : "New thread";
+    ? gt("New thread ({shortcut})", { shortcut: newThreadShortcutLabel })
+    : gt("New thread");
 
   // Laid out after his Figma (node 21:1129): New, Routines and Search rows, then the list toolbar
   // with the "Done" heading left and the project filter / add project right.
@@ -53,7 +55,9 @@ export function SidebarThreadHeader({
             title={newThreadLabel}
           >
             <NewChatSymbol />
-            <span>New</span>
+            <span>
+              <T context="sidebar row, starts a new chat">New</T>
+            </span>
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
@@ -64,7 +68,9 @@ export function SidebarThreadHeader({
             render={<Link to="/routines" onClick={onNavigate} />}
           >
             <RoutinesSymbol />
-            <span>Routines</span>
+            <span>
+              <T>Routines</T>
+            </span>
           </SidebarMenuButton>
         </SidebarMenuItem>
         {/* Search opens the ⌘K palette, which searches threads, projects and commands. */}
@@ -74,10 +80,16 @@ export function SidebarThreadHeader({
               size="nav"
               variant="nav"
               onClick={onSearch}
-              title={searchShortcutLabel ? `Search (${searchShortcutLabel})` : "Search"}
+              title={
+                searchShortcutLabel
+                  ? gt("Search ({shortcut})", { shortcut: searchShortcutLabel })
+                  : gt("Search")
+              }
             >
               <SearchSymbol />
-              <span>Search</span>
+              <span>
+                <T>Search</T>
+              </span>
             </SidebarMenuButton>
           </div>
         </SidebarMenuItem>
@@ -95,13 +107,13 @@ export function SidebarThreadHeader({
           data-testid="sidebar-done-shelf-toggle"
           className="-ms-0.75 -me-0.5 flex h-7 min-w-0 flex-1 cursor-pointer items-center justify-start gap-1 rounded-lg ps-2 pe-2 text-xs font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
         >
-          Done
+          <T context="sidebar section of finished chats">Done</T>
           <SectionChevron expanded={doneExpanded} />
         </button>
         {/* Pulled 3px out so the add-project icon's ink ends on the rows' right line, like the times. */}
         <div className="-me-0.75 flex items-center">
           {hasProjects ? projectScope : null}
-          <SidebarHeaderIconButton label="Add project" onClick={onNewProject}>
+          <SidebarHeaderIconButton label={gt("Add project")} onClick={onNewProject}>
             <AddProjectSymbol />
           </SidebarHeaderIconButton>
         </div>

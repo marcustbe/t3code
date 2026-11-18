@@ -1,4 +1,5 @@
 import { LoaderCircleIcon, PauseIcon, PlayIcon, TriangleAlertIcon } from "lucide-react";
+import { useGT } from "gt-react";
 import { createContext, useContext, useRef, useState, type CSSProperties } from "react";
 
 import { useStableCallback } from "~/hooks/useStableCallback";
@@ -6,6 +7,7 @@ import { cn } from "~/lib/utils";
 import { ContextChip, ContextChipAction, ContextChipLabel } from "../ContextChip";
 import { claimExclusivePlayback } from "../media/exclusivePlayback";
 import { middleTruncateAttachmentName } from "../composerInlineChip";
+import { Spinner } from "../ui/spinner";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
 export const AudioPreviewUnmountContext = createContext<((audio: HTMLAudioElement) => void) | null>(
@@ -78,6 +80,7 @@ function audioTime(seconds: number) {
 }
 
 function AudioChip(props: AudioPreviewProps) {
+  const gt = useGT();
   const audio = useRef<HTMLAudioElement | null>(null);
   const onUnmount = useContext(AudioPreviewUnmountContext);
   const [loadedSource, setLoadedSource] = useState<string | null>(null);
@@ -97,15 +100,15 @@ function AudioChip(props: AudioPreviewProps) {
   });
   const loading = !props.failed && !ready;
   const open = props.onOpen ?? (props.failed ? props.onRetry : undefined);
-  const action = props.failed
+  const actionLabel = props.failed
     ? props.onOpen
-      ? "Open"
-      : "Retry"
+      ? gt("Audio unavailable. Open {name}", { name: props.name })
+      : gt("Audio unavailable. Retry {name}", { name: props.name })
     : loading
-      ? "Loading"
+      ? gt("Loading {name}", { name: props.name })
       : playing
-        ? "Pause"
-        : "Play";
+        ? gt("Pause {name}", { name: props.name })
+        : gt("Play {name}", { name: props.name });
   const Icon = props.failed
     ? TriangleAlertIcon
     : loading
@@ -129,7 +132,7 @@ function AudioChip(props: AudioPreviewProps) {
       });
   };
   const timeLabel = props.failed
-    ? "Unavailable"
+    ? gt("Unavailable")
     : loading
       ? "..."
       : duration > 0
@@ -186,18 +189,21 @@ function AudioChip(props: AudioPreviewProps) {
           <button
             type="button"
             className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground text-background disabled:cursor-default disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 [&_svg]:size-3.5"
-            aria-label={`${props.failed ? "Audio unavailable. " : ""}${action} ${props.name}`}
+            aria-label={actionLabel}
             disabled={loading}
             onClick={toggle}
           >
-            <Icon
-              aria-hidden
-              className={cn(
-                loading && props.src && "animate-spin",
-                Icon === PlayIcon && "translate-x-px fill-current",
-                Icon === PauseIcon && "fill-current",
-              )}
-            />
+            {loading && props.src ? (
+              <Spinner aria-hidden />
+            ) : (
+              <Icon
+                aria-hidden
+                className={cn(
+                  Icon === PlayIcon && "translate-x-px fill-current",
+                  Icon === PauseIcon && "fill-current",
+                )}
+              />
+            )}
           </button>
           <span className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="flex min-w-0 items-baseline gap-3">
@@ -206,7 +212,11 @@ function AudioChip(props: AudioPreviewProps) {
                   type="button"
                   className="min-w-0 flex-1 cursor-pointer truncate rounded-sm text-left text-sm text-foreground focus-visible:outline-2 focus-visible:outline-foreground"
                   onClick={open}
-                  aria-label={`${props.failed && !props.onOpen ? "Retry" : "Preview"} ${props.name}`}
+                  aria-label={
+                    props.failed && !props.onOpen
+                      ? gt("Retry {name}", { name: props.name })
+                      : gt("Preview {name}", { name: props.name })
+                  }
                 >
                   {props.name}
                 </button>
@@ -226,8 +236,11 @@ function AudioChip(props: AudioPreviewProps) {
               step="any"
               value={Math.min(elapsed, duration)}
               disabled={loading || props.failed || duration <= 0}
-              aria-label={`Seek ${props.name}`}
-              aria-valuetext={`${audioTime(elapsed)} of ${audioTime(duration)}`}
+              aria-label={gt("Seek {name}", { name: props.name })}
+              aria-valuetext={gt("{elapsed} of {duration}", {
+                elapsed: audioTime(elapsed),
+                duration: audioTime(duration),
+              })}
               className="audio-seek"
               style={{ "--audio-progress": `${progress}%` } as CSSProperties}
               onChange={(event) => {
@@ -241,7 +254,7 @@ function AudioChip(props: AudioPreviewProps) {
           {audioElement}
         </TooltipTrigger>
         <TooltipPopup side="top">
-          {props.failed ? "Audio unavailable. Open the file or retry playback." : props.name}
+          {props.failed ? gt("Audio unavailable. Open the file or retry playback.") : props.name}
         </TooltipPopup>
       </Tooltip>
     );
@@ -253,7 +266,7 @@ function AudioChip(props: AudioPreviewProps) {
       {...(props.failed ? { state: "invalid" as const } : {})}
       {...(props.variant === "bubble" ? { shape: "bubble" as const } : {})}
       className="relative isolate overflow-hidden"
-      title={props.failed ? "Audio unavailable. Open the file or retry playback." : props.name}
+      title={props.failed ? gt("Audio unavailable. Open the file or retry playback.") : props.name}
     >
       <span
         aria-hidden
@@ -262,11 +275,11 @@ function AudioChip(props: AudioPreviewProps) {
       />
       <ContextChipAction
         className="ml-0 [&_svg]:size-[1em]"
-        aria-label={`${props.failed ? "Audio unavailable. " : ""}${action} ${props.name}`}
+        aria-label={actionLabel}
         disabled={loading}
         onClick={toggle}
       >
-        <Icon aria-hidden className={loading && props.src ? "animate-spin" : undefined} />
+        {loading && props.src ? <Spinner aria-hidden /> : <Icon aria-hidden />}
       </ContextChipAction>
       <ContextChipLabel className={props.variant === "bubble" ? "flex-1" : "max-w-72"}>
         {open ? (
@@ -274,7 +287,11 @@ function AudioChip(props: AudioPreviewProps) {
             type="button"
             className="block max-w-full cursor-pointer truncate rounded-sm text-left focus-visible:outline-2 focus-visible:outline-foreground"
             onClick={open}
-            aria-label={`${props.failed && !props.onOpen ? "Retry" : "Preview"} ${props.name}`}
+            aria-label={
+              props.failed && !props.onOpen
+                ? gt("Retry {name}", { name: props.name })
+                : gt("Preview {name}", { name: props.name })
+            }
           >
             {middleTruncateAttachmentName(props.name)}
           </button>

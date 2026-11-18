@@ -204,10 +204,13 @@ export const make = Effect.gen(function* () {
 
   const chromeCandidates = Effect.gen(function* () {
     const hostEnvironment = yield* HostProcess.Environment;
+    const linuxConfigHome = path.join(environment.homeDirectory, ".config");
     const context = {
       path,
       platform: environment.platform,
       home: environment.homeDirectory,
+      linuxConfigHome,
+      linuxChromeConfigHome: linuxConfigHome,
       appData: hostEnvironment.APPDATA,
       localAppData: hostEnvironment.LOCALAPPDATA,
     };

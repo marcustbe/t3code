@@ -7,10 +7,16 @@ describe("formatDuration", () => {
     [400, "400ms"],
     [1_400, "1s"],
     [9_600, "10s"],
-    [59_500, "1m"],
+    [59_000, "59s"],
+    [59_500, "1m 0s"],
+    [60_000, "1m 0s"],
     [61_000, "1m 1s"],
-  ])("formats %dms as %s", (durationMs, label) => {
-    expect(formatDuration(durationMs)).toBe(label);
+    [720_000, "12m 0s"],
+    [736_000, "12m 16s"],
+    [3_600_000, "1h"],
+    [3_660_000, "1h 1m 0s"],
+  ])("formats %i milliseconds as %s", (durationMs, expected) => {
+    expect(formatDuration(durationMs)).toBe(expected);
   });
 });
 

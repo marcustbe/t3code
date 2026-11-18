@@ -5,14 +5,13 @@ import {
   createLucideIcon,
   FolderPlusIcon,
   type LucideIcon,
+  PanelLeftCloseIcon,
+  PanelLeftIcon,
   SearchIcon,
   SettingsIcon,
   SquarePenIcon,
 } from "lucide-react";
-import { PanelLeft, PanelLeftClose } from "lucide";
 import type { ReactNode, SVGProps } from "react";
-
-import { MorphIcon } from "~/components/MorphIcon";
 
 import { cn } from "~/lib/utils";
 
@@ -178,8 +177,10 @@ function pick<T>(sf: T, t3: T): T {
 }
 
 function T3SidebarToggle({ className, open }: { className?: string; open?: boolean }) {
-  return (
-    <MorphIcon className={cn(className, "size-3.5")} icon={open ? PanelLeftClose : PanelLeft} />
+  return open ? (
+    <PanelLeftCloseIcon className={cn(className, "size-3.5")} />
+  ) : (
+    <PanelLeftIcon className={cn(className, "size-3.5")} />
   );
 }
 

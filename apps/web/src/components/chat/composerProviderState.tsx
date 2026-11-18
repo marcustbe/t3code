@@ -14,11 +14,12 @@ import {
   getProviderOptionDescriptors,
   isClaudeUltrathinkPrompt,
   normalizeModelSlug,
+  withImplicitFastModeDefault,
 } from "@t3tools/shared/model";
 import type { ReactNode } from "react";
 
 import type { DraftId } from "../../composerDraftStore";
-import { getProviderModelCapabilities } from "../../providerModels";
+import { getProviderModelCapabilities, keepsUnavailableModelOptions } from "../../providerModels";
 import type { ComposerControlSize } from "./ComposerControl";
 import {
   getReasoningTraitStep,
@@ -36,7 +37,7 @@ type ComposerProviderStateInput = {
   models: ReadonlyArray<ServerProviderModel>;
   promptInjectionState?: ComposerPromptInjectionState;
   modelOptions: ReadonlyArray<ProviderOptionSelection> | null | undefined;
-  planModeEnabled: boolean;
+  includePlanAgent?: boolean | undefined;
 };
 
 type ComposerPromptInjectionState = "none" | "ultrathink";
@@ -55,13 +56,15 @@ type TraitsRenderInput = {
   instanceId?: ProviderInstanceId;
   threadRef?: ScopedThreadRef;
   draftId?: DraftId;
+  /** Runs after a trait change is written to the draft (applies an existing thread's pick). */
+  onDraftModelOptionsChange?: () => void;
   model: string;
   models: ReadonlyArray<ServerProviderModel>;
   modelOptions: ReadonlyArray<ProviderOptionSelection> | undefined;
   reportedModelSelection?: ModelSelection | null | undefined;
   promptUltrathink: PromptUltrathink;
   onPromptEdit: (edit: (prompt: string) => string) => void;
-  planModeEnabled: boolean;
+  includePlanAgent?: boolean | undefined;
   size?: ComposerControlSize;
   hidden?: boolean;
   triggerClassName?: string;
@@ -76,35 +79,17 @@ export function getComposerPromptInjectionState(prompt: string): ComposerPromptI
   return isClaudeUltrathinkPrompt(prompt) ? "ultrathink" : "none";
 }
 
-/** Cursor ACP can default Fast to true; T3 requires a user selection. */
-export function withImplicitFastModeDefault(
-  caps: ModelCapabilities,
-  modelOptions: ReadonlyArray<ProviderOptionSelection> | null | undefined,
-): ReadonlyArray<ProviderOptionSelection> | undefined {
-  const hasExplicitFastMode = modelOptions?.some((selection) => selection.id === "fastMode");
-  if (hasExplicitFastMode) {
-    return modelOptions ?? undefined;
-  }
-  const hasFastModeDescriptor = caps.optionDescriptors?.some(
-    (descriptor) => descriptor.type === "boolean" && descriptor.id === "fastMode",
-  );
-  if (!hasFastModeDescriptor) {
-    return modelOptions ?? undefined;
-  }
-  return [...(modelOptions ?? []), { id: "fastMode", value: false }];
-}
-
 function resolveComposerOptionSelections(
   models: ReadonlyArray<ServerProviderModel>,
   model: string,
   provider: ProviderDriverKind,
   modelOptions: ReadonlyArray<ProviderOptionSelection> | null | undefined,
-  planModeEnabled: boolean,
+  includePlanAgent: boolean | undefined,
 ): {
   caps: ModelCapabilities;
   selections: ReadonlyArray<ProviderOptionSelection> | undefined;
 } {
-  const caps = getProviderModelCapabilities(models, model, provider, planModeEnabled);
+  const caps = getProviderModelCapabilities(models, model, provider, includePlanAgent);
   return { caps, selections: withImplicitFastModeDefault(caps, modelOptions) };
 }
 
@@ -115,14 +100,14 @@ export function getComposerProviderState(input: ComposerProviderStateInput): Com
     models,
     modelOptions,
     promptInjectionState = "none",
-    planModeEnabled,
+    includePlanAgent,
   } = input;
-  if (provider === "opencode") {
+  if (keepsUnavailableModelOptions(provider, model)) {
     const normalizedModel = normalizeModelSlug(model, provider);
     const modelIsInCatalog = models.some((candidate) => candidate.slug === normalizedModel);
     if (!modelIsInCatalog) {
       const preservedOptions = modelOptions?.filter(
-        (option) => planModeEnabled || option.id !== "agent" || option.value !== "plan",
+        (option) => includePlanAgent || option.id !== "agent" || option.value !== "plan",
       );
       return {
         provider,
@@ -137,7 +122,7 @@ export function getComposerProviderState(input: ComposerProviderStateInput): Com
     model,
     provider,
     modelOptions,
-    planModeEnabled,
+    includePlanAgent,
   );
   const descriptors = getProviderOptionDescriptors({ caps, selections });
   const primarySelectDescriptor = descriptors.find(
@@ -177,7 +162,7 @@ export function getComposerReasoningStep(input: {
   reportedModelSelection?: ModelSelection | null | undefined;
   prompt: string;
   cursor: number;
-  planModeEnabled: boolean;
+  includePlanAgent?: boolean | undefined;
   direction: 1 | -1;
 }): {
   prompt: string;
@@ -190,7 +175,7 @@ export function getComposerReasoningStep(input: {
     input.model,
     input.provider,
     input.modelOptions,
-    input.planModeEnabled,
+    input.includePlanAgent,
   );
   const step = getReasoningTraitStep({
     provider: input.provider,
@@ -200,7 +185,7 @@ export function getComposerReasoningStep(input: {
     modelOptions: selections,
     reportedModelSelection: input.reportedModelSelection,
     prompt,
-    planModeEnabled: input.planModeEnabled,
+    includePlanAgent: input.includePlanAgent,
     direction: input.direction,
   });
   if (!step) return null;
@@ -220,13 +205,14 @@ function renderTraitsControl(
     instanceId,
     threadRef,
     draftId,
+    onDraftModelOptionsChange,
     model,
     models,
     modelOptions,
     reportedModelSelection,
     promptUltrathink,
     onPromptEdit,
-    planModeEnabled,
+    includePlanAgent,
     size,
     hidden,
     triggerClassName,
@@ -242,7 +228,7 @@ function renderTraitsControl(
     model,
     provider,
     modelOptions,
-    planModeEnabled,
+    includePlanAgent,
   );
   if (
     !hasTarget ||
@@ -252,7 +238,7 @@ function renderTraitsControl(
       model,
       modelOptions: resolvedModelOptions,
       promptUltrathink,
-      planModeEnabled,
+      includePlanAgent,
     })
   ) {
     return null;
@@ -264,12 +250,13 @@ function renderTraitsControl(
       models={models}
       {...(threadRef ? { threadRef } : {})}
       {...(draftId ? { draftId } : {})}
+      {...(threadRef && onDraftModelOptionsChange ? { onDraftModelOptionsChange } : {})}
       model={model}
       modelOptions={resolvedModelOptions}
       reportedModelSelection={reportedModelSelection}
       promptUltrathink={promptUltrathink}
       onPromptEdit={onPromptEdit}
-      planModeEnabled={planModeEnabled}
+      {...(includePlanAgent !== undefined ? { includePlanAgent } : {})}
       {...(size !== undefined ? { size } : {})}
       {...(hidden !== undefined ? { hidden } : {})}
       {...(triggerClassName !== undefined ? { triggerClassName } : {})}
@@ -292,16 +279,26 @@ export function renderProviderTraitsPicker(input: TraitsRenderInput): ReactNode 
 
 /** The composer's Fast mode bolt, or null when the model has no Fast mode. */
 export function renderFastModeToggle(input: TraitsRenderInput & { disabled?: boolean }): ReactNode {
-  const { provider, instanceId, threadRef, draftId, model, models, planModeEnabled, size } = input;
+  const {
+    provider,
+    instanceId,
+    threadRef,
+    draftId,
+    onDraftModelOptionsChange,
+    model,
+    models,
+    includePlanAgent,
+    size,
+  } = input;
   if (threadRef === undefined && draftId === undefined) return null;
   const { selections: modelOptions } = resolveComposerOptionSelections(
     models,
     model,
     provider,
     input.modelOptions,
-    planModeEnabled,
+    includePlanAgent,
   );
-  if (!hasFastModeTrait({ provider, models, model, modelOptions, planModeEnabled })) return null;
+  if (!hasFastModeTrait({ provider, models, model, modelOptions, includePlanAgent })) return null;
   return (
     <FastModeToggle
       provider={provider}
@@ -309,9 +306,10 @@ export function renderFastModeToggle(input: TraitsRenderInput & { disabled?: boo
       models={models}
       model={model}
       modelOptions={modelOptions}
-      planModeEnabled={planModeEnabled}
+      {...(includePlanAgent !== undefined ? { includePlanAgent } : {})}
       {...(threadRef ? { threadRef } : {})}
       {...(draftId ? { draftId } : {})}
+      {...(threadRef && onDraftModelOptionsChange ? { onDraftModelOptionsChange } : {})}
       {...(size !== undefined ? { size } : {})}
       {...(input.disabled !== undefined ? { disabled: input.disabled } : {})}
     />

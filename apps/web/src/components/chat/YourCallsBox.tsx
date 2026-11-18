@@ -1,4 +1,5 @@
 import { CircleHelpIcon, QuoteIcon, XIcon } from "lucide-react";
+import { T, useGT } from "gt-react";
 import { useState } from "react";
 
 import { Button } from "../ui/button";
@@ -24,6 +25,7 @@ export function YourCallsBox({
   readonly calls: ReadonlyArray<{ readonly id: string; readonly question: string }>;
   readonly onQuote: (question: string, source: HTMLElement) => void;
 }) {
+  const gt = useGT();
   const [dismissed, setDismissed] = useState(readDismissed);
   const shown = calls.filter((call) => !dismissed.has(`${listId}:${call.id}`));
   if (shown.length === 0) return null;
@@ -39,11 +41,13 @@ export function YourCallsBox({
   return (
     <div className="chat-content-lane">
       <section
-        aria-label="Waiting on you"
+        aria-label={gt("Waiting on you")}
         data-your-calls="true"
         className="flex flex-col gap-1.5 rounded-2xl border border-foreground/8 px-4 py-3 text-chat leading-relaxed text-foreground"
       >
-        <p className="text-xs text-muted-foreground">Waiting on you</p>
+        <p className="text-xs text-muted-foreground">
+          <T>Waiting on you</T>
+        </p>
         <ul className="flex flex-col gap-1.5">
           {shown.map((call) => (
             <li key={call.id} className="flex min-w-0 items-start gap-2">
@@ -57,8 +61,8 @@ export function YourCallsBox({
                 <Button
                   size="icon-xs"
                   variant="ghost-muted"
-                  aria-label={`Dismiss: ${call.question}`}
-                  title="Dismiss"
+                  aria-label={gt("Dismiss: {question}", { question: call.question })}
+                  title={gt("Dismiss")}
                   onClick={() => dismiss(call.id)}
                 >
                   <XIcon />
@@ -66,8 +70,8 @@ export function YourCallsBox({
                 <Button
                   size="icon-xs"
                   variant="ghost-muted"
-                  aria-label={`Cite in message: ${call.question}`}
-                  title="Cite in message"
+                  aria-label={gt("Cite in message: {question}", { question: call.question })}
+                  title={gt("Cite in message")}
                   onPointerDown={(event) => event.preventDefault()}
                   onClick={(event) => {
                     const text = event.currentTarget

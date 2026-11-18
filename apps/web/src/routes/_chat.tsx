@@ -1,32 +1,16 @@
-import { scopedThreadKey } from "@t3tools/client-runtime/environment";
-import { Outlet, createFileRoute, redirect, useMatches } from "@tanstack/react-router";
-import { useState } from "react";
+import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
 import { ThreadRouteView } from "../components/ThreadRouteView";
+import { GlobalVoiceInputIndicator } from "../components/chat/GlobalVoiceInputIndicator";
 import { isAppModalPage } from "../components/sidebar/mainAppLocation";
-import { resolveThreadRouteTarget, type ThreadRouteTarget } from "../threadRoutes";
+import { resolveThreadRouteTarget } from "../threadRoutes";
 import { retainThreadFindForRoute } from "../components/chat/threadFindStore";
 import { ThreadLinkPrompt } from "../components/promptLinks/ThreadLinkPrompt";
-import { useThreadRouteTarget } from "../hooks/useThreadRouteTarget";
-
-function threadRouteTargetKey(target: ThreadRouteTarget | null) {
-  if (!target) return null;
-  return target.kind === "server" ? scopedThreadKey(target.threadRef) : target.draftId;
-}
+import { useShownThreadRouteTarget } from "../hooks/useShownThreadRouteTarget";
 
 function ChatRouteLayout() {
   // Render both routes here so draft promotion keeps the same ChatView mounted.
-  const threadTarget = useThreadRouteTarget();
-  // Read matches, not location, so this agrees with the params useThreadRouteTarget reads.
-  const modalOpen = useMatches({
-    select: (matches) => matches.some((match) => isAppModalPage(match.pathname)),
-  });
-  // Settings and Usage keep the thread that opened them mounted, so going back never remounts ChatView.
-  const [backgroundTarget, setBackgroundTarget] = useState(threadTarget);
-  if (!modalOpen && threadRouteTargetKey(backgroundTarget) !== threadRouteTargetKey(threadTarget)) {
-    setBackgroundTarget(threadTarget);
-  }
-  const shownTarget = modalOpen ? backgroundTarget : threadTarget;
+  const { shownTarget, modalOpen } = useShownThreadRouteTarget();
   // Settings and Usage are pages of their own in the main area (Settings also swaps the sidebar for
   // its sections, AppSidebarLayout); the thread stays mounted behind them, out of the layout, instead
   // of remounting on Back.
@@ -41,6 +25,7 @@ function ChatRouteLayout() {
         <Outlet />
       )}
       {modalOpen ? <Outlet /> : null}
+      <GlobalVoiceInputIndicator hidden={modalOpen} />
     </>
   );
 }

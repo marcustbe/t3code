@@ -1,5 +1,6 @@
 import { ArrowLeftIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { T, useGT } from "gt-react";
 import { memo } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 
@@ -13,7 +14,7 @@ import {
 } from "../../navigationHistory";
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import { cn } from "../../lib/utils";
-import { usePullRequestsSupported } from "../../state/environments";
+import { useIssuesSupported, usePullRequestsSupported } from "../../state/environments";
 import {
   resolveEnvironmentIdentificationPillLabel,
   resolveSidebarStageBackdropVariant,
@@ -32,6 +33,8 @@ import {
 } from "../ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { readPullRequestListPreferences } from "../pullRequest/pullRequestListPreferences";
+import { readIssueListPreferences } from "../issue/issueListPreferences";
+import { IssueGlyph } from "../issue/issuePresentation";
 import {
   isSettingsPage,
   isSidebarUtilityPage,
@@ -57,6 +60,7 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
 }) {
   const stageLabel = useEnvironmentStageLabel();
   const environmentIdentificationMode = useEnvironmentIdentificationMode();
+  const gt = useGT();
   const backdropVariant = resolveSidebarStageBackdropVariant(
     stageLabel,
     environmentIdentificationMode,
@@ -78,7 +82,7 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
         <SidebarTrigger
           variant={backdropVariant ? "media-navigation" : "ghost"}
           className="relative top-auto translate-y-0"
-          aria-label="Toggle main sidebar"
+          aria-label={gt("Toggle main sidebar")}
         />
       </div>
       {/* The sidebar toggle and history arrows float above this row (SidebarControl), so they
@@ -140,7 +144,8 @@ function HistoryNavigationButton({
 }) {
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const enabled = useCanNavigateHistory(direction);
-  const label = direction === "back" ? "Go back" : "Go forward";
+  const gt = useGT();
+  const label = direction === "back" ? gt("Go back") : gt("Go forward");
   const shortcutLabel = shortcutLabelForCommand(
     keybindings,
     direction === "back" ? "navigation.back" : "navigation.forward",
@@ -217,6 +222,7 @@ function SidebarUtilityItem({
 const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
   const navigate = useNavigate();
   const navigateToMainApp = useNavigateToMainApp();
+  const gt = useGT();
   const { isMobile, setOpenMobile } = useSidebarMobileControls();
   const closeAppModal = useCloseAppModal();
   const isOnUtilityPage = useLocation({
@@ -225,8 +231,10 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
   // Settings and Usage toggle: their footer button opens the page and, pressed again, leaves it.
   const settingsOpen = useLocation({ select: (location) => isSettingsPage(location.pathname) });
   const usageOpen = useLocation({ select: (location) => location.pathname === "/usage" });
+  // The forge buttons (pull requests, issues) stay off the footer unless the setting turns them on.
   const showPullRequests = useClientSettings((settings) => settings.sidebarShowPullRequests);
   const pullRequestsSupported = usePullRequestsSupported() && showPullRequests;
+  const issuesSupported = useIssuesSupported() && showPullRequests;
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -238,6 +246,10 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
       to: "/pull-requests",
       search: readPullRequestListPreferences(),
     });
+  };
+  const handleIssuesClick = () => {
+    closeMobileSidebar();
+    void navigate({ to: "/issues", search: readIssueListPreferences() });
   };
   const handleSettingsClick = () => {
     closeMobileSidebar();
@@ -272,7 +284,9 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
           <SidebarMenuItem className="min-w-0 flex-1">
             <SidebarMenuButton onClick={handleBackClick}>
               <ArrowLeftIcon />
-              <span>Back</span>
+              <span>
+                <T>Back</T>
+              </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarUpdatePill />
@@ -281,7 +295,7 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
         <>
           <SidebarUtilityItem
             icon={<SettingsSymbol />}
-            label="Settings"
+            label={gt("Settings")}
             isActive={settingsOpen}
             onClick={handleSettingsClick}
           />
@@ -289,8 +303,15 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
           {pullRequestsSupported ? (
             <SidebarUtilityItem
               icon={<PullRequestGlyph.pullRequest />}
-              label="Pull requests"
+              label={gt("Pull requests")}
               onClick={handlePullRequestsClick}
+            />
+          ) : null}
+          {issuesSupported ? (
+            <SidebarUtilityItem
+              icon={<IssueGlyph.issue />}
+              label={gt("Issues", { $context: "sidebar link to the list of issues" })}
+              onClick={handleIssuesClick}
             />
           ) : null}
         </>
@@ -300,7 +321,7 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
           // 2px out so the chart's ink, not its padded box, sits 18px from the edge like the rest.
           className="-me-0.5 ml-auto"
           icon={<UsageSymbol />}
-          label="Usage"
+          label={gt("Usage")}
           isActive={usageOpen}
           onClick={handleUsageClick}
         />

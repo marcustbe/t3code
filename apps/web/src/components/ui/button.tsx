@@ -20,6 +20,7 @@ const buttonVariants = cva(
           "icon-tiny",
           "icon-sm",
           "icon-sm-composer",
+          "icon-sm-pill",
           "icon-xl",
           "icon-xs",
         ],
@@ -46,6 +47,7 @@ const buttonVariants = cva(
         "icon-sm": "size-8 sm:size-7 active:scale-100!",
         // 4px corners, concentric inside the composer (its attach button).
         "icon-sm-composer": "size-8 rounded-md before:rounded-md sm:size-7 active:scale-100!",
+        "icon-sm-pill": "size-8 rounded-full before:rounded-full sm:size-7 active:scale-100!",
         "icon-xl":
           "size-11 sm:size-10 [&_svg:not([class*='size-'])]:size-5 sm:[&_svg:not([class*='size-'])]:size-4.5 active:scale-100!",
         "icon-xs":
@@ -56,6 +58,7 @@ const buttonVariants = cva(
         multiline:
           "min-h-9 px-[calc(--spacing(3)-1px)] py-[calc(--spacing(1.5)-1px)] whitespace-normal sm:min-h-8",
         sm: "h-8 gap-1.5 px-[calc(--spacing(2.5)-1px)] sm:h-7",
+        "sm-pill": "h-8 gap-1.5 rounded-full px-2.5 sm:h-7",
         "sm-multiline":
           "min-h-8 gap-1.5 px-[calc(--spacing(2.5)-1px)] py-[calc(--spacing(1)-1px)] whitespace-normal sm:min-h-7",
         xl: "h-11 px-[calc(--spacing(4)-1px)] text-lg sm:h-10 sm:text-base [&_svg:not([class*='size-'])]:size-5 sm:[&_svg:not([class*='size-'])]:size-4.5",
@@ -130,6 +133,9 @@ const inlineButtonVariants = cva(
   {
     defaultVariants: { tone: "default" },
     variants: {
+      touchTarget: {
+        padded: "pointer-coarse:min-h-11 pointer-coarse:px-1.5",
+      },
       tone: {
         default: "text-foreground",
         muted: "text-muted-foreground hover:text-foreground",
@@ -151,11 +157,12 @@ const inlineButtonVariants = cva(
 export function InlineButton({
   className,
   tone,
+  touchTarget,
   render,
   ...props
 }: useRender.ComponentProps<"button"> & VariantProps<typeof inlineButtonVariants>) {
   const defaultProps = {
-    className: cn(inlineButtonVariants({ tone }), className),
+    className: cn(inlineButtonVariants({ tone, touchTarget }), className),
     "data-slot": "inline-button",
     type: render ? undefined : ("button" as const),
   };

@@ -5,6 +5,7 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
+import { useGT } from "gt-react";
 import { useRef } from "react";
 
 import { newMessageId, newThreadId } from "~/lib/utils";
@@ -25,6 +26,7 @@ export function useForkChat(input: {
   readonly runtimeMode: RuntimeMode;
   readonly onError: (message: string) => void;
 }) {
+  const gt = useGT();
   const pendingRef = useRef(false);
   const forkThread = useAtomCommand(threadEnvironment.forkFromRun, { reportFailure: false });
   const deleteThread = useAtomCommand(threadEnvironment.delete, { reportFailure: false });
@@ -51,7 +53,7 @@ export function useForkChat(input: {
       },
     });
     if (fork._tag === "Failure") {
-      reportFailure(fork, "Could not fork the chat.");
+      reportFailure(fork, gt("Could not fork the chat."));
       return null;
     }
     // Drops the empty fork a failed start leaves behind; one that got its message stays.
@@ -61,7 +63,7 @@ export function useForkChat(input: {
         input: { threadId: targetThreadId, onlyIfUnused: true },
       });
     if (!(await waitForThreadShell(targetRef))) {
-      input.onError("The fork was created, but it did not reach this client.");
+      input.onError(gt("The fork was created, but it did not reach this client."));
       discard();
       return null;
     }
@@ -77,7 +79,7 @@ export function useForkChat(input: {
       },
     });
     if (turn._tag === "Failure") {
-      reportFailure(turn, "Could not send the message to the fork.");
+      reportFailure(turn, gt("Could not send the message to the fork."));
       discard();
       return null;
     }

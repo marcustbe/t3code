@@ -3,6 +3,7 @@ import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { m } from "~/i18n/messages";
 import { isClearComposerCommand, parseSideChatCommand } from "@t3tools/shared/composerTrigger";
 import { armFreshSession, disarmFreshSession, readFreshSessionArm } from "./freshSessionArms";
+import type { ForkChatMessage } from "./useForkChat";
 import {
   mergeDirectPreviewAnnotation,
   resolveBackgroundDraftWorkspaceOptions,
@@ -251,8 +252,13 @@ interface ComposerSendInput {
   readonly onSideChat?: ((prompt: string) => Promise<boolean>) | undefined;
   /** Refuses `/side` with this reason and keeps the draft. */
   readonly sideChatDisabledReason: string | null;
-  /** ⌘⏎ while running: forks the chat and sends the prompt there; null when it did not start. */
-  readonly onForkChat?: ((prompt: string) => Promise<ScopedThreadRef | null>) | undefined;
+  /** ⌘⏎ while running: forks the chat and sends the message there; null when it did not start. */
+  readonly onForkChat?:
+    | ((
+        prompt: string,
+        prepareMessage: () => Promise<ForkChatMessage>,
+      ) => Promise<ScopedThreadRef | null>)
+    | undefined;
   readonly handleNewThreadInActiveProject: () => void;
   readonly persistThreadSettingsForNextTurn: (input: {
     threadId: ThreadId;
@@ -507,37 +513,14 @@ export function useComposerSend(input: ComposerSendInput) {
         sendCtx.threadContexts.length > 0 ||
         sendCtx.environmentContexts.length > 0 ||
         Boolean(useComposerDraftStore.getState().getComposerDraft(composerDraftTarget)?.replyTo));
-    // ⌘⏎ while running forks the chat with the prompt instead of queueing it.
-    if (
-      onForkChat &&
-      sendCtx &&
+    // ⌘⏎ while running forks the chat with the message instead of queueing it. It runs after
+    // the message (text, context, attachments) is built below, so the fork gets all of it.
+    const forkThisSend =
+      onForkChat !== undefined &&
       submissionIntent === "fork" &&
       !sideChatCommand &&
       !directAnnotation &&
-      !queuedRunEdit.isEditing &&
-      promptAtSend.trim().length > 0
-    ) {
-      if (hasNonTextContext) {
-        toastManager.add(
-          stackedThreadToast({
-            type: "warning",
-            title: m(msg("Forks take text only")),
-            description: m(msg("Remove the attachments and context, then send it again.")),
-          }),
-        );
-        return;
-      }
-      const forkRef = await onForkChat(promptAtSend);
-      // Clear only what was sent; the user may have edited the draft or left meanwhile.
-      if (!forkRef || currentRouteThreadKeyRef.current !== routeThreadKey) return;
-      if (promptRef.current === promptAtSend) {
-        promptRef.current = "";
-        setComposerDraftPrompt(composerDraftTarget, "");
-        composerRef.current?.resetCursorState();
-      }
-      void navigate({ to: "/$environmentId/$threadId", params: buildThreadRouteParams(forkRef) });
-      return;
-    }
+      !queuedRunEdit.isEditing;
     // Where side chats are unavailable, `/side` text can still be a literal answer.
     if (sideChatDisabledReason !== null && sideChatCommand && !answeringQuestion) {
       toastManager.add(
@@ -985,6 +968,38 @@ export function useComposerSend(input: ComposerSendInput) {
           draftTarget: composerDraftTarget,
         });
       }
+    }
+
+    if (forkThisSend && onForkChat) {
+      const forkRef = await onForkChat(promptAtSend, async () => {
+        const attachments = await prepareTurnAttachments({
+          environmentId,
+          attachments: composerAttachmentsSnapshot,
+          usesAttachmentUploads: turnUsesAttachmentUploads,
+          draftTarget: composerDraftTarget,
+        });
+        const liveFileBlockReason = readLiveAttachmentCapabilities().fileBlockReason;
+        if (liveFileBlockReason !== null) throw new Error(liveFileBlockReason);
+        return {
+          attachments,
+          ...withMessageContext({
+            text: outgoingMessageText,
+            context: buildOutgoingMessageContext(
+              boundAttachmentIds(attachments, composerAttachmentsSnapshot),
+            ),
+          }),
+        };
+      });
+      sendInFlightRef.current = false;
+      // Clear only what was sent; the user may have edited the draft or left meanwhile.
+      if (!forkRef || currentRouteThreadKeyRef.current !== routeThreadKey) return;
+      if (!draftChangedDuringPreparation()) {
+        clearComposerDraftContent(composerDraftTarget);
+        promptRef.current = "";
+        composerRef.current?.resetCursorState();
+      }
+      void navigate({ to: "/$environmentId/$threadId", params: buildThreadRouteParams(forkRef) });
+      return;
     }
 
     if (

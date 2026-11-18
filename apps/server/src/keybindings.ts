@@ -138,7 +138,7 @@ const REPLACED_DEFAULT_KEYBINDINGS: ReadonlyArray<{
 ];
 
 /** Applies pending `REPLACED_DEFAULT_KEYBINDINGS`; returns the new config, or null when unchanged. */
-export function applyReplacedDefaultKeybindings(
+function applyReplacedDefaultKeybindings(
   config: ReadonlyArray<KeybindingRule>,
   appliedIds: ReadonlySet<string>,
 ): ReadonlyArray<KeybindingRule> | null {

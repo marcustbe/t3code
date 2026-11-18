@@ -32,8 +32,8 @@ export function CollapsibleSectionHeader({
       className={cn(
         "flex w-full cursor-pointer items-center gap-2 rounded-lg text-left font-medium hover:bg-sidebar-row-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
         // The label starts 8px in so its first glyph lines up with the footer's gear below.
-        // Sidebar shelves are as tall as the one-line chat rows (30px) so their hover matches.
-        variant === "panel" ? "h-8 ps-2 pe-2.5 text-xs" : "h-7.5 ps-2 pe-2.5 text-xs",
+        // Sidebar shelves hover 26px tall, 4px under the 30px chat rows (his ask: 30px read too tall).
+        variant === "panel" ? "h-8 ps-2 pe-2.5 text-xs" : "h-6.5 ps-2 pe-2.5 text-xs",
         tones[tone].label,
       )}
     >

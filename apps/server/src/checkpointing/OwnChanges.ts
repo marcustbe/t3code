@@ -40,7 +40,7 @@ export function ownRefForCheckpointRef(checkpointRef: CheckpointRef): Checkpoint
 export type JournaledTool = "tree" | "file";
 
 /** Tools whose writes are journaled: shell commands snapshot the whole worktree, edits one file. */
-export function journaledToolKind(toolName: string): JournaledTool | null {
+function journaledToolKind(toolName: string): JournaledTool | null {
   switch (toolName) {
     case "Bash":
     case "PowerShell":
@@ -93,7 +93,7 @@ const sameEntry = (left: OwnChangeEntry | null, right: OwnChangeEntry | null) =>
  * so a long shell command does not claim edits other threads made meanwhile.
  * `merge` applies pre→post onto current and returns the merged blob, or null if it cannot.
  */
-export const replayOwnChanges = Effect.fnUntraced(function* <E, R>(input: {
+const replayOwnChanges = Effect.fnUntraced(function* <E, R>(input: {
   readonly base: ReadonlyMap<string, OwnChangeEntry>;
   readonly own: ReadonlyArray<OwnChangeDelta>;
   readonly others: ReadonlyArray<OwnChangeDelta>;
@@ -236,7 +236,7 @@ export class OwnChangesJournal extends Context.Service<OwnChangesJournal, OwnCha
   "t3/checkpointing/OwnChanges/OwnChangesJournal",
 ) {}
 
-export const make = Effect.gen(function* () {
+const make = Effect.gen(function* () {
   const git = yield* GitVcsDriver.GitVcsDriver;
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;

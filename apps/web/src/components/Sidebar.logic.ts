@@ -325,17 +325,6 @@ export function resolveSidebarSweepKeys(
   return orderedKeys.slice(Math.min(origin, target), Math.max(origin, target) + 1).filter(canApply);
 }
 
-export function sidebarThreadKeyAtY(list: HTMLElement, y: number): string | null {
-  const viewport = list.closest('[data-slot="scroll-area-viewport"]')?.getBoundingClientRect();
-  const visibleY = viewport ? Math.min(Math.max(y, viewport.top), viewport.bottom - 1) : y;
-  let key: string | null = null;
-  for (const row of list.querySelectorAll<HTMLElement>("li[data-thread-item]")) {
-    if (key !== null && row.getBoundingClientRect().top > visibleY) break;
-    key = row.dataset.threadItem ?? null;
-  }
-  return key;
-}
-
 export function resolveSidebarReorderableThreadKeys(input: {
   readonly threads: ReadonlyArray<Pick<SidebarThreadSummary, "environmentId" | "id">>;
   readonly serverConfigs: ReadonlyMap<EnvironmentId, Pick<EnvironmentServerConfig, "environment">>;

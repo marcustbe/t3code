@@ -358,7 +358,7 @@ function useTraitsModelOptionsUpdater(
   };
 }
 
-export const ULTRATHINK_IN_BODY_NOTE = msg(
+const ULTRATHINK_IN_BODY_NOTE = msg(
   'Your prompt contains "ultrathink" in the text. Remove it to change this option.',
 );
 

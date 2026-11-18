@@ -186,7 +186,6 @@ import {
   planSidebarThreadDrop,
   reduceSidebarProjectScopeMenuState,
   resolveAdjacentThreadId,
-  resolveSidebarSweepKeys,
   resolveSidebarDropTarget,
   resolveSidebarDropVerb,
   resolveSidebarThreadSection,
@@ -194,7 +193,6 @@ import {
   searchSidebarThreads,
   shouldNavigateAfterThreadPark,
   sidebarListItemId,
-  sidebarThreadKeyAtY,
   sortInboxThreadsByReturn,
   sortPinnedThreadsForSidebar,
   sortThreadsByShownTime,
@@ -254,7 +252,6 @@ import {
   SidebarSearchResultRow,
   SortableThreadRow,
   type SidebarProviderEntry,
-  type SidebarSweepAction,
 } from "./sidebar/SidebarThreadRow";
 import {
   SidebarProjectFolderHeader,
@@ -1113,10 +1110,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const dragSensorRef = useRef<SidebarPointerSensor | null>(null);
   const contextDragKeyRef = useRef<string | null>(null);
   const dragScrollRef = useRef<{ readonly viewport: Element; readonly top: number } | null>(null);
-  const [actionSweep, setActionSweep] = useState<{
-    action: SidebarSweepAction;
-    keys: ReadonlySet<string>;
-  } | null>(null);
   const snoozingThreadKeysRef = useRef(new Set<string>());
   const removeFromSelection = useThreadSelectionStore((s) => s.removeFromSelection);
   const openAddProjectCommandPalette = () => openCommandPalette({ open: "add-project" });
@@ -1816,59 +1809,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     snoozedThreadKeysRef.current = snoozedThreadKeys;
     sectionByThreadKeyRef.current = sectionByThreadKey;
   });
-  const startActionSweep = useStableCallback(
-    (threadRef: ScopedThreadRef, action: SidebarSweepAction, event: PointerEvent) => {
-      const originKey = scopedThreadKey(threadRef);
-      const originSection = sectionByThreadKeyRef.current.get(originKey);
-      const canApply = (key: string) => {
-        const thread = threadByKeyRef.current.get(key);
-        return (
-          thread !== undefined &&
-          sectionByThreadKeyRef.current.get(key) === originSection &&
-          serverConfigs.has(thread.environmentId)
-        );
-      };
-      let targetKey: string | null = null;
-      let sweptKeys: string[] = [];
-      const sweepTo = (key: string | null) => {
-        if (key === null || key === targetKey) return;
-        targetKey = key;
-        sweptKeys = resolveSidebarSweepKeys(orderedThreadKeysRef.current, originKey, key, canApply);
-        setActionSweep({ action, keys: new Set(sweptKeys) });
-      };
-      dragSensorRef.current = new SidebarPointerSensor({
-        active: originKey,
-        event,
-        options: {
-          distance: SIDEBAR_DRAG_DISTANCE,
-          onAttach: () => {},
-          onFinish: () => {
-            dragSensorRef.current = null;
-            setActionSweep(null);
-          },
-        },
-        onPending: () => {},
-        onStart: () => sweepTo(originKey),
-        onMove: ({ y }) =>
-          sweepTo(threadListRef.current && sidebarThreadKeyAtY(threadListRef.current, y)),
-        onEnd: () => {
-          const keys = sweptKeys.filter(canApply);
-          if (action === "settle") {
-            settleThreads(keys);
-            return;
-          }
-          for (const key of keys) {
-            const ref = parseScopedThreadKey(key);
-            if (ref === null) continue;
-            if (action === "unsettle") attemptUnsettle(ref);
-            else attemptUnsnooze(ref);
-          }
-        },
-        onCancel: () => {},
-        onAbort: () => {},
-      });
-    },
-  );
   // Release during render when server state catches up so canonical order appears in the same frame.
   if (
     optimisticDrop !== null &&
@@ -3362,7 +3302,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                     className={cn(
                       "relative flex flex-col gap-px",
                       sidebarListItems.length > 0 && "flex-1",
-                      actionSweep !== null && "**:pointer-events-none",
                       // Projected rows (two boundary labels, two hints) extend the scroll range; a range that
                       // shrinks as the target changes clamps scrollTop and flips the target under a still pointer.
                       dragState !== null &&
@@ -3431,9 +3370,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             dragOverPinned={
                               dragState?.activeKey === threadKey && dragTargetSection === "pinned"
                             }
-                            sweepAction={
-                              actionSweep?.keys.has(threadKey) ? actionSweep.action : null
-                            }
                             snoozeWakeLabelText={
                               section === "snoozed" && thread.snoozedUntil != null
                                 ? snoozeWakeLabel(
@@ -3483,7 +3419,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             onContextMenu={handleThreadContextMenu}
                             onSettle={attemptSettle}
                             onStop={attemptStop}
-                            onActionSweepStart={startActionSweep}
                             onUnsettle={attemptUnsettle}
                             onSnooze={attemptSnooze}
                             onUnsnooze={attemptUnsnooze}

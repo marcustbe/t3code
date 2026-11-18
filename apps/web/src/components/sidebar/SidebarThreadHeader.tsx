@@ -105,7 +105,7 @@ export function SidebarThreadHeader({
           aria-expanded={doneExpanded}
           onClick={onToggleDone}
           data-testid="sidebar-done-shelf-toggle"
-          className="-ms-0.75 -me-0.5 flex h-7 min-w-0 flex-1 cursor-pointer items-center justify-start gap-1 rounded-lg ps-2 pe-2 text-xs font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
+          className="-ms-0.75 -me-0.5 flex h-6.5 min-w-0 flex-1 cursor-pointer items-center justify-start gap-1 rounded-lg ps-2 pe-2 text-xs font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
         >
           <T context="sidebar section of finished chats">Done</T>
           <SectionChevron expanded={doneExpanded} />

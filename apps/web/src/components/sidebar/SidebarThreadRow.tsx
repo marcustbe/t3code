@@ -577,7 +577,6 @@ type SidebarThreadRowProps = {
   sortable?: SortableThreadRowBag | undefined;
   dropVerb: SidebarDropVerb | null;
   dragOverPinned: boolean;
-  sweepAction: SidebarSweepAction | null;
   snoozeWakeLabelText: string | null;
   wokeAt: string | null;
   isActive: boolean;
@@ -611,11 +610,6 @@ type SidebarThreadRowProps = {
   ) => void;
   onSettle: (threadRef: ScopedThreadRef) => void;
   onStop: (threadRef: ScopedThreadRef) => void;
-  onActionSweepStart: (
-    threadRef: ScopedThreadRef,
-    action: SidebarSweepAction,
-    event: PointerEvent,
-  ) => void;
   onUnsettle: (threadRef: ScopedThreadRef) => void;
   onSnooze: (threadRef: ScopedThreadRef, preset: Pick<SnoozePreset, "snoozedUntil">) => void;
   onUnsnooze: (threadRef: ScopedThreadRef) => void;
@@ -681,7 +675,6 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     onRenameTitleChange,
     onSettle,
     onStop,
-    onActionSweepStart,
     onSnooze,
     onStartRename,
     onThreadActivate,
@@ -951,10 +944,10 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     event.stopPropagation();
     onStop(threadRef);
   };
+  // Pressing a row action never starts a row drag; a plain click runs it.
   const handleActionPointerDown = (event: ReactPointerEvent) => {
     if (!event.isPrimary || event.button !== 0) return;
     event.stopPropagation();
-    onActionSweepStart(threadRef, variantAction, event.nativeEvent);
   };
   const handleUnsettleClick = (event: ReactMouseEvent) => {
     event.preventDefault();
@@ -1024,11 +1017,20 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   const projectIconOnly = useClientSettings((settings) => settings.sidebarProjectIconOnly);
   // Filter menu › "Show timestamps": off hides the age; status dots and Woke still show.
   const showTimestamps = useClientSettings((settings) => settings.sidebarShowTimestamps);
+  const rowTimeLabel = (
+    <RelativeTimeLabel
+      timestamp={
+        variantAction === "unsettle"
+          ? resolveSettledThreadTimestamp(thread)
+          : resolveThreadActivityTimestamp(thread)
+      }
+    />
+  );
   const rowSurfaceClassName = cn(
     "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-xl text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
     props.isActive
       ? "bg-sidebar-row-active text-sidebar-foreground"
-      : isSelected || props.sweepAction !== null
+      : isSelected
         ? "bg-sidebar-row-selected text-sidebar-foreground"
         : hasUnsentDraft
           ? cn(draftSurfaceClassName, "text-sidebar-foreground")
@@ -1059,11 +1061,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         ...sortable.listeners,
       }
     : {};
-  const destinationVerb = sortable?.isDragging
-    ? props.dropVerb
-    : props.sweepAction === "unsnooze"
-      ? "wake"
-      : props.sweepAction;
+  const destinationVerb = sortable?.isDragging ? props.dropVerb : null;
   const dragDestination =
     destinationVerb !== null ? (
       <span
@@ -1096,7 +1094,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         // Long titles fade out before the time instead of ending in an ellipsis; -me-1
         // lets the fully faded tail reach into the gap before the time. With timestamps
         // hidden the fade runs to the row's right inset, where the time would end.
-        showTimestamps ? "-me-1" : "-me-2.5",
+        // Two-line cards keep the time on the project line, so their title runs to the inset too.
+        showTimestamps && (variant !== "card" || projectIconOnly) ? "-me-1" : "-me-2.5",
         isRegeneratingTitle
           ? "relative line-fade-end text-muted-foreground"
           : variant !== "slim"
@@ -1324,7 +1323,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                     "relative ml-auto flex h-6 shrink-0 items-center justify-end",
                     showTimestamps && "min-w-8",
                     // Row actions beside the rename field read as its confirm button.
-                    (props.sweepAction !== null || isRenaming) && "hidden",
+                    isRenaming && "hidden",
                   )}
                 >
                   <span
@@ -1441,7 +1440,6 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   )}
                 </span>
               )}
-              {props.sweepAction !== null ? dragDestination : null}
             </div>
             {multiline ? metaLine : null}
           </TooltipTrigger>
@@ -1504,7 +1502,6 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               ) : null}
               {/* Title on top, project below. */}
               {title}
-              {props.sweepAction !== null ? dragDestination : null}
               {/* Time, status and the hover actions sit on the title line. */}
               {sortable?.isDragging ? (
                 dragDestination
@@ -1514,7 +1511,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                     // No reserved width: the title runs until 10px before the time.
                     "group/sidebar-status-slot relative ml-auto flex h-5 shrink-0 items-stretch justify-end ps-1 text-xs",
                     // Row actions beside the rename field read as its confirm button.
-                    (props.sweepAction !== null || isRenaming) && "hidden",
+                    isRenaming && "hidden",
                   )}
                 >
                   <span
@@ -1556,14 +1553,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                           pulse={topStatus.icon === "working" || topStatus.icon === "waiting"}
                         />
                       )
-                    ) : showTimestamps ? (
-                      <RelativeTimeLabel
-                        timestamp={
-                          variantAction === "unsettle"
-                            ? resolveSettledThreadTimestamp(thread)
-                            : resolveThreadActivityTimestamp(thread)
-                        }
-                      />
+                    ) : showTimestamps && projectIconOnly ? (
+                      <span className="text-2xs">{rowTimeLabel}</span>
                     ) : null}
                   </span>
                   {props.settlementSupported || showSnoozeButton || hasUnsentDraft || canStop ? (
@@ -1676,6 +1667,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                 {props.projectDisplayName ? (
                   <span className="min-w-0 flex-1 truncate font-medium text-sidebar-foreground/40 text-xs">
                     {props.projectDisplayName}
+                  </span>
+                ) : null}
+                {/* With the project on its own line, the time sits on it, level with the name. */}
+                {showTimestamps && !topStatus && !isRenaming ? (
+                  <span className="ml-auto shrink-0 ps-1 font-medium text-2xs tabular-nums text-sidebar-foreground/40">
+                    {rowTimeLabel}
                   </span>
                 ) : null}
               </div>

@@ -304,9 +304,11 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       // Fills the app sidebar below its Back row (AppSidebarLayout).
       className="flex min-h-0 flex-1 flex-col text-sidebar-foreground"
     >
-      <SidebarContent className="overflow-x-hidden">
-        <SidebarGroup>
-          <div className="flex flex-col gap-2">
+      <SidebarContent
+        className="overflow-x-hidden"
+        // The search field stays put while the sections scroll under it.
+        fixedHeader={
+          <div className="px-(--sidebar-side-inset) pt-(--sidebar-content-inset)">
             {/* A field, so it keeps a fill at rest (the open row's grey) and a faint stroke, darker while hovered. */}
             <div className="flex h-8 items-center gap-2 rounded-(--control-radius) bg-sidebar-row-hover ring-1 ring-foreground/6 ring-inset focus-within:ring-foreground/15 px-(--sidebar-row-content-inset) py-1.5 text-sm font-medium text-sidebar-muted-foreground focus-within:bg-sidebar-row-selected hover:bg-sidebar-row-selected hover:text-sidebar-foreground">
               <SearchIcon className="size-4 shrink-0 text-(--sidebar-icon-color)" />
@@ -352,6 +354,11 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                 <Kbd>/</Kbd>
               )}
             </div>
+          </div>
+        }
+      >
+        <SidebarGroup>
+          <div className="flex flex-col gap-2">
             {isSearching && results.length === 0 ? (
               <p
                 role="status"

@@ -133,7 +133,7 @@ export function SidebarSectionHeader(props: {
       // Nudged half a pixel right (index.css) so its hover sits exactly under the chat rows'.
       // 12px above each shelf heading so Working / Snoozed / Settled read as their own groups;
       // mb-px plus the list's 1px gap puts its hover 2px above the first chat, like chat to chat.
-      className={cn("relative mt-3 mb-px h-7.5", props.className)}
+      className={cn("relative mt-3 mb-px h-6.5", props.className)}
     >
       <CollapsibleSectionHeader
         data-sidebar-row={`shelf:${shelf}`}

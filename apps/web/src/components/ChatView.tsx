@@ -312,6 +312,7 @@ import { resolveScrollToEndClearance } from "./composerFooterLayout";
 import { ChatHeader } from "./chat/ChatHeader";
 import { useSideChat } from "./chat/useSideChat";
 import { useForkChat } from "./chat/useForkChat";
+import { useTimePassed } from "../hooks/useTimePassed";
 import { useRemoteOpenState } from "~/remoteOpen";
 import { shouldShowOpenInPicker } from "./chat/OpenInPicker.logic";
 import { useOpenFavoriteEditorShortcut } from "./chat/OpenInPickerShortcut";
@@ -1388,16 +1389,19 @@ export default function ChatView(props: ChatViewProps) {
   // The provider's 5-hour window, which the composer's ring shows until a chat has context.
   const sessionLimitWindow =
     activeProviderStatus?.usageLimits?.windows.find((window) => window.kind === "session") ?? null;
+  // Past its reset time the window is empty, even before the provider's next usage check.
+  const sessionLimitReset = useTimePassed(sessionLimitWindow?.resetsAt);
   const sessionLimit = sessionLimitWindow
     ? {
-        usedPercent: sessionLimitWindow.usedPercent,
+        usedPercent: sessionLimitReset ? 0 : sessionLimitWindow.usedPercent,
         label:
           sessionLimitWindow.windowDurationMins === 300
             ? gt("5-hour limit")
             : sessionLimitWindow.label,
-        resetsAtLabel: sessionLimitWindow.resetsAt
-          ? formatUpcomingTimestamp(sessionLimitWindow.resetsAt, settings.timestampFormat)
-          : null,
+        resetsAtLabel:
+          sessionLimitWindow.resetsAt && !sessionLimitReset
+            ? formatUpcomingTimestamp(sessionLimitWindow.resetsAt, settings.timestampFormat)
+            : null,
       }
     : null;
   const conversationProviderStatus =

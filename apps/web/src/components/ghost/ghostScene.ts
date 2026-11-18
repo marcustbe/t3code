@@ -301,10 +301,12 @@ export interface GhostPose {
   power: number;
   blink: number;
   bob: number;
+  /** Head tilt around the eye axis, radians. */
+  roll: number;
 }
 
 export function poseGhost(ghost: Ghost, state: GhostPose) {
-  ghost.body.rotation.set(state.pitch * 0.34, state.yaw * 0.55, 0);
+  ghost.body.rotation.set(state.pitch * 0.34, state.yaw * 0.55, state.roll);
   ghost.body.position.y = state.bob;
   // The core turns inside the shell, so the eye looks further than the body turns.
   ghost.core.rotation.set(state.eyePitch * 0.12, state.eyeYaw * 0.12, 0, "YXZ");

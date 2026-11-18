@@ -114,7 +114,7 @@ function AssistantForkButton({
           <Button
             type="button"
             size="icon-micro"
-            variant="ghost"
+            variant="ghost-meta"
             disabled={busy}
             onClick={() => {
               setBusy(true);
@@ -230,7 +230,7 @@ function AssistantCopyButton({
     return null;
   }
 
-  return <MessageCopyButton text={assistantCopyState.text ?? ""} variant="ghost" />;
+  return <MessageCopyButton text={assistantCopyState.text ?? ""} variant="ghost-meta" />;
 }
 
 export function ProposedPlanTimelineRow({

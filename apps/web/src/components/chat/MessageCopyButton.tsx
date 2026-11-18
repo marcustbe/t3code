@@ -25,7 +25,7 @@ export const MessageCopyButton = memo(function MessageCopyButton({
   icon?: typeof Copy;
   extraFlavors?: Readonly<Record<string, string>>;
   size?: "xs" | "icon-xs" | "icon-micro";
-  variant?: "outline" | "ghost";
+  variant?: "outline" | "ghost" | "ghost-meta";
   className?: string;
 }) {
   const ref = useRef<HTMLButtonElement>(null);

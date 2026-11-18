@@ -1,0 +1,96 @@
+import type { RuntimeMode, ScopedThreadRef } from "@t3tools/contracts";
+import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import {
+  type AtomCommandResult,
+  isAtomCommandInterrupted,
+  squashAtomCommandFailure,
+} from "@t3tools/client-runtime/state/runtime";
+import { useRef } from "react";
+
+import { newMessageId, newThreadId } from "~/lib/utils";
+import { useStableCallback } from "../../hooks/useStableCallback";
+import { waitForThreadShell } from "../../state/entities";
+import { threadEnvironment } from "../../state/threads";
+import { useAtomCommand } from "../../state/use-atom-command";
+import { useOrchestrationCommand } from "../../state/use-orchestration-command";
+
+/**
+ * Ghost: ⌘⏎ while a chat runs. Forks `threadRef` through its latest finished run into a
+ * normal chat ("<title> fork") and sends `prompt` there; the source keeps running. `send`
+ * resolves the new chat's ref, or null when it did not start or another fork is starting.
+ */
+export function useForkChat(input: {
+  readonly threadRef: ScopedThreadRef | null;
+  readonly title: string;
+  readonly runtimeMode: RuntimeMode;
+  readonly onError: (message: string) => void;
+}) {
+  const pendingRef = useRef(false);
+  const forkThread = useAtomCommand(threadEnvironment.forkFromRun, { reportFailure: false });
+  const deleteThread = useAtomCommand(threadEnvironment.delete, { reportFailure: false });
+  const startThreadTurn = useOrchestrationCommand(threadEnvironment.startTurn, {
+    reportFailure: false,
+  });
+  const reportFailure = (
+    failure: Extract<AtomCommandResult<unknown, unknown>, { readonly _tag: "Failure" }>,
+    fallback: string,
+  ) => {
+    if (isAtomCommandInterrupted(failure)) return;
+    const error = squashAtomCommandFailure(failure);
+    input.onError(error instanceof Error ? error.message : fallback);
+  };
+  const start = async (threadRef: ScopedThreadRef, text: string) => {
+    const targetThreadId = newThreadId();
+    const targetRef = scopeThreadRef(threadRef.environmentId, targetThreadId);
+    const fork = await forkThread({
+      environmentId: threadRef.environmentId,
+      input: {
+        sourceThreadId: threadRef.threadId,
+        targetThreadId,
+        title: `${input.title} fork`,
+      },
+    });
+    if (fork._tag === "Failure") {
+      reportFailure(fork, "Could not fork the chat.");
+      return null;
+    }
+    // Drops the empty fork a failed start leaves behind; one that got its message stays.
+    const discard = () =>
+      void deleteThread({
+        environmentId: threadRef.environmentId,
+        input: { threadId: targetThreadId, onlyIfUnused: true },
+      });
+    if (!(await waitForThreadShell(targetRef))) {
+      input.onError("The fork was created, but it did not reach this client.");
+      discard();
+      return null;
+    }
+    // No title seed: the fork keeps "<title> fork", like the sidebar's Fork conversation.
+    const turn = await startThreadTurn({
+      environmentId: threadRef.environmentId,
+      input: {
+        threadId: targetThreadId,
+        message: { messageId: newMessageId(), role: "user", text, attachments: [] },
+        runtimeMode: input.runtimeMode,
+        interactionMode: "default",
+        createdAt: new Date().toISOString(),
+      },
+    });
+    if (turn._tag === "Failure") {
+      reportFailure(turn, "Could not send the message to the fork.");
+      discard();
+      return null;
+    }
+    return targetRef;
+  };
+  const send = async (prompt: string) => {
+    const { threadRef } = input;
+    const text = prompt.trim();
+    if (!threadRef || !text || pendingRef.current) return null;
+    pendingRef.current = true;
+    return start(threadRef, text).finally(() => {
+      pendingRef.current = false;
+    });
+  };
+  return { available: input.threadRef !== null, send: useStableCallback(send) };
+}

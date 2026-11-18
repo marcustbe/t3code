@@ -12,7 +12,7 @@ const buttonVariants = cva(
     // in the sidebar, the top bar, the composer and on messages.
     compoundVariants: [
       {
-        variant: ["ghost", "ghost-muted", "ghost-destructive"],
+        variant: ["ghost", "ghost-muted", "ghost-meta", "ghost-destructive"],
         size: [
           "icon",
           "icon-lg",
@@ -72,6 +72,10 @@ const buttonVariants = cva(
           "[--control-icon-color:currentColor] border-transparent text-foreground data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent",
         "ghost-muted":
           "[--control-icon-color:currentColor] border-transparent text-foreground data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent [:hover,[data-pressed]]:text-foreground",
+        // Actions in a muted metadata line (copy and fork under a message): the timestamp's grey
+        // at rest, full text colour when hovered.
+        "ghost-meta":
+          "[--control-icon-color:currentColor] border-transparent text-muted-foreground data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent [:hover,[data-pressed]]:text-foreground",
         "ghost-destructive":
           "[--control-icon-color:currentColor] border-transparent text-muted-foreground data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent [:hover,[data-pressed]]:text-destructive",
         glass:

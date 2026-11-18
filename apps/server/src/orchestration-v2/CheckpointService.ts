@@ -17,10 +17,12 @@ import * as Base64Url from "effect/encoding/Base64Url";
 import * as Hex from "effect/encoding/Hex";
 import * as KeyedLock from "@t3tools/shared/KeyedLock";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import { isGitImport, parseTurnDiffFilesFromNumstat } from "../checkpointing/Diffs.ts";
 import * as CheckpointStore from "../checkpointing/CheckpointStore.ts";
+import * as OwnChanges from "../checkpointing/OwnChanges.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 
 const CHECKPOINT_REFS_PREFIX = "refs/t3/orchestration-v2/checkpoints";
@@ -240,12 +242,38 @@ export const layer: Layer.Layer<
     const checkpointRefFor = (input: Parameters<typeof checkpointRefForScopeOrdinal>[0]) =>
       checkpointRefForScopeOrdinal(input).pipe(Effect.provideService(Digest.Digest, crypto));
     const idAllocator = yield* IdAllocator.IdAllocatorV2;
+    const ownChanges = yield* Effect.serviceOption(OwnChanges.OwnChangesJournal);
     const workspaceLocks = yield* KeyedLock.make<string>();
     const withWorkspaceLock = <A, E, R>(cwd: string, effect: Effect.Effect<A, E, R>) =>
       workspaceLocks.withLock(cwd, effect);
 
     const isGitCheckpointable = (cwd: string) =>
       checkpointStore.isGitRepository(cwd).pipe(Effect.orElseSucceed(() => false));
+
+    /** The turn's own-changes ref and the base it diffs from, or null to keep the checkpoint diff. */
+    const buildOwnRefs = Effect.fn("CheckpointService.buildOwnRefs")(function* (input: {
+      readonly journal: OwnChanges.OwnChangesJournalShape;
+      readonly scope: OrchestrationV2CheckpointScope;
+      readonly runId: RunId;
+      readonly previousCheckpointRef: CheckpointRef;
+      readonly checkpointRef: CheckpointRef;
+    }) {
+      const previousOwnRef = OwnChanges.ownRefForCheckpointRef(input.previousCheckpointRef);
+      const fromCheckpointRef = (yield* checkpointStore
+        .hasCheckpointRef({ cwd: input.scope.cwd, checkpointRef: previousOwnRef })
+        .pipe(Effect.orElseSucceed(() => false)))
+        ? previousOwnRef
+        : input.previousCheckpointRef;
+      const toCheckpointRef = OwnChanges.ownRefForCheckpointRef(input.checkpointRef);
+      const built = yield* input.journal.buildOwnTree({
+        threadId: input.scope.threadId,
+        runId: input.runId,
+        cwd: input.scope.cwd,
+        baseRef: fromCheckpointRef,
+        ownRef: toCheckpointRef,
+      });
+      return built ? { fromCheckpointRef, toCheckpointRef } : null;
+    });
 
     const captureBaseline: CheckpointServiceV2Shape["captureBaseline"] = (input) =>
       withWorkspaceLock(
@@ -438,44 +466,80 @@ export const layer: Layer.Layer<
             fromCheckpointRef: previousCheckpointRef,
             toCheckpointRef: checkpointRef,
           };
+          const ownRefs =
+            previousExists && input.runId !== null && Option.isSome(ownChanges)
+              ? yield* buildOwnRefs({
+                  journal: ownChanges.value,
+                  scope: input.scope,
+                  runId: input.runId,
+                  previousCheckpointRef,
+                  checkpointRef,
+                })
+              : null;
           // A pull or rebase can change thousands of files the turn did not write.
-          const files = previousExists
-            ? yield* Effect.all([
-                checkpointStore.diffCheckpoints({
-                  ...refs,
+          const files = ownRefs
+            ? yield* checkpointStore
+                .diffCheckpoints({
+                  cwd: input.scope.cwd,
+                  ...ownRefs,
                   fallbackFromToHead: false,
                   ignoreWhitespace: false,
                   format: "numstat",
-                }),
-                checkpointStore.listAuthoredPaths(refs).pipe(
-                  Effect.catch((cause) =>
-                    Effect.logWarning("orchestration V2 checkpoint authored paths failed", {
-                      scopeId: input.scope.id,
-                      checkpointRef,
-                      cause: String(cause),
-                    }).pipe(Effect.as(null)),
-                  ),
-                ),
-              ]).pipe(
-                Effect.map(([diff, authoredPaths]) =>
-                  parseTurnDiffFilesFromNumstat(diff)
-                    .filter((file) => !isGitImport(file, authoredPaths))
-                    .map((file) => ({
+                })
+                .pipe(
+                  Effect.map((diff) =>
+                    parseTurnDiffFilesFromNumstat(diff).map((file) => ({
                       path: file.path,
                       kind: "modified",
                       additions: file.additions,
                       deletions: file.deletions,
                     })),
-                ),
-                Effect.catch((cause) =>
-                  Effect.logWarning("orchestration V2 checkpoint diff summary failed", {
-                    scopeId: input.scope.id,
-                    checkpointRef,
-                    cause: String(cause),
-                  }).pipe(Effect.as([])),
-                ),
-              )
-            : [];
+                  ),
+                  Effect.catch((cause) =>
+                    Effect.logWarning("orchestration V2 own-changes summary failed", {
+                      scopeId: input.scope.id,
+                      checkpointRef,
+                      cause: String(cause),
+                    }).pipe(Effect.as([])),
+                  ),
+                )
+            : previousExists
+              ? yield* Effect.all([
+                  checkpointStore.diffCheckpoints({
+                    ...refs,
+                    fallbackFromToHead: false,
+                    ignoreWhitespace: false,
+                    format: "numstat",
+                  }),
+                  checkpointStore.listAuthoredPaths(refs).pipe(
+                    Effect.catch((cause) =>
+                      Effect.logWarning("orchestration V2 checkpoint authored paths failed", {
+                        scopeId: input.scope.id,
+                        checkpointRef,
+                        cause: String(cause),
+                      }).pipe(Effect.as(null)),
+                    ),
+                  ),
+                ]).pipe(
+                  Effect.map(([diff, authoredPaths]) =>
+                    parseTurnDiffFilesFromNumstat(diff)
+                      .filter((file) => !isGitImport(file, authoredPaths))
+                      .map((file) => ({
+                        path: file.path,
+                        kind: "modified",
+                        additions: file.additions,
+                        deletions: file.deletions,
+                      })),
+                  ),
+                  Effect.catch((cause) =>
+                    Effect.logWarning("orchestration V2 checkpoint diff summary failed", {
+                      scopeId: input.scope.id,
+                      checkpointRef,
+                      cause: String(cause),
+                    }).pipe(Effect.as([])),
+                  ),
+                )
+              : [];
 
           return makeCheckpoint({
             id: checkpointId,
@@ -543,7 +607,10 @@ export const layer: Layer.Layer<
         input.scope.cwd,
         checkpointStore.deleteCheckpointRefs({
           cwd: input.scope.cwd,
-          checkpointRefs: input.checkpoints.map((checkpoint) => checkpoint.ref),
+          checkpointRefs: input.checkpoints.flatMap((checkpoint) => [
+            checkpoint.ref,
+            OwnChanges.ownRefForCheckpointRef(checkpoint.ref),
+          ]),
         }),
       ).pipe(
         Effect.mapError(

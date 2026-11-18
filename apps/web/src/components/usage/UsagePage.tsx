@@ -543,7 +543,7 @@ export function UsagePage() {
         <WorkspacePageHeader
           electron={isElectron}
           aria-label="Usage"
-          className="@container/usage-header gap-1 border-b border-separator"
+          className="@container/usage-header gap-1 border-b-[length:var(--separator-width)] border-separator"
         >
           {topbarContent}
         </WorkspacePageHeader>

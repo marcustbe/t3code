@@ -97,7 +97,7 @@ export function PreviewChromeRow({
         onSubmit={submit}
         className={cn(
           // Sides, top and bottom follow Settings › Appearance › Browser padding.
-          "flex h-10 min-h-10 shrink-0 items-center gap-1 border-b border-separator bg-background px-(--browser-side-padding) pt-(--browser-top-padding) in-data-[preview-panel-mode=inline]:h-auto in-data-[preview-panel-mode=inline]:min-h-0 in-data-[preview-panel-mode=inline]:pb-(--browser-bottom-padding)",
+          "flex h-10 min-h-10 shrink-0 items-center gap-1 border-b-[length:var(--separator-width)] border-separator bg-background px-(--browser-side-padding) pt-(--browser-top-padding) in-data-[preview-panel-mode=inline]:h-auto in-data-[preview-panel-mode=inline]:min-h-0 in-data-[preview-panel-mode=inline]:pb-(--browser-bottom-padding)",
           PREVIEW_WHITE_SURFACE_CLASS,
         )}
       >

@@ -274,6 +274,30 @@ it.layer(NodeServices.layer)("keybindings", (it) => {
     }).pipe(Effect.provide(layerKeybindings())),
   );
 
+  it.effect("moves a saved ⌘⏎ steer binding to side chats once", () =>
+    Effect.gen(function* () {
+      const { keybindingsConfigPath } = yield* ServerConfig.ServerConfig;
+      const keybindings = yield* Keybindings.Keybindings;
+      const when = "composerFocus && turnRunning";
+      const saved = { key: "mod+enter", command: "composer.sendAlternate", when } as const;
+      const runningRules = Effect.map(readKeybindingsConfig(keybindingsConfigPath), (rules) =>
+        rules.filter((entry) => entry.when === when),
+      );
+      yield* writeKeybindingsConfig(keybindingsConfigPath, [saved]);
+
+      yield* keybindings.syncDefaultKeybindingsOnStartup;
+      assert.deepStrictEqual(yield* runningRules, [
+        { key: "mod+enter", command: "composer.sendSideChat", when },
+        { key: "alt+enter", command: "composer.sendAlternate", when },
+      ]);
+
+      // Applied once: a user who sets ⌘⏎ back to steer keeps it.
+      yield* writeKeybindingsConfig(keybindingsConfigPath, [saved]);
+      yield* keybindings.syncDefaultKeybindingsOnStartup;
+      assert.deepStrictEqual(yield* runningRules, [saved]);
+    }).pipe(Effect.provide(layerKeybindings())),
+  );
+
   it.effect("leaves a customized command without the late default", () =>
     Effect.gen(function* () {
       const { keybindingsConfigPath } = yield* ServerConfig.ServerConfig;

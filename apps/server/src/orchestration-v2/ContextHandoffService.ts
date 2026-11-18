@@ -251,8 +251,12 @@ export function makeSideChatContext(input: {
   readonly parentThreadId: ThreadId;
   readonly digest: ReadonlyArray<string | OrchestrationV2TurnItem>;
 }): string {
-  const framing =
-    "You are in a side chat beside the main thread. The main thread may still be running in the same worktree. Answer the user's questions; do not continue or redo the main thread's task.";
+  // Ghost: ⌘⏎ while the main thread runs opens a side chat with a task, not only a question.
+  const framing = [
+    `You are in a side chat: a fork of the main thread (${input.parentThreadId}), opened beside it. The user sent this message here instead of queueing it behind the main thread's current work.`,
+    "Handle the message here: answer a question, or do a task it gives you. Do not continue or redo the main thread's own task.",
+    "The main thread may still be running in the same worktree, so both of you can edit the same files. Before editing a file, check the main thread's live state with t3_thread_read. If it is changing the same files, wait for it with t3_thread_wait, then re-read those files before you edit, so neither chat overwrites the other's changes.",
+  ].join("\n");
   const header = "Main thread activity since this side chat's starting point:";
   const truncated = "- Earlier items truncated.";
   const footer = `Use t3_thread_read on thread ${input.parentThreadId} to see the main thread's live state.`;

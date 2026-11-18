@@ -21,6 +21,7 @@ import {
   type EnvironmentId,
   type ModelSelection,
   type PreviewAnnotationPayload,
+  type ScopedThreadRef,
   type ThreadId,
   ProviderInteractionMode,
   RuntimeMode,
@@ -245,6 +246,8 @@ interface ComposerSendInput {
   readonly onSideChat?: ((prompt: string) => Promise<boolean>) | undefined;
   /** Refuses `/side` with this reason and keeps the draft. */
   readonly sideChatDisabledReason: string | null;
+  /** ⌘⏎ while running: forks the chat and sends the prompt there; null when it did not start. */
+  readonly onForkChat?: ((prompt: string) => Promise<ScopedThreadRef | null>) | undefined;
   readonly handleNewThreadInActiveProject: () => void;
   readonly persistThreadSettingsForNextTurn: (input: {
     threadId: ThreadId;
@@ -332,6 +335,7 @@ export function useComposerSend(input: ComposerSendInput) {
     handleInteractionModeChange,
     onSideChat,
     sideChatDisabledReason,
+    onForkChat,
     handleNewThreadInActiveProject,
     persistThreadSettingsForNextTurn,
   } = input;
@@ -488,6 +492,46 @@ export function useComposerSend(input: ComposerSendInput) {
       sendCtx && !directAnnotation && !queuedRunEdit.isEditing
         ? parseSideChatCommand(promptAtSend)
         : null;
+    const hasNonTextContext =
+      sendCtx !== undefined &&
+      (sendCtx.images.length > 0 ||
+        sendCtx.files.length > 0 ||
+        filterTerminalContextsWithText(sendCtx.terminalContexts).length > 0 ||
+        sendCtx.previewAnnotations.length > 0 ||
+        sendCtx.reviewComments.length > 0 ||
+        sendCtx.threadContexts.length > 0 ||
+        sendCtx.environmentContexts.length > 0);
+    // ⌘⏎ while running forks the chat with the prompt instead of queueing it.
+    if (
+      onForkChat &&
+      sendCtx &&
+      submissionIntent === "fork" &&
+      !sideChatCommand &&
+      !directAnnotation &&
+      !queuedRunEdit.isEditing &&
+      promptAtSend.trim().length > 0
+    ) {
+      if (hasNonTextContext) {
+        toastManager.add(
+          stackedThreadToast({
+            type: "warning",
+            title: "Forks take text only",
+            description: "Remove the attachments and context, then send it again.",
+          }),
+        );
+        return;
+      }
+      const forkRef = await onForkChat(promptAtSend);
+      // Clear only what was sent; the user may have edited the draft or left meanwhile.
+      if (!forkRef || currentRouteThreadKeyRef.current !== routeThreadKey) return;
+      if (promptRef.current === promptAtSend) {
+        promptRef.current = "";
+        setComposerDraftPrompt(composerDraftTarget, "");
+        composerRef.current?.resetCursorState();
+      }
+      void navigate({ to: "/$environmentId/$threadId", params: buildThreadRouteParams(forkRef) });
+      return;
+    }
     const answeringQuestion =
       Boolean(activePendingProgress) && sendCtx?.answeringPendingUserInput !== false;
     // Where side chats are unavailable, `/side` text can still be a literal answer.
@@ -502,15 +546,7 @@ export function useComposerSend(input: ComposerSendInput) {
       return;
     }
     if (onSideChat && sendCtx && sideChatCommand && sideChatDisabledReason === null) {
-      if (
-        sendCtx.images.length > 0 ||
-        sendCtx.files.length > 0 ||
-        filterTerminalContextsWithText(sendCtx.terminalContexts).length > 0 ||
-        sendCtx.previewAnnotations.length > 0 ||
-        sendCtx.reviewComments.length > 0 ||
-        sendCtx.threadContexts.length > 0 ||
-        sendCtx.environmentContexts.length > 0
-      ) {
+      if (hasNonTextContext) {
         toastManager.add(
           stackedThreadToast({
             type: "warning",

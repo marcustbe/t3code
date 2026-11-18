@@ -2465,8 +2465,14 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         .filter((message) => message.createdBy !== "user" || message.scheduledTaskId !== undefined)
         .map((message) => message.id),
     );
+    // A finished restart continuation means the restart interrupted nothing the user must review.
+    const continuationFinished =
+      projection.runs.find((run) => run.id === completedRunId)?.restartContinuationOfRunId !==
+      undefined;
     const now = yield* DateTime.now;
-    const released = held.filter((run) => unattended.has(run.userMessageId));
+    const released = continuationFinished
+      ? held
+      : held.filter((run) => unattended.has(run.userMessageId));
     if (released.length === 0) return;
     yield* writeSystemEvents(
       released.map((run) => ({
@@ -3364,29 +3370,10 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     }
     if (command.type === "thread.settle") {
       const projection = yield* loadProjectionForCommand(command, ["runs", "runtimeRequests"]);
-      const queuedMessages = yield* projectionStore
-        .getMessagesById(
-          command.threadId,
-          projection.runs.filter((run) => run.status === "queued").map((run) => run.userMessageId),
-        )
-        .pipe(mapDispatchError(command));
-      const automaticMessageIds = new Set(
-        [...queuedMessages.values()]
-          .filter(
-            (message) =>
-              message.role === "user" &&
-              (message.notification !== undefined || message.delegatedCompletion !== undefined),
-          )
-          .map((message) => message.id),
-      );
-      const automaticQueuedRuns = projection.runs.filter(
-        (run) => run.status === "queued" && automaticMessageIds.has(run.userMessageId),
-      );
+      // Settling drops the queue, the user's queued messages included (Ghost: settle a chat with a queue).
+      const queuedRuns = projection.runs.filter((run) => run.status === "queued");
       const runningRunExists = projection.runs.some((run) =>
         ["preparing", "starting", "running", "waiting"].includes(run.status),
-      );
-      const queuedMessageExists = projection.runs.some(
-        (run) => run.status === "queued" && !automaticQueuedRuns.includes(run),
       );
       const pendingRequests = projection.runtimeRequests.filter(
         (request) => request.status === "pending",
@@ -3398,9 +3385,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         ? "is waiting on an approval or question. Answer it before settling."
         : runningRunExists
           ? "is still running. Stop it before settling."
-          : queuedMessageExists
-            ? "has a queued message. Send it or remove it from the queue before settling."
-            : null;
+          : null;
       if (blocker !== null) {
         return yield* new OrchestratorDispatchError({
           commandId: command.commandId,
@@ -3422,7 +3407,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           effects,
         );
       }
-      for (const run of automaticQueuedRuns) {
+      for (const run of queuedRuns) {
         yield* dispatchQueuedRunCancel(
           {
             type: "queued-run.cancel",

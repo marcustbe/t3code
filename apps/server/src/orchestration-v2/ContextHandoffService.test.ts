@@ -208,7 +208,7 @@ it.effect("caps the side chat context block without summarizing discarded parent
       parentThreadId,
       digest: [],
     });
-    assert.isTrue(framingOnly.startsWith("You are in a side chat beside the main thread."));
+    assert.isTrue(framingOnly.startsWith("You are in a side chat: a fork of the main thread"));
     assert.notInclude(framingOnly, "Main thread activity");
 
     const multiFilePatch = ContextHandoffService.makeSideChatContext({

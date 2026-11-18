@@ -127,6 +127,9 @@ export type DesktopWindowError =
   | PreviewManager.PreviewManagerError;
 
 export type MainWindowZoomDirection = "in" | "out" | "reset";
+// Chromium's 120% (level 1) is the app's 100%: plain 100% read far too small. ⌘0 returns here and
+// the zoom pill shows percentages relative to it (BASE_ZOOM_FACTOR in ZoomIndicator.tsx).
+export const MAIN_WINDOW_BASE_ZOOM_LEVEL = 1;
 export type MainWindowContentsCommand =
   | "reload"
   | "forceReload"
@@ -438,7 +441,9 @@ export const make = Effect.gen(function* () {
   ) {
     const webContents = window.webContents;
     webContents.setZoomLevel(
-      direction === "reset" ? 0 : webContents.getZoomLevel() + (direction === "in" ? 0.5 : -0.5),
+      direction === "reset"
+        ? MAIN_WINDOW_BASE_ZOOM_LEVEL
+        : webContents.getZoomLevel() + (direction === "in" ? 0.5 : -0.5),
     );
     if (environment.platform === "darwin") syncMacosWindowButtons(window);
     // App zoom propagates to guests; restore each preview's own zoom.

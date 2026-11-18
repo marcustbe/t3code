@@ -696,9 +696,9 @@ describe("DesktopWindow", () => {
 
         assert.deepEqual(
           fakeWindow.setZoomLevel.mock.calls.map(([level]) => level),
-          [-0.5, -1, -0.5, 0],
+          [-0.5, -1, -0.5, DesktopWindow.MAIN_WINDOW_BASE_ZOOM_LEVEL],
         );
-        assert.deepEqual(previewZoomReapplies, [-0.5, -1, -0.5, 0]);
+        assert.deepEqual(previewZoomReapplies, [-0.5, -1, -0.5, DesktopWindow.MAIN_WINDOW_BASE_ZOOM_LEVEL]);
         assert.equal(popup.setZoomLevel.mock.calls.length, 0);
       }).pipe(Effect.provide(layer));
     }),

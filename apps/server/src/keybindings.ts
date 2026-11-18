@@ -114,6 +114,50 @@ const LATE_DEFAULT_KEYBINDINGS: ReadonlyArray<{
   },
 ];
 
+/**
+ * Ghost: one-time rewrites of a default rule the user still has unchanged. Each `from` rule
+ * found in the persisted config is swapped in place for `to`; a customized config is left alone.
+ */
+const REPLACED_DEFAULT_KEYBINDINGS: ReadonlyArray<{
+  readonly id: string;
+  readonly from: KeybindingRule;
+  readonly to: ReadonlyArray<KeybindingRule>;
+}> = [
+  {
+    id: "composer.sendSideChat:mod+enter",
+    from: {
+      key: "mod+enter",
+      command: "composer.sendAlternate",
+      when: "composerFocus && turnRunning",
+    },
+    to: [
+      { key: "mod+enter", command: "composer.sendSideChat", when: "composerFocus && turnRunning" },
+      { key: "alt+enter", command: "composer.sendAlternate", when: "composerFocus && turnRunning" },
+    ],
+  },
+];
+
+/** Applies pending `REPLACED_DEFAULT_KEYBINDINGS`; returns the new config, or null when unchanged. */
+export function applyReplacedDefaultKeybindings(
+  config: ReadonlyArray<KeybindingRule>,
+  appliedIds: ReadonlySet<string>,
+): ReadonlyArray<KeybindingRule> | null {
+  let next = config;
+  for (const replacement of REPLACED_DEFAULT_KEYBINDINGS) {
+    if (appliedIds.has(replacement.id)) continue;
+    const index = next.findIndex((entry) => isSameKeybindingRule(entry, replacement.from));
+    if (index === -1) continue;
+    const additions = replacement.to.filter(
+      (rule) =>
+        !next.some(
+          (entry, entryIndex) => entryIndex !== index && hasSameShortcutContext(entry, rule),
+        ),
+    );
+    next = [...next.slice(0, index), ...additions, ...next.slice(index + 1)];
+  }
+  return next === config ? null : next;
+}
+
 function keybindingShortcutContext(rule: KeybindingRule): string | null {
   const parsed = parseKeybindingShortcut(rule.key);
   if (!parsed) return null;
@@ -447,13 +491,17 @@ const make = Effect.gen(function* () {
       const pendingLateDefaults = LATE_DEFAULT_KEYBINDINGS.filter(
         (late) => !appliedMigrationIds.has(late.id),
       );
+      const pendingReplacementIds = REPLACED_DEFAULT_KEYBINDINGS.filter(
+        (replacement) => !appliedMigrationIds.has(replacement.id),
+      ).map((replacement) => replacement.id);
       const configExists = yield* readConfigExists;
       if (!configExists) {
         yield* writeConfigAtomically(DEFAULT_KEYBINDINGS);
-        if (pendingLateDefaults.length > 0) {
+        if (pendingLateDefaults.length > 0 || pendingReplacementIds.length > 0) {
           yield* recordAppliedMigrations([
             ...appliedMigrationIds,
             ...LATE_DEFAULT_KEYBINDINGS.map((late) => late.id),
+            ...REPLACED_DEFAULT_KEYBINDINGS.map((replacement) => replacement.id),
           ]);
         }
         yield* Cache.invalidate(resolvedConfigCache, resolvedConfigCacheKey);
@@ -472,7 +520,11 @@ const make = Effect.gen(function* () {
         yield* Cache.invalidate(resolvedConfigCache, resolvedConfigCacheKey);
         return;
       }
-      const customConfig = runtimeConfig.keybindings;
+      const replacedConfig = applyReplacedDefaultKeybindings(
+        runtimeConfig.keybindings,
+        appliedMigrationIds,
+      );
+      const customConfig = replacedConfig ?? runtimeConfig.keybindings;
       const existingCommands = new Set(customConfig.map((entry) => entry.command));
       const missingDefaults: KeybindingRule[] = [];
       const shortcutConflictWarnings: Array<{
@@ -542,16 +594,17 @@ const make = Effect.gen(function* () {
           commands: skippedDefaults.map((rule) => rule.command),
         });
       }
-      if (defaultsToAppend.length > 0) {
+      if (defaultsToAppend.length > 0 || replacedConfig !== null) {
         yield* writeConfigAtomically([...defaultsToAppend, ...customConfig]);
       }
       const settledLateDefaults = pendingLateDefaults.filter(
         (late) => !skippedDefaults.includes(late.rule),
       );
-      if (settledLateDefaults.length > 0) {
+      if (settledLateDefaults.length > 0 || pendingReplacementIds.length > 0) {
         yield* recordAppliedMigrations([
           ...appliedMigrationIds,
           ...settledLateDefaults.map((late) => late.id),
+          ...pendingReplacementIds,
         ]);
       }
       yield* Cache.invalidate(resolvedConfigCache, resolvedConfigCacheKey);

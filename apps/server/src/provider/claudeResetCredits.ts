@@ -3,6 +3,8 @@ import type {
   ServerProviderResetCredits,
 } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -134,11 +136,33 @@ const readJson = Effect.fn("claudeResetCredits.readJson")(function* <S extends S
   );
 });
 
+/** Claude Code's macOS Keychain service: suffixed with a config-dir hash unless it is ~/.claude. */
+export const claudeKeychainService = (configDir: string, homeDir: string, path: Path.Path) =>
+  path.resolve(configDir) === path.join(homeDir, ".claude")
+    ? "Claude Code-credentials"
+    : `Claude Code-credentials-${createHash("sha256").update(configDir).digest("hex").slice(0, 8)}`;
+
+const readKeychainSecret = (service: string) =>
+  Effect.callback<string | undefined>((resume) => {
+    execFile(
+      "/usr/bin/security",
+      ["find-generic-password", "-s", service, "-w"],
+      { timeout: 5_000 },
+      (error, stdout) => resume(Effect.succeed(error ? undefined : stdout.trim() || undefined)),
+    );
+  });
+
 const readAccessToken = Effect.fn("claudeResetCredits.readAccessToken")(function* (
   configDir: string,
 ) {
-  if ((yield* HostProcess.Platform) === "darwin") return undefined;
   const path = yield* Path.Path;
+  if ((yield* HostProcess.Platform) === "darwin") {
+    const service = claudeKeychainService(configDir, yield* HostProcess.HomeDirectory, path);
+    const secret = yield* readKeychainSecret(service);
+    if (!secret) return undefined;
+    const credentials = yield* Schema.decodeEffect(Schema.fromJsonString(Credentials))(secret);
+    return credentials.claudeAiOauth?.accessToken?.trim() || undefined;
+  }
   const credentials = yield* readJson(Credentials, path.join(configDir, ".credentials.json"));
   return credentials.claudeAiOauth?.accessToken?.trim() || undefined;
 });

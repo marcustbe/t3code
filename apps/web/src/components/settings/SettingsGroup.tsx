@@ -21,7 +21,7 @@ export function SettingsGroup({
         // Dividers stop at the rows' text inset instead of running edge to edge.
         variant === "grouped" &&
           divided &&
-          "[&>*+*]:relative [&>*+*]:before:pointer-events-none [&>*+*]:before:absolute [&>*+*]:before:inset-x-3 [&>*+*]:before:top-0 [&>*+*]:before:h-px [&>*+*]:before:bg-separator sm:[&>*+*]:before:inset-x-4 [&>[data-slot=settings-row]]:rounded-none",
+          "[&>*+*]:relative [&>*+*]:before:pointer-events-none [&>*+*]:before:absolute [&>*+*]:before:inset-x-3 [&>*+*]:before:top-0 [&>*+*]:before:h-(--separator-width) [&>*+*]:before:bg-separator sm:[&>*+*]:before:inset-x-4 [&>[data-slot=settings-row]]:rounded-none",
         className,
       )}
     />

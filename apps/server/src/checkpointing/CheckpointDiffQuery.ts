@@ -1,4 +1,5 @@
 import {
+  type CheckpointRef,
   OrchestrationGetTurnDiffResult,
   type OrchestrationGetFullThreadDiffInput,
   type OrchestrationGetFullThreadDiffResult,
@@ -24,6 +25,7 @@ import {
   type CheckpointServiceError,
 } from "./Errors.ts";
 import * as CheckpointStore from "./CheckpointStore.ts";
+import { ownRefForCheckpointRef } from "./OwnChanges.ts";
 import { isGitImport, parseTurnDiffFilesFromNumstat, type TurnDiffFileSummary } from "./Diffs.ts";
 
 // Windows limits a command line to 32,767 characters. Leave room for the rest of git's arguments.
@@ -202,16 +204,27 @@ export const make = Effect.gen(function* () {
         });
       }
 
+      const hasRef = (checkpointRef: CheckpointRef) =>
+        checkpointStore
+          .hasCheckpointRef({ cwd: toScope.cwd, checkpointRef })
+          .pipe(Effect.orElseSucceed(() => false));
+      // A turn with an own-changes ref diffs only what its own tool calls wrote.
+      const toOwnRef = ownRefForCheckpointRef(toCheckpoint.ref);
+      const fromOwnRef = ownRefForCheckpointRef(fromCheckpointRef);
+      const ownComparison = yield* hasRef(toOwnRef);
       const comparison = {
         cwd: toScope.cwd,
-        fromCheckpointRef,
-        toCheckpointRef: toCheckpoint.ref,
+        fromCheckpointRef:
+          ownComparison && (yield* hasRef(fromOwnRef)) ? fromOwnRef : fromCheckpointRef,
+        toCheckpointRef: ownComparison ? toOwnRef : toCheckpoint.ref,
         fallbackFromToHead: false,
         ignoreWhitespace,
       };
-      const authoredPaths = yield* checkpointStore
-        .listAuthoredPaths(comparison)
-        .pipe(Effect.orElseSucceed(() => null));
+      const authoredPaths = ownComparison
+        ? null
+        : yield* checkpointStore
+            .listAuthoredPaths(comparison)
+            .pipe(Effect.orElseSucceed(() => null));
       const files =
         authoredPaths === null
           ? []

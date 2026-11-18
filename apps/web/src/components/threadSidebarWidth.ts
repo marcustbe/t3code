@@ -1,7 +1,9 @@
 export const THREAD_SIDEBAR_WIDTH_STORAGE_KEY = "chat_thread_sidebar_width";
 const THREAD_SIDEBAR_DEFAULT_WIDTH = 16 * 16;
 const THREAD_SIDEBAR_MIN_WIDTH = 13 * 16;
-export const THREAD_MAIN_CONTENT_MIN_WIDTH = 40 * 16;
+// The chat area keeps at least 30rem: at 40rem a ~1200pt window at his 144% zoom (845px) left no
+// room to widen the sidebar past its 208px minimum.
+export const THREAD_MAIN_CONTENT_MIN_WIDTH = 30 * 16;
 
 export function resolveThreadSidebarMinimumWidth(brandWidth: number): number {
   return Math.max(THREAD_SIDEBAR_MIN_WIDTH, Math.ceil(brandWidth));

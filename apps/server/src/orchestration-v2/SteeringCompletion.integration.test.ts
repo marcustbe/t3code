@@ -1885,7 +1885,7 @@ it.effect("a side chat that opens with /goal gets its context on the next questi
 
         const [first, goal, question] = started.map((turn) => turn.message.text);
         assert.deepEqual([first, goal], ["first", "/goal clear"]);
-        assert.include(question, "You are in a side chat beside the main thread.");
+        assert.include(question, "You are in a side chat: a fork of the main thread");
         assert.include(question, "- User: first");
         assert.isTrue(question?.endsWith("What is the main thread doing?"));
       }).pipe(Effect.provide(layer));

@@ -156,6 +156,11 @@ describe("composerSubmissionIntentForKey", () => {
             when: "composerFocus && turnRunning",
           },
           {
+            key: "alt+s",
+            command: "composer.sendSideChat",
+            when: "composerFocus && turnRunning",
+          },
+          {
             key: "alt+b",
             command: "composer.sendBackground",
             when: "composerFocus && draftThreadRoute",
@@ -170,6 +175,13 @@ describe("composerSubmissionIntentForKey", () => {
           event: { ...enter, key: "q", altKey: true },
         }),
       ).toBe("alternate");
+      expect(
+        composerSubmissionIntentForKey({
+          ...custom,
+          isRunning: true,
+          event: { ...enter, key: "s", altKey: true },
+        }),
+      ).toBe("fork");
       expect(
         composerSubmissionIntentForKey({
           ...custom,
@@ -218,7 +230,7 @@ describe("composerSubmissionIntentForKey", () => {
       );
       expect(
         composerSubmissionIntentForKey({ ...keyboardOpen, isRunning: true, event: modEnter }),
-      ).toBe("alternate");
+      ).toBe("fork");
       expect(
         composerSubmissionIntentForKey({ ...keyboardOpen, isDraftThread: true, event: modEnter }),
       ).toBe("background");

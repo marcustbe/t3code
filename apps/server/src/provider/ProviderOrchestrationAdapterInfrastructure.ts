@@ -6,6 +6,7 @@ import * as CursorAgentSdk from "@t3tools/provider-cursor/server/CursorAgentSdk"
 import * as CursorSdk from "@t3tools/provider-cursor/server/CursorSdk";
 import * as CursorKeychain from "@t3tools/provider-cursor/server/CursorKeychain";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
+import * as OwnChanges from "../checkpointing/OwnChanges.ts";
 import * as ProviderContinuationRequests from "@t3tools/provider-core/server/ProviderContinuationRequests";
 
 export type ProviderOrchestrationAdapterInfrastructure =
@@ -24,4 +25,6 @@ export const layer = Layer.mergeAll(
   CursorKeychain.layer,
   IdAllocator.layer,
   ProviderContinuationRequests.layer,
+  // Same reference as the checkpoint service's, so adapters and capture share one journal.
+  OwnChanges.layer,
 );

@@ -128,7 +128,8 @@ function PreviewPanelShellFrame(
           ? maximized
             ? // Maximizing meets the sidebar border or window edge; omit the duplicate border.
               "flex-1"
-            : "shrink-0 border-l border-separator"
+            : // Over the panel's sidebar grey the chat's line reads heavy; the sidebar's lighter one matches.
+              "shrink-0 border-l-[length:var(--separator-width)] border-sidebar-separator"
           : "w-full",
         collapsible &&
           "[[data-panel-animations=true]_&]:transition-[width] [[data-panel-animations=true]_&]:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:ease-out",

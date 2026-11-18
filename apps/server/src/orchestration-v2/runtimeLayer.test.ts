@@ -4652,7 +4652,7 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
     }),
   );
 
-  it.effect("settles past held automatic runs but not held user messages", () =>
+  it.effect("settles past held automatic runs and held user messages", () =>
     Effect.gen(function* () {
       const orchestrator = yield* Orchestrator.OrchestratorV2;
       const eventSink = yield* EventSink.EventSinkV2;
@@ -4764,18 +4764,15 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
       });
       yield* queueMessage("settle-automatic-user-queued", false);
       yield* holdQueueAfterRestart("settle-automatic-restart-2");
-      const error = yield* orchestrator
-        .dispatch({
-          type: "thread.settle",
-          commandId: CommandId.make("settle-automatic-settle-2"),
-          threadId,
-        })
-        .pipe(Effect.flip);
-      assert.equal(error._tag, "OrchestratorDispatchError");
-      assert.equal(
-        error.cause,
-        `Thread ${threadId} has a queued message. Send it or remove it from the queue before settling.`,
-      );
+      // Settling also drops the user's own queued messages.
+      yield* orchestrator.dispatch({
+        type: "thread.settle",
+        commandId: CommandId.make("settle-automatic-settle-2"),
+        threadId,
+      });
+      const settledAgain = yield* orchestrator.getThreadProjection(threadId);
+      assert.isNotNull(settledAgain.thread.settledAt);
+      assert.isFalse(settledAgain.runs.some((run) => run.status === "queued"));
     }),
   );
 
@@ -5560,6 +5557,15 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
       yield* end("probe", "completed");
       assert.equal(yield* Queue.take(startedRunIds), (yield* runFor("after-stop")).id);
       yield* releasedAfter("after-stop", "probe");
+
+      // A completed restart continuation releases the user's held messages too.
+      const afterStop = yield* runFor("after-stop");
+      assert.isTrue((yield* runFor("user")).queueHeld);
+      yield* end("after-stop", "completed");
+      yield* send("continuation", "agent", true);
+      yield* end("continuation", "completed", "", { restartContinuationOfRunId: afterStop.id });
+      assert.equal(yield* Queue.take(startedRunIds), (yield* runFor("user")).id);
+      yield* releasedAfter("user", "continuation");
     }),
   );
 

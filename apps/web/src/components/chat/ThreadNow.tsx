@@ -14,9 +14,11 @@ export interface ThreadNowItem {
   readonly actions?: ReactNode;
 }
 
-/** Matches ThreadStatusLine, so every line at the end of the timeline reads as one family. */
+/** Matches ThreadStatusLine, so every line at the end of the timeline reads as one family. Sits
+ *  inside a `chat-content-lane`; px-1 matches the assistant message's own inset, so the icon
+ *  starts where the message text does. */
 const lineClassName = cn(
-  "mx-auto flex w-full min-w-0 max-w-(--chat-content-max-width) items-center gap-1.5 px-1 pb-2 text-xs text-muted-foreground [&_svg]:size-3.5 [&_svg]:shrink-0",
+  "flex min-w-0 items-center gap-1.5 px-1 pb-2 text-xs text-muted-foreground [&_svg]:size-3.5 [&_svg]:shrink-0",
   // A details button must not make its line taller than the others.
   "[&_[data-slot=popover-trigger]]:-my-1.5",
   // Inline actions keep their text size but get a finger-sized hit area on touch.
@@ -34,44 +36,51 @@ function ThreadNowLine({
   readonly announce?: boolean;
 }) {
   return (
-    <div
-      role={announce ? "alert" : undefined}
-      className={cn(lineClassName, "items-baseline")}
-      data-thread-now-line="true"
-    >
-      <span aria-hidden className="flex size-3.5 shrink-0 self-center items-center justify-center">
-        {item.icon}
-      </span>
-      {/* Title and detail read as one line that gives way before the actions, so Stop stays
-          reachable; when it is cut, its details button shows all of it. */}
-      <NoticeText
-        detailsLabel={
-          typeof item.title === "string" ? `Show details: ${item.title}` : "Show details"
-        }
-        className="min-w-0 truncate"
+    <div className="chat-content-lane">
+      <div
+        role={announce ? "alert" : undefined}
+        className={cn(lineClassName, "items-baseline")}
+        data-thread-now-line="true"
       >
-        {item.title}
-        {item.description ? (
-          <>
-            {" "}
-            <span className="ms-0.5 text-muted-foreground/60 light:text-muted-foreground/80">
-              {item.description}
-            </span>
-          </>
+        <span
+          aria-hidden
+          className="flex size-3.5 shrink-0 self-center items-center justify-center"
+        >
+          {item.icon}
+        </span>
+        {/* Title and detail read as one line that gives way before the actions, so Stop stays
+          reachable; when it is cut, its details button shows all of it. */}
+        <NoticeText
+          detailsLabel={
+            typeof item.title === "string" ? `Show details: ${item.title}` : "Show details"
+          }
+          className="min-w-0 truncate"
+        >
+          {item.title}
+          {item.description ? (
+            <>
+              {" "}
+              <span className="ms-0.5 text-muted-foreground/60 light:text-muted-foreground/80">
+                {item.description}
+              </span>
+            </>
+          ) : null}
+        </NoticeText>
+        {item.actions ? (
+          <span className="ms-1.5 flex shrink-0 items-baseline gap-2.5">{item.actions}</span>
         ) : null}
-      </NoticeText>
-      {item.actions ? (
-        <span className="ms-1.5 flex shrink-0 items-baseline gap-2.5">{item.actions}</span>
-      ) : null}
+      </div>
     </div>
   );
 }
 
 function ThreadSyncLine({ phase }: { readonly phase: ThreadSyncPhase }) {
   return (
-    <div className={lineClassName} role="status" data-composer-sync-status={phase}>
-      <RefreshCwIcon aria-hidden />
-      <span className="truncate">{threadSyncLabel(phase)}</span>
+    <div className="chat-content-lane">
+      <div className={lineClassName} role="status" data-composer-sync-status={phase}>
+        <RefreshCwIcon aria-hidden />
+        <span className="truncate">{threadSyncLabel(phase)}</span>
+      </div>
     </div>
   );
 }

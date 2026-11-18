@@ -51,6 +51,7 @@ function layerFor(input: {
   readonly projection: Effect.Effect<ProjectionCheckpointContext, OrchestratorProjectionError>;
   readonly diffCheckpoints?: CheckpointStore.CheckpointStore["Service"]["diffCheckpoints"];
   readonly authoredPaths?: ReadonlySet<string>;
+  readonly existingRefs?: ReadonlySet<string>;
 }) {
   return CheckpointDiffQuery.layer.pipe(
     Layer.provide(
@@ -61,6 +62,8 @@ function layerFor(input: {
         Layer.mock(CheckpointStore.CheckpointStore)({
           diffCheckpoints: input.diffCheckpoints ?? (() => Effect.succeed("diff")),
           listAuthoredPaths: () => Effect.succeed(input.authoredPaths ?? null),
+          hasCheckpointRef: ({ checkpointRef }) =>
+            Effect.succeed(input.existingRefs?.has(checkpointRef) ?? false),
         }),
       ),
     ),
@@ -189,6 +192,47 @@ it.effect.each([false, true])(
     }).pipe(Effect.provide(layer));
   },
 );
+
+it.effect("diffs a journaled turn between its own-changes refs", () => {
+  const diffCheckpoints = vi.fn((_input: CheckpointStore.DiffCheckpointsInput) =>
+    Effect.succeed("diff --git a/file b/file"),
+  );
+  const layer = layerFor({
+    projection: Effect.succeed(makeProjectionAfterStoppedRun(true)),
+    diffCheckpoints,
+    // Other threads' commits would otherwise pass as this turn's authored paths.
+    authoredPaths: new Set(),
+    existingRefs: new Set(["refs/t3/test/ordinal/2-own", "refs/t3/test/ordinal/3-own"]),
+  });
+
+  return Effect.gen(function* () {
+    const query = yield* CheckpointDiffQuery.CheckpointDiffQuery;
+    yield* query.getTurnDiff({ threadId, fromTurnCount: 2, toTurnCount: 3 });
+    yield* query.getFullThreadDiff({ threadId, toTurnCount: 3 });
+    assert.deepEqual(
+      diffCheckpoints.mock.calls.map(([input]) => ({
+        from: input.fromCheckpointRef,
+        to: input.toCheckpointRef,
+        filePaths: input.filePaths,
+      })),
+      [
+        {
+          from: CheckpointRef.make("refs/t3/test/ordinal/2-own"),
+          to: CheckpointRef.make("refs/t3/test/ordinal/3-own"),
+          filePaths: undefined,
+        },
+        {
+          from: yield* checkpointRefForScopeOrdinal({
+            scopeId: firstScopeId,
+            ordinalWithinScope: 0,
+          }),
+          to: CheckpointRef.make("refs/t3/test/ordinal/3-own"),
+          filePaths: undefined,
+        },
+      ],
+    );
+  }).pipe(Effect.provide(layer));
+});
 
 const layerVcsProcess = VcsProcess.layer.pipe(Layer.provide(NodeServices.layer));
 const layerStore = CheckpointStore.layer.pipe(

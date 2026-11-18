@@ -1,10 +1,18 @@
-import { CircleCheckIcon, CircleDashedIcon } from "lucide-react";
+import { CircleDashedIcon } from "lucide-react";
 
-import { cn } from "~/lib/utils";
 import { type LatestTodoListState, yourCallQuestion } from "../../session-logic";
+
+/**
+ * Paused: flip to true to show the live checklist and the "Waiting on you" box again
+ * (pairs with PLAN_CHECKLIST_ENABLED in provider-core runtimeInstructions.ts).
+ */
+export const PLAN_CHECKLIST_ENABLED = false;
 
 /** The agent's task list at the end of the conversation while it works. */
 export function PlanChecklist({ todoList }: { readonly todoList: LatestTodoListState }) {
+  // Only what is still ahead; finished steps drop out of the list.
+  const ahead = todoList.steps.filter((step) => step.status !== "completed");
+  if (ahead.length === 0) return null;
   return (
     <div className="chat-content-lane">
       <ul
@@ -12,23 +20,16 @@ export function PlanChecklist({ todoList }: { readonly todoList: LatestTodoListS
         data-plan-checklist="true"
         className="flex flex-col gap-1.5 rounded-2xl border border-foreground/8 px-4 py-3 text-chat leading-relaxed text-foreground"
       >
-        {todoList.steps.map((step) => (
+        {ahead.map((step) => (
           <li key={step.id} className="flex min-w-0 items-start gap-2">
             <span aria-hidden className="flex h-lh flex-none items-center">
-              {step.status === "completed" ? (
-                <CircleCheckIcon className="size-3.5 text-foreground" />
-              ) : step.status === "running" ? (
+              {step.status === "running" ? (
                 <RunningRing />
               ) : (
                 <CircleDashedIcon className="size-3.5 text-foreground" />
               )}
             </span>
-            <span
-              className={cn(
-                "min-w-0 flex-1 wrap-anywhere",
-                step.status === "completed" && "text-muted-foreground",
-              )}
-            >
+            <span className="min-w-0 flex-1 wrap-anywhere">
               {yourCallQuestion(step) ?? step.text}
             </span>
           </li>

@@ -115,7 +115,7 @@ effectIt.layer(NodeServices.layer)("readClaudeResetCredits", (it) => {
     }),
   );
 
-  it.effect("reads nothing from keychain logins or failed requests", () =>
+  it.effect("reads nothing from a missing keychain login or failed requests", () =>
     Effect.gen(function* () {
       const { configDir } = yield* writeLogin;
       const darwin = yield* ClaudeResetCredits.readClaudeResetCredits(configDir, "2.1.0").pipe(
@@ -128,6 +128,20 @@ effectIt.layer(NodeServices.layer)("readClaudeResetCredits", (it) => {
       );
       expect([darwin, limited]).toEqual([undefined, undefined]);
     }),
+  );
+});
+
+describe("claudeKeychainService", () => {
+  effectIt.effect("matches Claude Code's keychain service names", () =>
+    Effect.gen(function* () {
+      const path = yield* Path.Path;
+      expect(ClaudeResetCredits.claudeKeychainService("/Users/a/.claude", "/Users/a", path)).toBe(
+        "Claude Code-credentials",
+      );
+      expect(ClaudeResetCredits.claudeKeychainService("/Users/a/work", "/Users/a", path)).toMatch(
+        /^Claude Code-credentials-[0-9a-f]{8}$/,
+      );
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 });
 

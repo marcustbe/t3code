@@ -385,7 +385,7 @@ function Sidebar({
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
             variant === "floating" || variant === "inset"
               ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
-              : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) border-separator group-data-[side=left]:border-r group-data-[side=right]:border-l",
+              : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) border-separator-solid group-data-[side=left]:border-r-[length:var(--separator-width)] group-data-[side=right]:border-l-[length:var(--separator-width)]",
             className,
           )}
           data-slot="sidebar-container"
@@ -655,7 +655,7 @@ function SidebarFooter({ className, ...props }: React.ComponentProps<"div">) {
       // ask), so the icon glyphs land 8px in on every side. Like
       // Claude's, it stays put under the scrolling list behind a separator that runs edge to edge.
       className={cn(
-        "flex flex-col gap-2 border-t border-separator px-[calc(var(--sidebar-side-inset)-3px)] pt-[calc(var(--sidebar-side-inset)-3px)] pb-[max(0px,calc(var(--sidebar-bottom-padding,12px)-11px))]",
+        "flex flex-col gap-2 border-t-[length:var(--separator-width)] border-sidebar-separator px-[calc(var(--sidebar-side-inset)-3px)] pt-[calc(var(--sidebar-side-inset)-3px)] pb-[max(0px,calc(var(--sidebar-bottom-padding,12px)-11px))]",
         className,
       )}
       data-sidebar="footer"
@@ -668,9 +668,12 @@ function SidebarFooter({ className, ...props }: React.ComponentProps<"div">) {
 function SidebarContent({
   className,
   fixedHeader,
+  scrollUnderHeader,
   ...props
 }: React.ComponentProps<"div"> & {
   fixedHeader?: React.ReactNode;
+  /** CSS length the list's top edge moves up into the fixed header, so its fade ends there. */
+  scrollUnderHeader?: string;
 }) {
   return (
     <>
@@ -683,12 +686,23 @@ function SidebarContent({
         // interaction boundary.
         viewportTabIndex={-1}
         // A long fade at the top (0.75rem cut rows off harshly); a shorter one above the footer.
-        className="h-auto min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]]:[--fade-size:2rem] [&>[data-slot=scroll-area-viewport]]:[--fade-size-end:1rem]"
+        // Under a header the top fade is short: rows stay solid until just before its edge.
+        className={cn(
+          "h-auto min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]]:[--fade-size:2rem] [&>[data-slot=scroll-area-viewport]]:[--fade-size-end:1rem]",
+          scrollUnderHeader &&
+            "mt-[calc(-1*var(--scroll-under-header))] [&>[data-slot=scroll-area-viewport]]:[--fade-size:1rem]",
+        )}
+        style={
+          scrollUnderHeader
+            ? ({ "--scroll-under-header": scrollUnderHeader } as React.CSSProperties)
+            : undefined
+        }
       >
         <div
           className={cn(
             "flex w-full min-w-0 flex-col [overflow-anchor:none] group-data-[collapsible=icon]:overflow-hidden [&>[data-sidebar=group]+[data-sidebar=group]]:pt-0",
             fixedHeader && "[&>[data-sidebar=group]:first-child]:pt-0",
+            scrollUnderHeader && "pt-(--scroll-under-header)",
             className,
           )}
           data-sidebar="content"

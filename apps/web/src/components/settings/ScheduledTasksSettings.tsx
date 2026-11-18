@@ -46,6 +46,7 @@ import {
 
 import { formatRelativeTime } from "../../timestampFormat";
 import { useEnvironmentSettings } from "../../hooks/useSettings";
+import { createModelSelection } from "@t3tools/shared/model";
 import { getCustomModelOptionsByInstance } from "../../modelSelection";
 import { providerInstanceEntriesFor } from "../../providerInstances";
 import { usePrimaryCloudLinkState } from "../../cloud/cloudLinkState";
@@ -101,6 +102,7 @@ import { Menu, MenuTrigger, MenuPopup, MenuItem, MenuSeparator } from "../ui/men
 import { ToggleGroup, Toggle } from "../ui/toggle-group";
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from "../ui/empty";
 import { ProviderModelPicker } from "../chat/ProviderModelPicker";
+import { TraitsPicker } from "../chat/TraitsPicker";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
@@ -1278,6 +1280,13 @@ function ScheduledTaskEditorForm({
   const activeInstanceId =
     activeSelection?.instanceId ?? firstInstance?.instanceId ?? ("" as ProviderInstanceId);
   const activeModel = activeSelection?.model ?? "";
+  const activeEntry = instanceEntries.find((entry) => entry.instanceId === activeInstanceId);
+  // Effort lives in the options; they carry over only while the picked model stays the same.
+  const activeOptions =
+    draft.baseModelSelection?.instanceId === activeInstanceId &&
+    draft.baseModelSelection.model === activeModel
+      ? (draft.baseModelSelection.options ?? [])
+      : (activeSelection?.options ?? []);
   const modelOptionsByInstance = getCustomModelOptionsByInstance(
     settings,
     providers,
@@ -1604,7 +1613,7 @@ function ScheduledTaskEditorForm({
           </Field>
 
           <Field label="Model">
-            <div>
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <ProviderModelPicker
                 environmentId={environmentId}
                 disabled={saving || !connected}
@@ -1619,6 +1628,30 @@ function ScheduledTaskEditorForm({
                   setDraft((current) => ({ ...current, modelKey: `${instanceId}:${model}` }))
                 }
               />
+              {activeEntry && activeModel ? (
+                <TraitsPicker
+                  provider={activeEntry.driverKind}
+                  instanceId={activeInstanceId}
+                  models={activeEntry.models}
+                  model={activeModel}
+                  modelOptions={activeOptions}
+                  allowPromptInjectedEffort={false}
+                  planModeEnabled={settings.planModeEnabled}
+                  disabled={saving || !connected}
+                  triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
+                  onModelOptionsChange={(options) =>
+                    setDraft((current) => ({
+                      ...current,
+                      modelKey: `${activeInstanceId}:${activeModel}`,
+                      baseModelSelection: createModelSelection(
+                        activeInstanceId,
+                        activeModel,
+                        options,
+                      ),
+                    }))
+                  }
+                />
+              ) : null}
             </div>
           </Field>
 

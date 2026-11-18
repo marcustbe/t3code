@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 const VISIBLE_MS = 1200;
+// The app's 100% is Chromium's 120% (MAIN_WINDOW_BASE_ZOOM_LEVEL = 1 in DesktopWindow.ts).
+const BASE_ZOOM_FACTOR = 1.2;
 
 /** Shows the window's zoom level for a moment after ⌘+ / ⌘− / ⌘0 change it (desktop). */
 export function ZoomIndicator() {
@@ -16,7 +18,7 @@ export function ZoomIndicator() {
       const next = readZoom();
       if (Math.abs(next - zoom) < 0.001) return;
       zoom = next;
-      setPercent(Math.round(next * 100));
+      setPercent(Math.round((next / BASE_ZOOM_FACTOR) * 100));
       clearTimeout(hideTimer);
       hideTimer = setTimeout(() => setPercent(null), VISIBLE_MS);
     };

@@ -338,6 +338,29 @@ export function waitForThreadShell(ref: ScopedThreadRef, timeoutMs = 5_000): Pro
   });
 }
 
+/** A run the server won't settle over: preparing, starting, running or waiting (incl. one with messages queued behind it). */
+export function threadShellHasRunningRun(thread: EnvironmentThreadShell | null): boolean {
+  const runtime = thread?.runtime ?? null;
+  if (runtime === null) return false;
+  if (runtime.status === "queued") return runtime.activeRunId !== null;
+  return (
+    runtime.status === "preparing" ||
+    runtime.status === "starting" ||
+    runtime.status === "running" ||
+    runtime.status === "waiting"
+  );
+}
+
+/** Waits for a stopped chat's run to end, so it can be settled. */
+export function waitForThreadRunEnded(ref: ScopedThreadRef, timeoutMs = 15_000): Promise<boolean> {
+  return waitForAtomValue({
+    registry: appAtomRegistry,
+    atom: environmentThreadShells.threadShellAtom(ref),
+    predicate: (thread) => !threadShellHasRunningRun(thread),
+    timeoutMs,
+  });
+}
+
 export function useEnvironmentSupportsServerBrowser(environmentId: EnvironmentId | null): boolean {
   const configs = useServerConfigs();
   return (

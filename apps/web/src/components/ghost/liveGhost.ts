@@ -13,6 +13,8 @@ const DISPOSE_AFTER_MS = 60_000;
 const LOOK_REACH_PX = 260;
 const LOOK_EASE_MS = 140;
 const TWIRL_MS = 1000;
+const HOVER_BOB_MS = 2600;
+const HOVER_SWAY_MS = 4100;
 
 interface View {
   readonly canvas: HTMLCanvasElement;
@@ -20,6 +22,10 @@ interface View {
   readonly spinning: boolean;
   visible: boolean;
   drawn: boolean;
+  /** Origin of the spin loop (rAF time); the hand-off sets it so the flight lands at rest. */
+  spinStart: number;
+  /** Hidden under the hero's flight: skip drawing until it lands. */
+  flying: boolean;
   /** When a click started a twirl (rAF time), or 0. */
   twirlStart: number;
   yaw: number;
@@ -54,7 +60,7 @@ function spinPose(t: number) {
 function viewPose(view: View, now: number): GhostPose {
   const spin =
     view.spinning && !reducedMotion()
-      ? spinPose((now % LOOP_MS) / LOOP_MS)
+      ? spinPose(((((now - view.spinStart) % LOOP_MS) + LOOP_MS) % LOOP_MS) / LOOP_MS)
       : { spread: 0, spin: 0, power: 1 };
   if (view.twirlStart) {
     // A click: one extra half turn while the shell opens a little and the eye flares.
@@ -65,6 +71,9 @@ function viewPose(view: View, now: number): GhostPose {
     spin.power *= 1 + swell * 0.35;
     if (u >= 1) view.twirlStart = 0;
   }
+  // A working Ghost already draws every frame, so it also hovers: a slow bob and sway on
+  // unrelated periods, so the path never repeats exactly.
+  const hovering = view.spinning && !reducedMotion();
   return {
     ...spin,
     yaw: view.yaw,
@@ -72,7 +81,8 @@ function viewPose(view: View, now: number): GhostPose {
     eyeYaw: view.yaw,
     eyePitch: view.pitch,
     blink: 1,
-    bob: 0,
+    bob: hovering ? Math.sin((now / HOVER_BOB_MS) * Math.PI * 2) * 0.1 : 0,
+    roll: hovering ? Math.sin((now / HOVER_SWAY_MS) * Math.PI * 2) * 0.07 : 0,
   };
 }
 
@@ -140,7 +150,7 @@ function tick(now: number) {
   const follow = !reducedMotion();
   let moving = false;
   for (const view of views.values()) {
-    if (!view.visible) continue;
+    if (!view.visible || view.flying) continue;
     if (pointerMoved && follow) aim(view);
     const looking = follow && ease(view, dt);
     const spinning = (view.spinning || view.twirlStart > 0) && follow;
@@ -176,21 +186,24 @@ function dispose() {
 // toward its landing spot, then flies those frames as compositor animations (a busy main thread
 // can't make them stutter). It turns back to the companion's own gaze before landing.
 const FLIGHT_WINDOW_MS = 4000;
-const FLIGHT_MS = 480;
+const FLIGHT_MS = 620;
 /** Frames per turn; it faces the landing spot by TURN_OUT_END of the flight, and turns back
  *  to the companion's gaze between TURN_BACK_START and TURN_BACK_END. */
-const TURN_FRAMES = 8;
-const TURN_OUT_END = 0.3;
+const TURN_FRAMES = 6;
+const TURN_OUT_END = 0.22;
 const TURN_BACK_START = 0.5;
-const TURN_BACK_END = 0.85;
+const TURN_BACK_END = 0.88;
+/** The flyer and the live companion cross-fade over this long on landing. */
+const LANDING_FADE_MS = 140;
 /** Largest bank (degrees) into a sideways flight. */
 const BANK_DEG = 10;
 
 export interface HeroGhostHandoff {
   /** The hero's current frame. */
   snapshot(): HTMLCanvasElement;
-  /** Frames of the hero turning its gaze to `yaw`/`pitch`, the last one fully turned. */
-  turn(yaw: number, pitch: number, count: number): HTMLCanvasElement[];
+  /** Frames of the hero turning its gaze to `yaw`/`pitch`, the last one fully turned;
+   *  `size` (CSS px) renders them smaller. */
+  turn(yaw: number, pitch: number, count: number, size?: number): HTMLCanvasElement[];
   release(): void;
 }
 
@@ -225,14 +238,17 @@ export function noteHeroGhost(rect: DOMRect) {
   );
 }
 
-/** Call as the hero unmounts; takes ownership of its renderer (`release` frees it). */
-export function heroGhostLeft(handoff: HeroGhostHandoff) {
+/**
+ * Call as the hero unmounts. When a sent message armed a flight it takes ownership of the
+ * renderer (`release` frees it) and returns true; otherwise the hero keeps it.
+ */
+export function heroGhostLeft(handoff: HeroGhostHandoff): boolean {
   const armed = performance.now() - heroFlightArmedAt < 2000;
   heroFlightArmedAt = 0;
   takeHeroFlight()?.handoff.release();
   const rect = heroRect;
   const first = armed && rect ? handoff.snapshot() : null;
-  if (!rect || !first || first.width === 0) return handoff.release();
+  if (!rect || !first || first.width === 0) return false;
   heroFlight = {
     rect,
     handoff,
@@ -240,6 +256,7 @@ export function heroGhostLeft(handoff: HeroGhostHandoff) {
     leftAt: performance.now(),
     timer: setTimeout(() => takeHeroFlight()?.handoff.release(), FLIGHT_WINDOW_MS),
   };
+  return true;
 }
 
 function layer(canvas: HTMLCanvasElement, parent: HTMLElement, opacity: number) {
@@ -282,6 +299,9 @@ export function flyGhostFromHero(target: HTMLCanvasElement) {
   carrier.append(flyer);
   document.body.append(carrier);
   target.style.visibility = "hidden";
+  const companion = views.get(target);
+  if (companion) companion.flying = true;
+  const stats = { renderMs: 0, retargets: 0, maxGapMs: 0 };
   let released = false;
   const release = () => {
     if (released) return;
@@ -293,8 +313,23 @@ export function flyGhostFromHero(target: HTMLCanvasElement) {
     if (landed) return;
     landed = true;
     release();
-    carrier.remove();
     target.style.visibility = "";
+    if (companion) {
+      companion.flying = false;
+      companion.drawn = false;
+      kick();
+    }
+    try {
+      localStorage.setItem("ghost:last-flight", JSON.stringify({ at: Date.now(), ...stats }));
+    } catch {
+      // Diagnostics only.
+    }
+    if (!target.isConnected) return carrier.remove();
+    // Cross-fade into the live companion so small render differences don't read as a swap.
+    target.animate([{ opacity: 0 }, { opacity: 1 }], { duration: LANDING_FADE_MS });
+    flyer
+      .animate([{ opacity: 1 }, { opacity: 0 }], { duration: LANDING_FADE_MS, fill: "forwards" })
+      .finished.finally(() => carrier.remove());
   };
   // Measure the landing spot once the new rows have had a frame to lay out.
   requestAnimationFrame(() =>
@@ -309,9 +344,11 @@ export function flyGhostFromHero(target: HTMLCanvasElement) {
       const settle = { x: view?.targetYaw ?? 0, y: view?.targetPitch ?? 0 };
       const frames = [hero.first];
       const shownAt = [0];
+      const renderStart = performance.now();
       try {
         const out = hero.handoff.turn(dx / distance, dy / distance, TURN_FRAMES);
-        const back = hero.handoff.turn(settle.x, settle.y, TURN_FRAMES);
+        // Shown small, so rendered near the companion's own size and sharpness.
+        const back = hero.handoff.turn(settle.x, settle.y, TURN_FRAMES, to.width * 2);
         out.forEach((frame, i) => {
           frames.push(frame);
           shownAt.push(((i + 1) / out.length) * TURN_OUT_END);
@@ -326,9 +363,12 @@ export function flyGhostFromHero(target: HTMLCanvasElement) {
         // No turn: it flies with the face it had.
       }
       release();
+      stats.renderMs = Math.round(performance.now() - renderStart);
       if (view) {
         view.yaw = settle.x;
         view.pitch = settle.y;
+        // Land in the loop's rest, the pose the flyer arrives in, with a pause before it spins.
+        view.spinStart = performance.now() + FLIGHT_MS - LOOP_MS * 0.7;
       }
       frames.forEach((frame, index) => {
         if (index > 0) layer(frame, flyer, 0);
@@ -357,16 +397,35 @@ export function flyGhostFromHero(target: HTMLCanvasElement) {
           },
           { transform: `translate(${dx}px, ${dy}px) rotate(0deg) scale(${scale})` },
         ],
-        { duration: FLIGHT_MS, easing: "cubic-bezier(0.65, 0, 0.35, 1)", fill: "forwards" },
+        { duration: FLIGHT_MS, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" },
       );
       flight.onfinish = land;
       flight.oncancel = land;
-      const follow = () => {
+      // The row can still slide while the new thread settles. Retarget only when it moves, with
+      // a compositor animation, so a busy main thread never steps the Ghost along.
+      let offset = { x: 0, y: 0 };
+      let lastTick = 0;
+      const follow = (time: number) => {
         if (landed) return;
         if (!target.isConnected) return land();
+        if (lastTick) stats.maxGapMs = Math.max(stats.maxGapMs, Math.round(time - lastTick));
+        lastTick = time;
         const now = target.getBoundingClientRect();
-        const e = easeInOut(Math.min(1, Number(flight.currentTime ?? 0) / FLIGHT_MS));
-        carrier.style.transform = `translate(${(now.left - to.left) * e}px, ${(now.top - to.top) * e}px)`;
+        const next = { x: now.left - to.left, y: now.top - to.top };
+        if (Math.abs(next.x - offset.x) > 0.5 || Math.abs(next.y - offset.y) > 0.5) {
+          const current = getComputedStyle(carrier).transform;
+          const remaining = Math.max(80, FLIGHT_MS - Number(flight.currentTime ?? 0));
+          for (const running of carrier.getAnimations()) running.cancel();
+          carrier.animate(
+            [
+              { transform: current === "none" ? "translate(0px, 0px)" : current },
+              { transform: `translate(${next.x}px, ${next.y}px)` },
+            ],
+            { duration: remaining, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" },
+          );
+          offset = next;
+          stats.retargets += 1;
+        }
         requestAnimationFrame(follow);
       };
       requestAnimationFrame(follow);
@@ -395,6 +454,8 @@ export function attachLiveGhost(canvas: HTMLCanvasElement, spinning: boolean, on
     spinning,
     visible: false,
     drawn: false,
+    spinStart: 0,
+    flying: false,
     twirlStart: 0,
     yaw: 0,
     pitch: 0,

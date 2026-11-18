@@ -47,6 +47,8 @@ import {
   getSessionMessages,
   getSubagentMessages,
   type HookCallback,
+  type HookCallbackMatcher,
+  type HookEvent,
   type McpServerStatus as ClaudeMcpServerStatus,
   query,
   resolveSettings as resolveClaudeSettings,
@@ -171,6 +173,7 @@ import {
   type CompiledClaudeModelSelection,
 } from "../../claudeModelOptions.ts";
 import * as ServerConfig from "../../config.ts";
+import * as OwnChanges from "../../checkpointing/OwnChanges.ts";
 import * as PortScanner from "../../preview/PortScanner.ts";
 import * as ServerSettings from "../../serverSettings.ts";
 import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
@@ -1753,6 +1756,25 @@ const subagentDeviceInstructions: HookCallback = () =>
     },
   });
 
+const OWN_CHANGE_TOOL_MATCHER = "^(Bash|PowerShell|Edit|MultiEdit|Write|NotebookEdit)$";
+
+function claudeQueryHooks(input: {
+  readonly deviceInstructions: boolean;
+  readonly ownChangeHooks?: { readonly before: HookCallback; readonly after: HookCallback };
+}): { readonly hooks?: Partial<Record<HookEvent, HookCallbackMatcher[]>> } {
+  const hooks: Partial<Record<HookEvent, HookCallbackMatcher[]>> = {};
+  if (input.deviceInstructions) {
+    hooks.SubagentStart = [{ hooks: [subagentDeviceInstructions] }];
+  }
+  if (input.ownChangeHooks !== undefined) {
+    const { before, after } = input.ownChangeHooks;
+    hooks.PreToolUse = [{ matcher: OWN_CHANGE_TOOL_MATCHER, hooks: [before] }];
+    hooks.PostToolUse = [{ matcher: OWN_CHANGE_TOOL_MATCHER, hooks: [after] }];
+    hooks.PostToolUseFailure = [{ matcher: OWN_CHANGE_TOOL_MATCHER, hooks: [after] }];
+  }
+  return Object.keys(hooks).length === 0 ? {} : { hooks };
+}
+
 export function makeClaudeQueryOptions(input: {
   readonly modelSelection: ModelSelection;
   readonly nativeThreadId: string;
@@ -1779,6 +1801,8 @@ export function makeClaudeQueryOptions(input: {
   readonly appendSystemPromptFileText?: string;
   // Flag settings, because a user's settings.json env beats the process env in Claude Code.
   readonly toolSearchOverride?: "true";
+  /** Brackets each file-writing tool call so the thread's own changes can be told apart. */
+  readonly ownChangeHooks?: { readonly before: HookCallback; readonly after: HookCallback };
 }): ClaudeAgentSdkQueryOptions {
   const compiledSelection = compileClaudeModelSelection(input.modelSelection);
   const {
@@ -1898,9 +1922,10 @@ export function makeClaudeQueryOptions(input: {
         ...launchAppendSystemPrompt,
       ].join("\n\n"),
     },
-    ...(deviceInstructions
-      ? { hooks: { SubagentStart: [{ hooks: [subagentDeviceInstructions] }] } }
-      : {}),
+    ...claudeQueryHooks({
+      deviceInstructions,
+      ...(input.ownChangeHooks === undefined ? {} : { ownChangeHooks: input.ownChangeHooks }),
+    }),
     ...(Object.keys(extraArgs).length === 0 ? {} : { extraArgs }),
   };
   const additionalDirectories = [
@@ -4857,6 +4882,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
   const serverSettings = yield* Effect.serviceOption(ServerSettings.ServerSettingsService);
   const { attachmentsDir, fileSystem, path, random, idAllocator, queryRunner } = adapterOptions;
+  const ownChanges = yield* Effect.serviceOption(OwnChanges.OwnChangesJournal);
   const subagentModelCatalog = scopeClaudeModelCatalog(
     BUNDLED_CLAUDE_MODEL_CATALOG,
     adapterOptions.settings.customModels,
@@ -10486,6 +10512,45 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
         const canUseTool: CanUseTool = (toolName, toolInput, callbackOptions) =>
           runPromise(canUseToolEffect(toolName, toolInput, callbackOptions));
 
+        // Hooks run before and after the tool itself, so each snapshot pair brackets only its write.
+        const makeOwnChangeHooks = (
+          journal: OwnChanges.OwnChangesJournalShape,
+          threadId: ThreadId,
+        ): { readonly before: HookCallback; readonly after: HookCallback } => ({
+          before: (hookInput) =>
+            runPromise(
+              Effect.gen(function* () {
+                if (hookInput.hook_event_name !== "PreToolUse") return;
+                const context = yield* Ref.get(activeTurn);
+                const cwd = context?.input.runtimePolicy.cwd ?? hookInput.cwd;
+                const toolInput = claudeNativeToolInputFromRecord(
+                  typeof hookInput.tool_input === "object" && hookInput.tool_input !== null
+                    ? (hookInput.tool_input as Record<string, unknown>)
+                    : {},
+                );
+                const filePath =
+                  inputRecordValue(toolInput, "file_path") ??
+                  inputRecordValue(toolInput, "notebook_path");
+                yield* journal.beginCall({
+                  threadId,
+                  runId: context?.input.runId ?? null,
+                  callId: hookInput.tool_use_id,
+                  cwd,
+                  toolName: hookInput.tool_name,
+                  ...(typeof filePath === "string" ? { filePath } : {}),
+                });
+              }).pipe(Effect.ignore, Effect.as({})),
+            ),
+          after: (hookInput) =>
+            runPromise(
+              (hookInput.hook_event_name === "PostToolUse" ||
+              hookInput.hook_event_name === "PostToolUseFailure"
+                ? journal.endCall({ threadId, callId: hookInput.tool_use_id })
+                : Effect.void
+              ).pipe(Effect.ignore, Effect.as({})),
+            ),
+        });
+
         const onElicitationEffect = Effect.fn("ClaudeAdapterV2.onElicitation")(function* (
           request: ElicitationRequest,
           callbackOptions: Parameters<NonNullable<ClaudeQueryOptions["onElicitation"]>>[1],
@@ -10894,6 +10959,11 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             supportedDialogKinds: ["resume_return"],
             ...(appendSystemPromptFileText === undefined ? {} : { appendSystemPromptFileText }),
             ...(toolSearchOverride === undefined ? {} : { toolSearchOverride }),
+            ...(Option.isSome(ownChanges)
+              ? {
+                  ownChangeHooks: makeOwnChangeHooks(ownChanges.value, turnInput.threadId),
+                }
+              : {}),
           });
           const resolvedTurnCwd = yield* fileSystem
             .realPath(turnInput.runtimePolicy.cwd ?? ".")
@@ -11168,6 +11238,12 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             const attachTurn = Effect.gen(function* () {
               querySession.lastTurn = context;
               yield* Ref.set(activeTurn, context);
+              if (Option.isSome(ownChanges)) {
+                yield* ownChanges.value.startRun({
+                  threadId: turnInput.threadId,
+                  runId: turnInput.runId,
+                });
+              }
               if (
                 !isClaudeProviderContinuationTurn(turnInput) &&
                 permissionModeForClaudeRuntimePolicy(turnInput.runtimePolicy) ===

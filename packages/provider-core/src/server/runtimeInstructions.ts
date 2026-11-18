@@ -3,6 +3,11 @@ export const PULL_REQUEST_LINKING_INSTRUCTIONS = `<pull_request_linking>
 Link each PR you create, take over, or push to: link_pull_request, or link_pull_requests for several, full URL, every stack layer, as your next call. Host tools do not link for you. If linking fails, say so. Skip PRs you only read or review, and PRs named only as background. Call watch_pull_request when asked to monitor or babysit, or when work you were asked to do, such as a merge, still waits on checks or reviews, even after an earlier unwatch. Finish any needed branch update and push first, then watch and end your turn. Otherwise act now or hand back. Delegated children never watch, even if the brief says babysit. After PR work, a child's last line is: PR <full URL>, head <SHA>, checks and reviews <state>. Links and watches persist across pushes. For PR waits, no sleep, loops, gh --watch, Monitor or ScheduleWakeup. Before handback, call unwatch_pull_request on any PR you watch.
 </pull_request_linking>`;
 
+/** Paused: flip to true to tell agents about Ghost's live plan checklist again (pairs with the web flag in PlanChecklist.tsx). */
+const PLAN_CHECKLIST_ENABLED = false;
+const PLAN_CHECKLIST_INSTRUCTIONS =
+  ' Ghost shows your task list as a live checklist at the end of the conversation, so for work with three or more steps keep one with your task or todo tool and update it as you go. When a step waits on a decision only the user can make, write it as its own step starting "Your call: " followed by the question, and leave it open until they answer; when your turn ends, Ghost shows the open ones to the user in a box at the bottom of the chat.';
+
 /** Omit model and effort when the harness manages them dynamically. */
 export function buildRuntimeInstructions(runtime: {
   readonly harness: string;
@@ -20,7 +25,7 @@ export function buildRuntimeInstructions(runtime: {
     modelName && modelName !== model ? `${modelName} (model slug: ${model})` : model;
   const modelInfo = model && model !== "auto" && model !== "default" ? `, as ${modelLabel}` : "";
   const effortInfo = effort ? ` with ${effort} reasoning effort` : "";
-  const runtimeInfo = `<runtime_info>In case you're asked: you are running in Ghost through the ${harness} harness${modelInfo}${effortInfo}. No need to mention this otherwise. You can embed images, video, and audio in your response using Markdown image syntax with absolute file paths, one per line, such as \`![Take 2](/path/to/Voice notes/take 2.mp3)\`; audio and video show as players, and spaces or non-ASCII characters in a path are fine. Link any other file you produce using its absolute path so the user can open it in Ghost's files viewer. Ghost shows your task list as a live checklist at the end of the conversation, so for work with three or more steps keep one with your task or todo tool and update it as you go. When a step waits on a decision only the user can make, write it as its own step starting "Your call: " followed by the question, and leave it open until they answer; when your turn ends, Ghost shows the open ones to the user in a box at the bottom of the chat.</runtime_info>`;
+  const runtimeInfo = `<runtime_info>In case you're asked: you are running in Ghost through the ${harness} harness${modelInfo}${effortInfo}. No need to mention this otherwise. You can embed images, video, and audio in your response using Markdown image syntax with absolute file paths, one per line, such as \`![Take 2](/path/to/Voice notes/take 2.mp3)\`; audio and video show as players, and spaces or non-ASCII characters in a path are fine. Link any other file you produce using its absolute path so the user can open it in Ghost's files viewer.${PLAN_CHECKLIST_ENABLED ? PLAN_CHECKLIST_INSTRUCTIONS : ""}</runtime_info>`;
   return runtime.pullRequestLinking === false
     ? runtimeInfo
     : `${runtimeInfo}\n\n${PULL_REQUEST_LINKING_INSTRUCTIONS}`;

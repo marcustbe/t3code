@@ -262,7 +262,7 @@ import {
 import { readNewChatOrigin } from "../newChatOrigin";
 import { useEnvironmentShellHasSnapshot } from "../state/shell";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
-import { PlanChecklist } from "./chat/PlanChecklist";
+import { PLAN_CHECKLIST_ENABLED, PlanChecklist } from "./chat/PlanChecklist";
 import { YourCallsBox } from "./chat/YourCallsBox";
 import { DraftHeroHeadline } from "./chat/DraftHeroHeadline";
 import { ExpandedImageDialogHost, openExpandedImagePreview } from "./chat/ExpandedImageDialog";
@@ -283,6 +283,7 @@ import { getTriggerDisplayModelName } from "./chat/providerIconUtils";
 import { resolveScrollToEndClearance } from "./composerFooterLayout";
 import { ChatHeader } from "./chat/ChatHeader";
 import { useSideChat } from "./chat/useSideChat";
+import { useForkChat } from "./chat/useForkChat";
 import { useRemoteOpenState } from "~/remoteOpen";
 import { shouldShowOpenInPicker } from "./chat/OpenInPicker.logic";
 import { useOpenFavoriteEditorShortcut } from "./chat/OpenInPickerShortcut";
@@ -1471,7 +1472,9 @@ export default function ChatView(props: ChatViewProps) {
     (compactionRunning || (compactRequestIsActive && !compactionSettled));
   const isWorking =
     phase === "running" || isSendBusy || isCompacting || runlessWorkStartedAt !== null;
-  const pinnedTodoList = findPinnedTodoList(serverProjection, isWorking);
+  const pinnedTodoList = PLAN_CHECKLIST_ENABLED
+    ? findPinnedTodoList(serverProjection, isWorking)
+    : null;
   const workingTodoList = isWorking ? pinnedTodoList : null;
   const yourCalls = isWorking ? [] : openYourCalls(pinnedTodoList);
   const activeContextWindow = deriveLatestContextWindowSnapshot(
@@ -2865,6 +2868,18 @@ export default function ChatView(props: ChatViewProps) {
                   )
                 ? "Available once the thread's worktree is set up."
                 : null;
+  // ⌘⏎ while running forks the chat; side chats and their panes keep the normal send.
+  const forkChat = useForkChat({
+    threadRef:
+      !embedded && canOperateThread && isServerThread && activeThread?.lineage.sideChat !== true
+        ? activeThreadRef
+        : null,
+    title: activeThread?.title ?? "",
+    runtimeMode,
+    onError: (message) => {
+      if (activeThread) setThreadError(activeThread.id, message);
+    },
+  });
   const openSideChatStable = useStableCallback(() => void sideChat.open());
   const sendSideChatStable = useStableCallback((prompt: string) => sideChat.open(prompt));
   const { onConfirmRevertStable, onForkFromRunStable, onRevertTimelineTurnStable } =
@@ -3037,6 +3052,7 @@ export default function ChatView(props: ChatViewProps) {
     handleInteractionModeChange,
     onSideChat: sideChat.available ? sendSideChatStable : undefined,
     sideChatDisabledReason,
+    onForkChat: forkChat.available ? forkChat.send : undefined,
     handleNewThreadInActiveProject,
     persistThreadSettingsForNextTurn,
   });
@@ -3420,7 +3436,7 @@ export default function ChatView(props: ChatViewProps) {
             ref={threadPanelPopoverAnchorRef}
             data-chat-header
             className={cn(
-              "relative z-20 border-b [[data-panel-animations=true]_&]:motion-safe:transition-[padding-left] [[data-panel-animations=true]_&]:motion-safe:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:motion-safe:ease-out",
+              "relative z-20 border-b-[length:var(--separator-width)] [[data-panel-animations=true]_&]:motion-safe:transition-[padding-left] [[data-panel-animations=true]_&]:motion-safe:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:motion-safe:ease-out",
               isElectron
                 ? cn(
                     // Settings › Appearance › Top bar side padding (16px).

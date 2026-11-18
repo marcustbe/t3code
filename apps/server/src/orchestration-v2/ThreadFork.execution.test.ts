@@ -973,7 +973,7 @@ it.effect("a side chat of an idle parent still starts with the framing note", ()
     assert.lengthOf(started.contextHandoffs, 1);
     const [handoff] = started.contextHandoffs;
     assert.isTrue(
-      handoff!.summaryText.startsWith("You are in a side chat beside the main thread."),
+      handoff!.summaryText.startsWith("You are in a side chat: a fork of the main thread"),
     );
     assert.notInclude(handoff!.summaryText, "Main thread activity");
   }).pipe(Effect.provide(forkCases[0]!.layer)),
@@ -1172,7 +1172,7 @@ it.effect("a side chat opened during the parent's first turn starts from a diges
       strategy: "portable_context",
       contextHandoffId: handoff!.id,
     });
-    assert.include(handoff!.summaryText, "You are in a side chat beside the main thread.");
+    assert.include(handoff!.summaryText, "You are in a side chat: a fork of the main thread");
     // Inherited rows come first, so the cap truncates them first.
     assert.isAbove(
       handoff!.summaryText.indexOf("- User: PARENT_IMPORTED_MARKER"),

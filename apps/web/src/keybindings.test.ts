@@ -812,10 +812,10 @@ describe("composer and pull request shortcuts", () => {
             platform,
             context,
           }),
-          composerRequiresModifier ? "composer.sendAlternate" : "thread.steerQueuedMessage",
+          composerRequiresModifier ? "composer.sendSideChat" : "thread.steerQueuedMessage",
         );
         assert.strictEqual(
-          shortcutLabelForCommand(DEFAULT_RESOLVED_KEYBINDINGS, "composer.sendAlternate", {
+          shortcutLabelForCommand(DEFAULT_RESOLVED_KEYBINDINGS, "composer.sendSideChat", {
             platform,
             context,
           }),

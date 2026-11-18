@@ -166,10 +166,7 @@ import type { SidebarThreadSummary } from "../types";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
 import { cn } from "~/lib/utils";
 import { ProjectEnvironmentBadge } from "./ProjectEnvironmentBadge";
-import {
-  buildThreadActionMenuItems,
-  threadActionRequiresOperate,
-} from "./threadActionMenu.logic";
+import { buildThreadActionMenuItems, threadActionRequiresOperate } from "./threadActionMenu.logic";
 import {
   applySidebarThreadDrop,
   filterSidebarV2VisibleThreads,
@@ -1970,8 +1967,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       ?.map((folder) => `${folder.group.projectKey}:${folder.threads.length}`)
       .join("\n") ?? "",
   ].join("\0");
-  const listMotionAnimate =
-    dragState === null && sidebarListItems.length > 0;
+  const listMotionAnimate = dragState === null && sidebarListItems.length > 0;
   // Cache on both fields so layout-key changes trigger the effect even when animate is unchanged.
   const listMotionPass = { layoutKey: listMotionLayoutKey, animate: listMotionAnimate };
   const shelfExpansionKey = [workingShelfExpanded, snoozedShelfExpanded, settledShelfExpanded].join(
@@ -2906,6 +2902,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       <SidebarContent
         ref={sidebarContentRef}
         className="min-h-full"
+        // Chats are gone by the Done row's hover edge, never visible under it (header inset less
+        // the toolbar's -mb-1).
+        scrollUnderHeader="calc(var(--sidebar-content-inset) - 0.25rem)"
         fixedHeader={
           // The New icon sits about 30px under the window buttons (4px more than before, his ask).
           <SidebarGroup className="z-[1] -mt-1.25">
@@ -3115,7 +3114,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       }}
                     </ComboboxList>
                     {/* How rows name their project: the name under the title, or just its icon. */}
-                    <label className="flex cursor-pointer items-center justify-between gap-3 border-t border-separator px-3.5 py-2 text-sm">
+                    <label className="flex cursor-pointer items-center justify-between gap-3 border-t-[length:var(--separator-width)] border-separator px-3.5 py-2 text-sm">
                       Project icon only
                       <Switch
                         size="sm"

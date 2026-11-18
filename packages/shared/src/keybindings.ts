@@ -183,7 +183,9 @@ export const DEFAULT_KEYBINDINGS: ReadonlyArray<KeybindingRule> = [
   { key: "mod+s", command: "composer.stash", when: "!terminalFocus" },
   { key: "mod+shift+enter", command: "thread.steerQueuedMessage", when: "!terminalFocus" },
   { key: "alt+arrowup", command: "thread.editQueuedMessage", when: "composerFocus" },
-  { key: "mod+enter", command: "composer.sendAlternate", when: "composerFocus && turnRunning" },
+  // Ghost: ⌘⏎ while a turn runs forks the chat into a new one; steer/queue swap moved to ⌥⏎.
+  { key: "mod+enter", command: "composer.sendSideChat", when: "composerFocus && turnRunning" },
+  { key: "alt+enter", command: "composer.sendAlternate", when: "composerFocus && turnRunning" },
   {
     key: "mod+enter",
     command: "composer.sendBackground",

@@ -186,9 +186,10 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --radius-composer: 12px;
   /* Between regular and medium: message times under the actions (500 read too bold). */
   --font-weight-book: 450;
-  /* Snappy by default: hovers, menus and popovers settle in 120ms with a fast-out curve. */
+  /* Snappy by default: hovers, menus and popovers settle in 120ms on a true ease-out
+     (full speed at once, gentle landing; the old 0.2,0,0,1 started slow and read as ease-in). */
   --default-transition-duration: 120ms;
-  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  --default-transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif;
   --font-mono:
@@ -320,6 +321,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --color-sidebar-row-active: var(--sidebar-row-active);
   --color-sidebar-row-selected: var(--sidebar-row-selected);
   --color-separator: var(--separator);
+  --color-separator-solid: var(--separator-solid);
+  --color-sidebar-separator: var(--sidebar-separator);
   --color-sidebar-border: var(--contrast-sidebar-border);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -1287,7 +1290,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --card-foreground: var(--foreground);
   --popover: var(--color-white);
   --popover-foreground: var(--foreground);
-  --primary: #0077f9;
+  --primary: #2171f7;
   --primary-foreground: var(--color-white);
   --secondary: var(--color-zinc-50);
   --secondary-foreground: var(--color-zinc-800);
@@ -1365,7 +1368,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     --card-foreground: var(--foreground);
     --popover: #1f1f1f;
     --popover-foreground: var(--foreground);
-    --primary: #0077f9;
+    --primary: #2171f7;
     --secondary: --alpha(var(--color-white) / 3%);
     --secondary-foreground: var(--foreground);
     --muted: --alpha(var(--color-white) / 3%);
@@ -1474,13 +1477,22 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   background-color: transparent;
 }
 
+/* The separator border itself darkens: a rail line beside it reached a fraction of a pixel past the
+   sidebar at fractional zoom, and the chat header (z-20, over the sidebar's z-10) hid that part. */
 [data-app-sidebar] [data-slot="sidebar-rail"]::after {
-  left: 50%;
-  width: 1px;
+  display: none;
 }
 
-[data-app-sidebar] [data-slot="sidebar-rail"]:hover::after {
-  background-color: color-mix(in srgb, var(--sidebar-foreground) 25%, transparent);
+[data-app-sidebar][data-slot="sidebar-container"]:has(
+    > [data-slot="sidebar-inner"] > [data-slot="sidebar-rail"]:hover
+  ) {
+  border-color: color-mix(in srgb, var(--sidebar-foreground) 34%, transparent);
+}
+
+/* Keeps the main area's layers (chat header z-20) under the sidebar (z-10): at fractional zoom
+   the edge pixel is shared, and the header repainted it, so the separator looked cut at the top. */
+[data-slot="sidebar-inset"] {
+  isolation: isolate;
 }
 
 /* Settings groups: selectors and outlined buttons are solid white (raised a step in dark) on the
@@ -2990,8 +3002,8 @@ html[data-window-translucent] [data-slot="sidebar-container"] {
     var(--translucent-sidebar-tint) var(--sidebar-surface-opacity),
     transparent
   );
-  border-right-width: 1px;
-  border-color: var(--separator);
+  border-right-width: var(--separator-width);
+  border-color: var(--sidebar-separator);
 }
 
 html.dark[data-window-translucent] [data-slot="sidebar-container"] {
@@ -3140,14 +3152,23 @@ html.dark:not([data-theme-id]) [data-chat-composer-main-surface] {
   --context-chip-file: var(--color-primary);
 }
 
-/* Every separator line is 1px at one strength (the Figma's 0.8px line, which Chromium can only
-   draw as a whole device pixel): sidebar edge, sidebar footer, chat header, settings dividers and
-   the browser toolbar all use `separator`. */
+/* Every separator line is one width and one strength: sidebar edge, sidebar footer, chat header,
+   settings dividers and the browser toolbar all use `separator`. The width is 2/3px, two device
+   pixels at his 1.5x window zoom on a 2x screen (one at 1x zoom), a touch stronger than the old 1px
+   line to stay as visible. On the sidebar's grey the 10%-style overlay read darker, so its lines use
+   a lighter overlay that lands on the header line's colour over the sidebar, and the opaque
+   sidebar's edge, drawn over the window, uses that colour solid. An overlay still darkens
+   see-through glass over any desktop, where a solid line turned light. */
 :root {
-  --separator: rgb(0 0 0 / 10%);
+  --separator-width: 0.6667px;
+  --separator: rgb(0 0 0 / 12%);
+  --separator-solid: color-mix(in srgb, black 12%, var(--background));
+  --sidebar-separator: rgb(0 0 0 / 10.6%);
 }
 .dark {
-  --separator: rgb(255 255 255 / 12%);
+  --separator: rgb(255 255 255 / 15%);
+  --separator-solid: color-mix(in srgb, white 15%, var(--background));
+  --sidebar-separator: rgb(255 255 255 / 10.7%);
 }
 
 /* Settings section tiles: a faint light edge on top and a dark hairline around, like Apple's
@@ -3337,6 +3358,35 @@ html.dark[data-window-translucent] [data-slot="sidebar-inset"] {
 @media (prefers-reduced-motion: reduce) {
   [data-ghost-mark] [data-ghost-part] {
     transition: none;
+  }
+}
+
+/* New-chat 3D Ghost (GhostModel.tsx): it floats like the Ghost in Destiny, a slow bob and a
+   sway on unrelated periods so the path never repeats exactly. Transform only: no repaints. */
+@keyframes ghost-hover-bob {
+  from {
+    translate: 0 2.5px;
+  }
+  to {
+    translate: 0 -3.5px;
+  }
+}
+@keyframes ghost-hover-sway {
+  from {
+    rotate: -2deg;
+  }
+  to {
+    rotate: 2deg;
+  }
+}
+[data-ghost-hover] {
+  animation:
+    ghost-hover-bob 2.9s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate,
+    ghost-hover-sway 4.7s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-ghost-hover] {
+    animation: none;
   }
 }
 

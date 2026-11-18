@@ -90,6 +90,16 @@ capture workspace state without adding commits to the user's branch. A revert mu
 workspace state with the provider conversation. A provider that cannot roll back its conversation
 must reject that operation before changing the filesystem.
 
+Checkpoints snapshot the whole repository, so several threads sharing one checkout see each other's
+edits and commits in a checkpoint diff. A turn's changed files and diff therefore come from an
+[own-changes ref](../../apps/server/src/checkpointing/OwnChanges.ts) when one exists: the previous
+turn's tree plus only what this thread's file-writing tool calls changed, captured by snapshots
+taken just before and after each call (Claude's `PreToolUse`/`PostToolUse` hooks). Another
+thread's journaled change inside one of those windows is replayed as the starting point, so a long
+shell command does not claim it. Writers Ghost does not see (the user, scheduled jobs) are only
+excluded outside those windows. Providers without the hooks, and runs a server restart cut off,
+keep the checkpoint diff. Restore always uses the real checkpoint refs.
+
 Thread settlement is server-owned. The
 [settlement service](../../apps/server/src/orchestration-v2/ThreadSettlementService.ts) evaluates PR
 and inactivity settings without a connected client. Merge notifications invalidate cached PR state

@@ -19,7 +19,8 @@ import { resolveShortcutCommand, type ShortcutEventLike } from "./keybindings";
 
 export type ComposerTriggerKind = "path" | "pull-request" | "slash-command" | "skill";
 export type ComposerSlashCommand = "model" | "plan" | "default" | "side" | "btw";
-export type ComposerSubmissionIntent = "foreground" | "background" | "alternate";
+/** `sideChat` sends the prompt to a new side chat while the thread runs (Ghost). */
+export type ComposerSubmissionIntent = "foreground" | "background" | "alternate" | "fork";
 
 export interface ComposerTrigger {
   kind: ComposerTriggerKind;
@@ -80,6 +81,8 @@ export function composerSubmissionIntentForKey(input: {
     },
   });
   if (command === "composer.sendAlternate" && input.isRunning) return "alternate";
+  // Ghost: the command keeps its old id so saved keybindings still match; it now forks.
+  if (command === "composer.sendSideChat" && input.isRunning) return "fork";
   if (command === "composer.sendBackground" && input.isDraftThread) return "background";
   if (command === "composer.sendAndNewThread" && !input.isDraftThread) return "background";
   if (command !== null || event.key !== "Enter" || event.shiftKey || event.altKey) return null;

@@ -776,7 +776,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       ? {
                           label: "Done",
                           icon: "done" as const,
-                          className: "text-[#0078f9]",
+                          className: "text-[#2171f7]",
                         }
                       : null;
   const isWokeStatus = topStatus?.icon === "woke";
@@ -1527,7 +1527,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                         />
                       ) : null}
                       {canStop ? (
-                        // While it runs (incl. waiting on a build or delegate), Stop replaces Settle.
+                        // While it runs (incl. waiting on a build or delegate), Stop replaces Settle; keybinds still settle.
                         <Tooltip>
                           <TooltipTrigger
                             render={

@@ -90,6 +90,8 @@ export const STATIC_KEYBINDING_COMMANDS = [
   "themeEditor.toggle",
   "composer.stash",
   "composer.sendAlternate",
+  // Ghost: sends the prompt to a new side chat (a fork) instead of queueing behind the running turn.
+  "composer.sendSideChat",
   "composer.sendBackground",
   "composer.sendAndNewThread",
   "composer.host",

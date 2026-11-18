@@ -43,6 +43,8 @@ import {
   readProject,
   readThreadShell,
   readThreadShells,
+  threadShellHasRunningRun,
+  waitForThreadRunEnded,
 } from "../state/entities";
 import { useUiStateStore } from "../uiStateStore";
 import { useDiffPanelStore } from "../diffPanelStore";
@@ -284,6 +286,9 @@ export function useThreadActions() {
     reportFailure: false,
   });
   const settleThreadMutation = useOrchestrationCommand(threadEnvironment.settle, {
+    reportFailure: false,
+  });
+  const interruptThreadMutation = useOrchestrationCommand(threadEnvironment.interruptTurn, {
     reportFailure: false,
   });
   const unsettleThreadMutation = useOrchestrationCommand(threadEnvironment.unsettle, {
@@ -764,6 +769,18 @@ export function useThreadActions() {
     ThreadUndo.invalidate("pin", scopedThreadKey(target));
     ThreadUndo.invalidate("snooze", scopedThreadKey(target));
     const action = ThreadUndo.begin("settle", scopedThreadKey(target));
+    // The server only settles idle chats, so a running one is stopped first.
+    if (resolved && threadShellHasRunningRun(resolved.thread)) {
+      const stopped = await interruptThreadMutation({
+        environmentId: target.environmentId,
+        input: { threadId: target.threadId },
+      });
+      if (stopped._tag !== "Success") {
+        action.finish();
+        return stopped;
+      }
+      await waitForThreadRunEnded(target);
+    }
     const result = await settleThreadMutation({
       environmentId: target.environmentId,
       input: { threadId: target.threadId },

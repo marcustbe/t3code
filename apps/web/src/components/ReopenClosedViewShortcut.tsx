@@ -59,6 +59,8 @@ const PREVIEW_FORWARDED_COMMANDS = [
   "preview.zoomOut",
   "preview.resetZoom",
   "preview.find",
+  // ⌘T opens a new chat even while the in-app browser has focus.
+  "chat.new",
 ] as const;
 
 const isGlobalPullRequests = (ref: ScopedThreadRef) =>

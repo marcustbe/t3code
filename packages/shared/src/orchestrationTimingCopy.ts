@@ -7,9 +7,6 @@ export function formatDuration(durationMs: number, resolve: MFunctionType = mFal
   if (durationMs < 1_000) {
     return resolve(msg("{ms}ms", { ms: Math.max(1, Math.round(durationMs)) }));
   }
-  if (durationMs < 10_000) {
-    return resolve(msg("{seconds}s", { seconds: Math.round(durationMs / 100) / 10 }));
-  }
   const totalSeconds = Math.round(durationMs / 1_000);
   // Choose the unit after rounding so 59.5 seconds never renders as "60s".
   if (totalSeconds < 60) return resolve(msg("{seconds}s", { seconds: totalSeconds }));

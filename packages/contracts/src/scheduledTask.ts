@@ -247,6 +247,8 @@ export const ScheduledTask = Schema.Struct({
   projectId: ProjectId,
   threadId: Schema.NullOr(ThreadId),
   threadMode: Schema.optional(ScheduledTaskThreadMode),
+  /** Ghost: a snoozed routine settles its chat when a run completes, so it skips Done. */
+  settleWhenDone: Schema.optional(Schema.Boolean),
   workspaceStrategy: OrchestrationV2ThreadLaunchWorkspaceStrategy,
   modelSelection: ModelSelection,
   runtimeMode: RuntimeMode,
@@ -290,6 +292,8 @@ export const ScheduledTaskUpsertInput = Schema.Struct({
   threadId: Schema.optional(Schema.NullOr(ThreadId)),
   /** Omitted: keep the stored mode, or derive it from `threadId` for a new or rebound task. */
   threadMode: Schema.optional(ScheduledTaskThreadMode),
+  /** Omitted: keep the stored value (off for a new task). */
+  settleWhenDone: Schema.optional(Schema.Boolean),
   workspaceStrategy: OrchestrationV2ThreadLaunchWorkspaceStrategy,
   modelSelection: ModelSelection,
   runtimeMode: RuntimeMode,

@@ -30,7 +30,7 @@ import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../termina
 import { useThreadSelectionStore } from "../threadSelectionStore";
 import { resolveThreadRouteTarget } from "../threadRoutes";
 import { useUiStateStore } from "../uiStateStore";
-import { type CommandHandler, registerCommands } from "./dispatcher";
+import { type CommandHandler, registerCommands, registerMenuAction } from "./dispatcher";
 
 const CHAT_ROUTE_ID = "/_chat";
 
@@ -102,12 +102,15 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
     event.stopPropagation();
   };
 
-  const startNewLocal: CommandHandler = (event) => {
-    claim(event);
+  const startNewChat = () => {
     // With no current or open project, such as when every project is archived, pick one.
     void startNewThreadFromContext(readThreadContext()).then((started) => {
       if (!started) openCommandPalette({ open: "new-thread-in" });
     });
+  };
+  const startNewLocal: CommandHandler = (event) => {
+    claim(event);
+    startNewChat();
   };
 
   const previewCommand =
@@ -118,7 +121,19 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
       if (environmentId && canOperatePreview(environmentId)) dispatchPreviewAction(action);
     };
 
-  return registerCommands(
+  // ⌘T / New Chat works anywhere in the app, Settings and Usage included (Marcus's ask).
+  const isOnChatRoute = () => router.state.matches.some((match) => match.routeId === CHAT_ROUTE_ID);
+  const unregisterNewChat = registerCommands(
+    { "chat.new": startNewLocal },
+    {
+      when: (event) =>
+        isOnChatRoute() &&
+        !isCommandPaletteOpen() &&
+        !(event.target instanceof Element && event.target.closest("[data-keybinding-capture]")),
+    },
+  );
+
+  const unregisterRouteCommands = registerCommands(
     {
       "chat.newLocal": startNewLocal,
       "chat.newWithoutProject": (event) => {
@@ -130,8 +145,6 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
         claim(event);
         void scratch.startScratchThread(environmentId);
       },
-      // Starts in the current project; the draft's heading picks another.
-      "chat.new": startNewLocal,
       "preview.toggle": (event) => {
         claim(event);
         const threadRef = readRouteThreadRef();
@@ -159,7 +172,7 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
     },
     {
       when: () =>
-        router.state.matches.some((match) => match.routeId === CHAT_ROUTE_ID) &&
+        isOnChatRoute() &&
         !router.state.matches.some((match) => isAppModalPage(match.pathname)) &&
         !isCommandPaletteOpen(),
       context: () => {
@@ -183,4 +196,13 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
       },
     },
   );
+  // The in-app browser forwards ⌘T as a menu action (its page holds the keyboard).
+  const unregisterNewChatMenu = registerMenuAction("chat.new", () => {
+    if (isOnChatRoute() && !isCommandPaletteOpen()) startNewChat();
+  });
+  return () => {
+    unregisterRouteCommands();
+    unregisterNewChat();
+    unregisterNewChatMenu();
+  };
 }

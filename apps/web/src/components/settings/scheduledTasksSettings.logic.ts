@@ -130,6 +130,8 @@ export interface DraftState {
   readonly projectId: string;
   readonly threadId: string;
   readonly threadMode: ScheduledTaskThreadMode;
+  /** Ghost: finished runs go straight to Settled instead of Done. */
+  readonly settleWhenDone: boolean;
   readonly workspaceMode: WorkspaceMode;
   readonly baseRef: string;
   readonly startFromOrigin: boolean;
@@ -331,6 +333,7 @@ export function taskToDraft(task: ScheduledTask): DraftState {
     projectId: task.projectId,
     threadId: task.threadId ?? "",
     threadMode: scheduledTaskThreadMode(task),
+    settleWhenDone: task.settleWhenDone === true,
     workspaceMode: task.workspaceStrategy.type,
     baseRef: task.workspaceStrategy.type === "worktree" ? task.workspaceStrategy.baseRef : "main",
     startFromOrigin:

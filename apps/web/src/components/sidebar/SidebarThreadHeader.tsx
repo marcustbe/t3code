@@ -45,7 +45,8 @@ export function SidebarThreadHeader({
   // with the "Done" heading left and the project filter / add project right.
   return (
     <div className="flex flex-col">
-      <ul className="flex w-full min-w-0 flex-col">
+      {/* 2px between rows, the chat list's spacing (gap-px + pb-px), so hover greys don't touch. */}
+      <ul className="flex w-full min-w-0 flex-col gap-0.5">
         <SidebarMenuItem>
           <SidebarMenuButton
             size="nav"

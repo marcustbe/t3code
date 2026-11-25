@@ -514,6 +514,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("pr icon footer github")],
   },
   {
+    id: "settings-floating-panel",
+    title: msg("Floating settings panel"),
+    to: "/settings/appearance",
+    searchTerms: [msg("modal window popup overlay page float")],
+  },
+  {
     id: "sidebar-settled-count",
     title: msg("Settled count in sidebar"),
     to: "/settings/appearance",

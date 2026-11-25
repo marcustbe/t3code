@@ -31,7 +31,8 @@ export function BrowserSurfaceSlot(props: {
       const rect = element.getBoundingClientRect();
       // Round the edges, not the size, so a fractional drag width cannot shift the far edge by 1px.
       const x = Math.round(rect.left);
-      const y = Math.round(rect.top);
+      // Snap the top edge down, never above the slot: rounding up hid the toolbar separator.
+      const y = Math.ceil(rect.top - 0.01);
       const snapped = {
         x,
         y,

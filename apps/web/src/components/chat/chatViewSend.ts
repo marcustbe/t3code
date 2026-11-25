@@ -351,7 +351,8 @@ export function prepareTurnAttachments(input: {
   readonly environmentId: EnvironmentId;
   readonly attachments: ReadonlyArray<ComposerImageAttachment | ComposerFileAttachment>;
   readonly usesAttachmentUploads: boolean;
-  readonly draftTarget: ComposerThreadTarget;
+  /** Absent for attachments that live outside a composer draft (an edited message). */
+  readonly draftTarget?: ComposerThreadTarget;
 }) {
   const { environmentId, usesAttachmentUploads, draftTarget } = input;
   return Promise.all(
@@ -360,7 +361,7 @@ export function prepareTurnAttachments(input: {
         await refreshExpiredAttachmentUploads({
           environmentId,
           images: [attachment],
-          draftTarget,
+          ...(draftTarget !== undefined ? { draftTarget } : {}),
         });
         const uploaded = getUploadedAttachments({ environmentId, images: [attachment] })?.[0];
         if (!uploaded) {

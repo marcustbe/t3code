@@ -12,7 +12,7 @@ repo = Path(sys.argv[1])
 apply = "--apply" in sys.argv
 
 ROOTS = ["apps/server/src", "apps/web/src", "apps/desktop/src", "packages"]
-SKIP_DIRS = {"node_modules", "dist", "snapShot", "contracts", "wsl"}
+SKIP_DIRS = {"node_modules", "dist", "snapShot", "contracts", "wsl", "triage"}
 EXTS = {".ts", ".tsx"}
 
 # Lines containing any of these stay as they are.
@@ -30,6 +30,10 @@ PROTECT = [
     'textNode("T3 Code")',
     "GNOME",
     "SnapShot",
+    "clientInfo",
+    "originator",
+    "userAgent",
+    "connectorName",
 ]
 
 RULES = [

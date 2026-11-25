@@ -63,6 +63,7 @@ import { useOpenInPreferredEditor } from "../editorPreferences";
 import { isTerminalUrl, resolveTerminalLinkTarget } from "../terminal-links";
 import {
   isDiffToggleShortcut,
+  isNewChatShortcut,
   isTerminalClearShortcut,
   isTerminalNewShortcut,
   isTerminalSplitShortcut,
@@ -1032,6 +1033,7 @@ function TerminalSessionViewport({
           isTerminalSplitVerticalShortcut(event, currentKeybindings, options) ||
           isTerminalNewShortcut(event, currentKeybindings, options) ||
           isDiffToggleShortcut(event, currentKeybindings, options) ||
+          isNewChatShortcut(event, currentKeybindings, options) ||
           // Match Sidebar's context, or a key it will reject skips the shell.
           isThreadNavigationShortcut(event, currentKeybindings, {
             context: { ...readThreadShortcutContext(), terminalFocus: true },

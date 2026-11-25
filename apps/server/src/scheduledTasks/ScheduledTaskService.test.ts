@@ -769,7 +769,12 @@ it.effect("a fresh-session task launches one thread, then starts each later run 
         runtimeMode: "full-access",
         interactionMode: "default",
       } as const;
-      yield* service.upsert({ ...input, threadMode: "fresh_session" });
+      const created = yield* service.upsert({
+        ...input,
+        threadMode: "fresh_session",
+        settleWhenDone: true,
+      });
+      assert.equal(created.task.settleWhenDone, true);
 
       assert.equal((yield* service.runNow({ id: input.id })).threadId, launched);
       // A form opened before the first run saves no thread; the binding stays.
@@ -784,6 +789,7 @@ it.effect("a fresh-session task launches one thread, then starts each later run 
       const legacy = yield* service.upsert({ ...input, threadId: null });
       assert.equal(legacy.task.threadId, launched);
       assert.equal(legacy.task.threadMode, "fresh_session");
+      assert.equal(legacy.task.settleWhenDone, true);
       yield* service.runNow({ id: input.id });
 
       assert.equal(yield* Ref.get(launches), 1);
@@ -796,8 +802,13 @@ it.effect("a fresh-session task launches one thread, then starts each later run 
       });
       assert.equal(moved.task.threadId, null);
       assert.equal(moved.task.threadMode, "fresh_session");
-      const unbound = yield* service.upsert({ ...input, threadMode: "new_thread" });
+      const unbound = yield* service.upsert({
+        ...input,
+        threadMode: "new_thread",
+        settleWhenDone: false,
+      });
       assert.equal(unbound.task.threadId, null);
+      assert.equal(unbound.task.settleWhenDone, undefined);
     }).pipe(Effect.provide(layer));
   }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
 );

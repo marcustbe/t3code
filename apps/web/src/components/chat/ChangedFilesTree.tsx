@@ -208,7 +208,7 @@ const ChangedFilesTree = memo(function ChangedFilesTree(props: {
   const virtualized = rows.length > VIRTUALIZE_AFTER_ROWS;
 
   const renderRow = ({ node, depth }: ChangedFileRow) => {
-    const leftPadding = 8 + depth * 14;
+    const leftPadding = 4 + depth * 14;
     if (node.kind === "directory") {
       const isExpanded = expandedDirectories[node.path] ?? allDirectoriesExpanded;
       return (
@@ -233,13 +233,16 @@ const ChangedFilesTree = memo(function ChangedFilesTree(props: {
           ) : (
             <FolderClosedIcon className="size-3.5 shrink-0 text-muted-foreground/75" />
           )}
-          <span className="truncate font-mono text-2xs text-muted-foreground/90 group-hover:text-foreground/90">
+          <span className="truncate text-xs text-muted-foreground/90 group-hover:text-foreground/90">
             {node.name}
           </span>
           {hasNonZeroStat(node.stat) && (
-            <span className="ml-auto shrink-0 font-mono text-3xs tabular-nums">
-              <DiffStatLabel additions={node.stat.additions} deletions={node.stat.deletions} />
-            </span>
+            <DiffStatLabel
+              additions={node.stat.additions}
+              deletions={node.stat.deletions}
+              layout="inline"
+              className="ml-auto shrink-0 text-xs leading-4"
+            />
           )}
         </button>
       );
@@ -270,13 +273,16 @@ const ChangedFilesTree = memo(function ChangedFilesTree(props: {
           theme={resolvedTheme}
           className="size-3.5 text-muted-foreground/70"
         />
-        <span className="flex min-w-0 font-mono text-xs text-foreground/85 group-hover:text-foreground">
+        <span className="flex min-w-0 text-xs text-foreground/85 group-hover:text-foreground">
           <MiddleTruncate value={node.name} />
         </span>
         {node.stat && (
-          <span className="ml-auto shrink-0 font-mono text-3xs tabular-nums">
-            <DiffStatLabel additions={node.stat.additions} deletions={node.stat.deletions} />
-          </span>
+          <DiffStatLabel
+            additions={node.stat.additions}
+            deletions={node.stat.deletions}
+            layout="inline"
+            className="ml-auto shrink-0 text-xs leading-4"
+          />
         )}
       </button>
     );
@@ -372,7 +378,7 @@ function ChangedFilesRows({
   if (focusedIndex >= 0 && focusedIndex < start) indices.unshift(focusedIndex);
   if (focusedIndex >= end) indices.push(focusedIndex);
   return (
-    <div className="p-2">
+    <div className="px-2 pb-2">
       <div
         ref={containerRef}
         className="relative"

@@ -340,6 +340,14 @@ export function isTerminalToggleShortcut(
   return matchesCommandShortcut(event, keybindings, "terminal.toggle", options);
 }
 
+export function isNewChatShortcut(
+  event: ShortcutEventLike,
+  keybindings: ResolvedKeybindingsConfig,
+  options?: ShortcutMatchOptions,
+): boolean {
+  return matchesCommandShortcut(event, keybindings, "chat.new", options);
+}
+
 export function isTerminalSplitShortcut(
   event: ShortcutEventLike,
   keybindings: ResolvedKeybindingsConfig,

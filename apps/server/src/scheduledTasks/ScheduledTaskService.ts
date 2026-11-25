@@ -219,6 +219,7 @@ interface ScheduledTaskRow {
   readonly project_id: string;
   readonly thread_id: string | null;
   readonly thread_mode: string;
+  readonly settle_when_done: number;
   readonly workspace_strategy_json: string;
   readonly model_selection_json: string;
   readonly runtime_mode: string;
@@ -408,6 +409,7 @@ const decodeRow = Effect.fnUntraced(
       projectId: row.project_id,
       threadId: row.thread_id,
       threadMode: row.thread_mode,
+      ...(row.settle_when_done === 1 ? { settleWhenDone: true } : {}),
       workspaceStrategy,
       modelSelection,
       runtimeMode: row.runtime_mode,
@@ -532,6 +534,7 @@ export const layer = Layer.effect(
         project_id,
         thread_id,
         thread_mode,
+        settle_when_done,
         workspace_strategy_json,
         model_selection_json,
         runtime_mode,
@@ -574,6 +577,7 @@ export const layer = Layer.effect(
         project_id,
         thread_id,
         thread_mode,
+        settle_when_done,
         workspace_strategy_json,
         model_selection_json,
         runtime_mode,
@@ -652,6 +656,7 @@ export const layer = Layer.effect(
           project_id,
           thread_id,
           thread_mode,
+          settle_when_done,
           workspace_strategy_json,
           model_selection_json,
           runtime_mode,
@@ -677,6 +682,7 @@ export const layer = Layer.effect(
           ${task.projectId},
           ${task.threadId},
           ${scheduledTaskThreadMode(task)},
+          ${task.settleWhenDone === true ? 1 : 0},
           ${JSON.stringify(task.workspaceStrategy)},
           ${JSON.stringify(task.modelSelection)},
           ${task.runtimeMode},
@@ -709,6 +715,7 @@ export const layer = Layer.effect(
             ELSE COALESCE(excluded.thread_id, scheduled_tasks.thread_id)
           END,
           thread_mode = excluded.thread_mode,
+          settle_when_done = excluded.settle_when_done,
           workspace_strategy_json = excluded.workspace_strategy_json,
           model_selection_json = excluded.model_selection_json,
           runtime_mode = excluded.runtime_mode,
@@ -1553,6 +1560,9 @@ export const layer = Layer.effect(
         projectId: input.projectId,
         threadId,
         threadMode,
+        ...((input.settleWhenDone ?? existingTask?.settleWhenDone) === true
+          ? { settleWhenDone: true }
+          : {}),
         workspaceStrategy,
         modelSelection: input.modelSelection,
         runtimeMode: input.runtimeMode,

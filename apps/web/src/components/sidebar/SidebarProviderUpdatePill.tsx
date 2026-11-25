@@ -17,10 +17,8 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 const PROVIDER_UPDATE_PILL_EXIT_MS = 180;
 
 const PROVIDER_UPDATE_PILL_STYLES = {
-  loading:
-    "bg-sidebar-control-surface text-sidebar-foreground group-has-[button[data-provider-update-main]:hover]/provider-update:bg-sidebar-row-hover",
-  success:
-    "bg-sidebar-control-surface text-sidebar-foreground group-has-[button[data-provider-update-main]:hover]/provider-update:bg-sidebar-row-hover",
+  loading: "bg-sidebar-control-surface text-sidebar-foreground",
+  success: "bg-sidebar-control-surface text-sidebar-foreground",
   warning:
     "bg-warning/12 text-warning group-has-[button[data-provider-update-main]:hover]/provider-update:bg-warning/18",
   error:
@@ -169,7 +167,14 @@ export function SidebarProviderUpdatePill() {
           }
         />
       ) : null}
-      <div className="pointer-events-none absolute inset-0 rounded-lg transition-colors" />
+      {/* Hover darkens on top of the surface (it used to replace it, which read lighter on glass). */}
+      <div
+        className={`pointer-events-none absolute inset-0 rounded-lg transition-colors ${
+          displayedView.tone === "loading" || displayedView.tone === "success"
+            ? "group-has-[button[data-provider-update-main]:hover]/provider-update:bg-sidebar-row-hover"
+            : ""
+        }`}
+      />
       <Tooltip>
         <TooltipTrigger
           render={

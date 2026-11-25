@@ -207,6 +207,19 @@ export interface HeroGhostHandoff {
   release(): void;
 }
 
+/** A spinning companion that mounted before the hero left (same commit: refs attach before the
+ *  hero's unmount effect runs); the hero's hand-off flies to it. */
+let waitingTarget: HTMLCanvasElement | null = null;
+/** The flight in the air; a companion that mounts meanwhile (the row remounted) takes over. */
+let activeFlight: { adopt(target: HTMLCanvasElement): void } | null = null;
+/** How long a flight whose companion unmounted waits for the new one before fading out. */
+const ORPHAN_MS = 600;
+
+function unwaitTarget() {
+  if (waitingTarget) waitingTarget.style.visibility = "";
+  waitingTarget = null;
+}
+
 let heroRect: DOMRect | null = null;
 let heroFlightArmedAt = 0;
 let heroFlight: {
@@ -245,6 +258,8 @@ export function noteHeroGhost(rect: DOMRect) {
 export function heroGhostLeft(handoff: HeroGhostHandoff): boolean {
   const armed = performance.now() - heroFlightArmedAt < 2000;
   heroFlightArmedAt = 0;
+  const waiting = waitingTarget;
+  unwaitTarget();
   takeHeroFlight()?.handoff.release();
   const rect = heroRect;
   const first = armed && rect ? handoff.snapshot() : null;
@@ -256,6 +271,7 @@ export function heroGhostLeft(handoff: HeroGhostHandoff): boolean {
     leftAt: performance.now(),
     timer: setTimeout(() => takeHeroFlight()?.handoff.release(), FLIGHT_WINDOW_MS),
   };
+  if (waiting?.isConnected && views.has(waiting)) flyGhostFromHero(waiting);
   return true;
 }
 
@@ -270,9 +286,21 @@ function layer(canvas: HTMLCanvasElement, parent: HTMLElement, opacity: number) 
   parent.append(canvas);
 }
 
-export function flyGhostFromHero(target: HTMLCanvasElement) {
+export function flyGhostFromHero(initialTarget: HTMLCanvasElement) {
+  if (activeFlight) return activeFlight.adopt(initialTarget);
   const hero = takeHeroFlight();
-  if (!hero) return;
+  if (!hero) {
+    // The hero may still be on its way out in this same commit.
+    if (performance.now() - heroFlightArmedAt < 2000) {
+      // Hidden so it can't flash in its spot before the flight takes it over.
+      unwaitTarget();
+      waitingTarget = initialTarget;
+      initialTarget.style.visibility = "hidden";
+      setTimeout(() => waitingTarget === initialTarget && unwaitTarget(), 500);
+    }
+    return;
+  }
+  unwaitTarget();
   const from = hero.rect;
   if (performance.now() - hero.leftAt > FLIGHT_WINDOW_MS || reducedMotion() || from.width === 0) {
     return hero.handoff.release();
@@ -298,20 +326,33 @@ export function flyGhostFromHero(target: HTMLCanvasElement) {
   layer(hero.first, flyer, 1);
   carrier.append(flyer);
   document.body.append(carrier);
-  target.style.visibility = "hidden";
-  const companion = views.get(target);
-  if (companion) companion.flying = true;
-  const stats = { renderMs: 0, retargets: 0, maxGapMs: 0 };
+  const stats = { renderMs: 0, retargets: 0, maxGapMs: 0, adopted: 0, orphaned: false };
   let released = false;
   const release = () => {
     if (released) return;
     released = true;
     hero.handoff.release();
   };
+  let target = initialTarget;
+  let companion: View | undefined;
+  /** Gaze and spin phase the flyer lands in, once measured; a companion that takes over mid-flight gets them too. */
+  let arrival: { yaw: number; pitch: number; spinStart: number } | null = null;
+  const hide = (canvas: HTMLCanvasElement) => {
+    canvas.style.visibility = "hidden";
+    companion = views.get(canvas);
+    if (!companion) return;
+    companion.flying = true;
+    if (!arrival) return;
+    companion.yaw = companion.targetYaw = arrival.yaw;
+    companion.pitch = companion.targetPitch = arrival.pitch;
+    companion.spinStart = arrival.spinStart;
+  };
+  hide(target);
   let landed = false;
   const land = () => {
     if (landed) return;
     landed = true;
+    activeFlight = null;
     release();
     target.style.visibility = "";
     if (companion) {
@@ -319,118 +360,150 @@ export function flyGhostFromHero(target: HTMLCanvasElement) {
       companion.drawn = false;
       kick();
     }
+    stats.orphaned = !target.isConnected;
     try {
       localStorage.setItem("ghost:last-flight", JSON.stringify({ at: Date.now(), ...stats }));
     } catch {
       // Diagnostics only.
     }
-    if (!target.isConnected) return carrier.remove();
-    // Cross-fade into the live companion so small render differences don't read as a swap.
-    target.animate([{ opacity: 0 }, { opacity: 1 }], { duration: LANDING_FADE_MS });
+    if (target.isConnected) {
+      // Cross-fade into the live companion so small render differences don't read as a swap.
+      target.animate([{ opacity: 0 }, { opacity: 1 }], { duration: LANDING_FADE_MS });
+    }
     flyer
       .animate([{ opacity: 1 }, { opacity: 0 }], { duration: LANDING_FADE_MS, fill: "forwards" })
       .finished.finally(() => carrier.remove());
   };
-  // Measure the landing spot once the new rows have had a frame to lay out.
-  requestAnimationFrame(() =>
-    requestAnimationFrame(() => {
-      if (!target.isConnected) return land();
-      const to = target.getBoundingClientRect();
-      const dx = to.left + to.width / 2 - (from.left + from.width / 2);
-      const dy = to.top + to.height / 2 - (from.top + from.height / 2);
-      const distance = Math.hypot(dx, dy) || 1;
-      // Where the companion will be looking when it takes over (the cursor, else ahead).
-      const view = views.get(target);
-      const settle = { x: view?.targetYaw ?? 0, y: view?.targetPitch ?? 0 };
-      const frames = [hero.first];
-      const shownAt = [0];
-      const renderStart = performance.now();
-      try {
-        const out = hero.handoff.turn(dx / distance, dy / distance, TURN_FRAMES);
-        // Shown small, so rendered near the companion's own size and sharpness.
-        const back = hero.handoff.turn(settle.x, settle.y, TURN_FRAMES, to.width * 2);
-        out.forEach((frame, i) => {
-          frames.push(frame);
-          shownAt.push(((i + 1) / out.length) * TURN_OUT_END);
-        });
-        back.forEach((frame, i) => {
-          frames.push(frame);
-          shownAt.push(
-            TURN_BACK_START + ((i + 1) / back.length) * (TURN_BACK_END - TURN_BACK_START),
-          );
-        });
-      } catch {
-        // No turn: it flies with the face it had.
-      }
-      release();
-      stats.renderMs = Math.round(performance.now() - renderStart);
-      if (view) {
-        view.yaw = settle.x;
-        view.pitch = settle.y;
-        // Land in the loop's rest, the pose the flyer arrives in, with a pause before it spins.
-        view.spinStart = performance.now() + FLIGHT_MS - LOOP_MS * 0.7;
-      }
-      frames.forEach((frame, index) => {
-        if (index > 0) layer(frame, flyer, 0);
-        const on = shownAt[index] ?? 0;
-        const off = shownAt[index + 1] ?? 1;
-        frame.animate(
-          [
-            { offset: 0, opacity: index === 0 ? 1 : 0 },
-            { offset: on, opacity: index === 0 ? 1 : 0 },
-            { offset: on, opacity: 1 },
-            { offset: off, opacity: 1 },
-            { offset: off, opacity: index === frames.length - 1 ? 1 : 0 },
-            { offset: 1, opacity: index === frames.length - 1 ? 1 : 0 },
-          ],
-          { duration: FLIGHT_MS, fill: "forwards" },
-        );
-      });
-      const scale = to.width / from.width;
-      const bank = Math.max(-1, Math.min(1, dx / 400)) * BANK_DEG;
-      const flight = flyer.animate(
-        [
-          { transform: "translate(0px, 0px) rotate(0deg) scale(1)" },
-          {
-            offset: 0.5,
-            transform: `translate(${dx / 2}px, ${dy / 2}px) rotate(${bank}deg) scale(${(1 + scale) / 2})`,
-          },
-          { transform: `translate(${dx}px, ${dy}px) rotate(0deg) scale(${scale})` },
-        ],
-        { duration: FLIGHT_MS, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" },
-      );
-      flight.onfinish = land;
-      flight.oncancel = land;
-      // The row can still slide while the new thread settles. Retarget only when it moves, with
-      // a compositor animation, so a busy main thread never steps the Ghost along.
-      let offset = { x: 0, y: 0 };
-      let lastTick = 0;
-      const follow = (time: number) => {
-        if (landed) return;
-        if (!target.isConnected) return land();
-        if (lastTick) stats.maxGapMs = Math.max(stats.maxGapMs, Math.round(time - lastTick));
-        lastTick = time;
-        const now = target.getBoundingClientRect();
-        const next = { x: now.left - to.left, y: now.top - to.top };
-        if (Math.abs(next.x - offset.x) > 0.5 || Math.abs(next.y - offset.y) > 0.5) {
-          const current = getComputedStyle(carrier).transform;
-          const remaining = Math.max(80, FLIGHT_MS - Number(flight.currentTime ?? 0));
-          for (const running of carrier.getAnimations()) running.cancel();
-          carrier.animate(
-            [
-              { transform: current === "none" ? "translate(0px, 0px)" : current },
-              { transform: `translate(${next.x}px, ${next.y}px)` },
-            ],
-            { duration: remaining, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" },
-          );
-          offset = next;
-          stats.retargets += 1;
+  activeFlight = {
+    adopt(next) {
+      if (landed || next === target) return;
+      if (target.isConnected) {
+        target.style.visibility = "";
+        if (companion) {
+          companion.flying = false;
+          companion.drawn = false;
         }
-        requestAnimationFrame(follow);
-      };
-      requestAnimationFrame(follow);
-    }),
-  );
+      }
+      target = next;
+      stats.adopted += 1;
+      hide(next);
+    },
+  };
+
+  let flight: Animation | null = null;
+  let flightDoneAt = 0;
+  let lostSince = 0;
+  let to: DOMRect | null = null;
+  let offset = { x: 0, y: 0 };
+  let lastTick = 0;
+
+  const launch = () => {
+    const box = target.getBoundingClientRect();
+    to = box;
+    const dx = box.left + box.width / 2 - (from.left + from.width / 2);
+    const dy = box.top + box.height / 2 - (from.top + from.height / 2);
+    const distance = Math.hypot(dx, dy) || 1;
+    // Where the companion will be looking when it takes over (the cursor, else ahead).
+    const settle = { x: companion?.targetYaw ?? 0, y: companion?.targetPitch ?? 0 };
+    const frames = [hero.first];
+    const shownAt = [0];
+    const renderStart = performance.now();
+    try {
+      const out = hero.handoff.turn(dx / distance, dy / distance, TURN_FRAMES);
+      // Shown small, so rendered near the companion's own size and sharpness.
+      const back = hero.handoff.turn(settle.x, settle.y, TURN_FRAMES, box.width * 2);
+      out.forEach((frame, i) => {
+        frames.push(frame);
+        shownAt.push(((i + 1) / out.length) * TURN_OUT_END);
+      });
+      back.forEach((frame, i) => {
+        frames.push(frame);
+        shownAt.push(TURN_BACK_START + ((i + 1) / back.length) * (TURN_BACK_END - TURN_BACK_START));
+      });
+    } catch {
+      // No turn: it flies with the face it had.
+    }
+    release();
+    stats.renderMs = Math.round(performance.now() - renderStart);
+    // Land in the loop's rest, the pose the flyer arrives in, with a pause before it spins.
+    arrival = {
+      yaw: settle.x,
+      pitch: settle.y,
+      spinStart: performance.now() + FLIGHT_MS - LOOP_MS * 0.7,
+    };
+    if (companion) hide(target);
+    frames.forEach((frame, index) => {
+      if (index > 0) layer(frame, flyer, 0);
+      const on = shownAt[index] ?? 0;
+      const off = shownAt[index + 1] ?? 1;
+      frame.animate(
+        [
+          { offset: 0, opacity: index === 0 ? 1 : 0 },
+          { offset: on, opacity: index === 0 ? 1 : 0 },
+          { offset: on, opacity: 1 },
+          { offset: off, opacity: 1 },
+          { offset: off, opacity: index === frames.length - 1 ? 1 : 0 },
+          { offset: 1, opacity: index === frames.length - 1 ? 1 : 0 },
+        ],
+        { duration: FLIGHT_MS, fill: "forwards" },
+      );
+    });
+    const scale = box.width / from.width;
+    const bank = Math.max(-1, Math.min(1, dx / 400)) * BANK_DEG;
+    flight = flyer.animate(
+      [
+        { transform: "translate(0px, 0px) rotate(0deg) scale(1)" },
+        {
+          offset: 0.5,
+          transform: `translate(${dx / 2}px, ${dy / 2}px) rotate(${bank}deg) scale(${(1 + scale) / 2})`,
+        },
+        { transform: `translate(${dx}px, ${dy}px) rotate(0deg) scale(${scale})` },
+      ],
+      { duration: FLIGHT_MS, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" },
+    );
+    flight.onfinish = () => (flightDoneAt = performance.now());
+    flight.oncancel = land;
+  };
+
+  // Each frame: launch once the landing spot has laid out, then follow it. The row can slide
+  // while the new thread settles, or remount (a new companion takes over): retarget only when
+  // it moves, with a compositor animation, so a busy main thread never steps the Ghost along.
+  const follow = (time: number) => {
+    if (landed) return;
+    if (lastTick) stats.maxGapMs = Math.max(stats.maxGapMs, Math.round(time - lastTick));
+    lastTick = time;
+    if (!target.isConnected) {
+      // The row remounted: keep flying toward the old spot while the new companion mounts.
+      lostSince ||= time;
+      if (time - lostSince > ORPHAN_MS && (!flight || flightDoneAt)) return land();
+      return void requestAnimationFrame(follow);
+    }
+    lostSince = 0;
+    if (!flight) launch();
+    else if (to) {
+      const now = target.getBoundingClientRect();
+      const next = { x: now.left - to.left, y: now.top - to.top };
+      if (Math.abs(next.x - offset.x) > 0.5 || Math.abs(next.y - offset.y) > 0.5) {
+        const current = getComputedStyle(carrier).transform;
+        const remaining = Math.max(80, FLIGHT_MS - Number(flight.currentTime ?? 0));
+        for (const running of carrier.getAnimations()) running.cancel();
+        carrier.animate(
+          [
+            { transform: current === "none" ? "translate(0px, 0px)" : current },
+            { transform: `translate(${next.x}px, ${next.y}px)` },
+          ],
+          { duration: remaining, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" },
+        );
+        offset = next;
+        stats.retargets += 1;
+      }
+    }
+    const settled = carrier.getAnimations().every((running) => running.playState !== "running");
+    if (flightDoneAt && settled) return land();
+    requestAnimationFrame(follow);
+  };
+  // Measure the landing spot once the new rows have had a frame to lay out.
+  requestAnimationFrame(() => requestAnimationFrame(follow));
 }
 
 export function twirlGhost(canvas: HTMLCanvasElement) {

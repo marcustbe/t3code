@@ -894,7 +894,7 @@ export const make = Effect.gen(function* () {
         event.preventDefault();
       }
     });
-    trackDiagnostics(window);
+    trackDiagnostics(window, environment.logDir);
     window.webContents.on("input-event", (_event, input) => {
       if (window.isDestroyed()) return;
       if (input.type === "gestureScrollBegin") {

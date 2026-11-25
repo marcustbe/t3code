@@ -534,6 +534,21 @@ export function AppearanceSettingsPanel() {
           }
         />
         <SettingsRow
+          {...searchableSetting("settings-floating-panel")}
+          description={gt(
+            "Open Settings as a panel floating over the chat, instead of a page that takes over the window.",
+          )}
+          control={
+            <Switch
+              checked={settings.settingsFloatingPanel}
+              onCheckedChange={(checked) =>
+                updateSettings({ settingsFloatingPanel: Boolean(checked) })
+              }
+              aria-label={gt("Floating settings panel")}
+            />
+          }
+        />
+        <SettingsRow
           {...searchableSetting("sidebar-settled-count")}
           description={gt("Show how many chats are settled beside the Settled shelf.")}
           control={

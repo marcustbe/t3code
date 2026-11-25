@@ -28,6 +28,7 @@ import {
   selectMessageImageResources,
 } from "../../session-logic";
 import {
+  type ChatAttachment,
   type ChatFileAttachment,
   isFileAttachment,
   isImageAttachment,
@@ -47,6 +48,8 @@ import {
   PencilIcon,
   RotateCcwIcon,
   LinkIcon,
+  FileIcon,
+  XIcon,
 } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { findMessageVersion, useMessageVersionStore } from "../../messageVersionStore";
@@ -70,6 +73,7 @@ import { promptLinkFor } from "../promptLinks/copyPromptLink";
 import { PierreEntryIcon } from "./PierreEntryIcon";
 import { formatBytes } from "../../lib/formatBytes";
 import { type MessageEditTarget } from "./MessagesTimeline.logic";
+import { imageFilesFrom, useMessageEditAttachments } from "./useMessageEditAttachments";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import {
   asKnownContextRecord,
@@ -853,6 +857,8 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
       <div className="flex flex-col items-end gap-1">
         <UserMessageEditor
           initialText={plainText}
+          initialAttachments={row.message.attachments ?? []}
+          previewUrlsById={previewUrlsById}
           messageId={row.message.id}
           edit={row.edit}
           onClose={() => setEditing(false)}
@@ -1265,11 +1271,15 @@ function EditUserMessageButton({ onEdit }: { onEdit: () => void }) {
 /** Edits the message in place; sending makes it a new version you can flip back from. */
 function UserMessageEditor({
   initialText,
+  initialAttachments,
+  previewUrlsById,
   messageId,
   edit,
   onClose,
 }: {
   initialText: string;
+  initialAttachments: ReadonlyArray<ChatAttachment>;
+  previewUrlsById: ReadonlyMap<string, string>;
   messageId: MessageId;
   edit: MessageEditTarget;
   onClose: () => void;
@@ -1279,23 +1289,103 @@ function UserMessageEditor({
   const gt = useGT();
   const [text, setText] = useState(initialText);
   const [sending, setSending] = useState(false);
+  const attachments = useMessageEditAttachments({
+    environmentId: ctx.activeThreadEnvironmentId,
+    initialAttachments,
+  });
   const canSend =
     ctx.onEditMessage !== undefined &&
     !sending &&
     !activity.isWorking &&
-    text.trim().length > 0 &&
-    text.trim() !== initialText.trim();
+    !attachments.preparing &&
+    (text.trim().length > 0 || attachments.count > 0) &&
+    (text.trim() !== initialText.trim() || attachments.changed);
 
   const submit = async () => {
     if (!canSend || !ctx.onEditMessage) return;
     setSending(true);
-    const sent = await ctx.onEditMessage({ messageId, text, edit });
+    const sent = await ctx.onEditMessage({
+      messageId,
+      text,
+      edit,
+      keptAttachments: attachments.kept,
+      addedImages: attachments.added,
+    });
     setSending(false);
-    if (sent) onClose();
+    if (!sent) return;
+    attachments.markSent();
+    onClose();
   };
 
+  const tiles = [
+    ...attachments.kept.map((attachment) => ({
+      id: attachment.id,
+      name: attachment.name,
+      previewUrl: isImageAttachment(attachment) ? previewUrlsById.get(attachment.id) : undefined,
+    })),
+    ...attachments.added.map((image) => ({
+      id: image.id,
+      name: image.name,
+      previewUrl: image.previewUrl,
+    })),
+  ];
+
   return (
-    <div className="flex w-full max-w-[80%] flex-col gap-2 rounded-xl bg-message p-3 text-message-foreground">
+    <div
+      className="flex w-full max-w-[80%] flex-col gap-2 rounded-xl bg-message p-3 text-message-foreground"
+      onDragOver={(event) => {
+        if (!event.dataTransfer.types.includes("Files")) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      }}
+      onDrop={(event) => {
+        const files = imageFilesFrom(event.dataTransfer);
+        if (files.length === 0) return;
+        event.preventDefault();
+        void attachments.addImages(files);
+      }}
+    >
+      {tiles.length > 0 || attachments.preparing ? (
+        <div className="flex flex-wrap gap-2">
+          {tiles.map((tile) => (
+            <div
+              key={tile.id}
+              className="relative h-16 w-16 overflow-hidden rounded-lg border border-border/80"
+            >
+              {tile.previewUrl ? (
+                <img src={tile.previewUrl} alt={tile.name} className="h-full w-full object-cover" />
+              ) : (
+                <div
+                  role="img"
+                  aria-label={tile.name}
+                  className="flex h-full w-full items-center justify-center text-muted-foreground"
+                >
+                  <FileIcon className="size-5" />
+                </div>
+              )}
+              <span className="absolute right-1 top-1 flex">
+                <Button
+                  variant="media-close"
+                  size="icon-xs"
+                  onClick={() => attachments.remove(tile.id)}
+                  disabled={sending}
+                  aria-label={gt("Remove {name}", { name: tile.name })}
+                >
+                  <XIcon />
+                </Button>
+              </span>
+            </div>
+          ))}
+          {attachments.preparing ? (
+            <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-border/80 text-3xs text-muted-foreground">
+              {gt("Preparing", { $context: "attachment status while an image is being processed" })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {attachments.error ? (
+        <p className="text-xs text-destructive-foreground">{attachments.error}</p>
+      ) : null}
       <textarea
         ref={(element) => {
           if (!element || element.dataset.focused) return;
@@ -1308,6 +1398,12 @@ function UserMessageEditor({
         value={text}
         disabled={sending}
         onChange={(event) => setText(event.target.value)}
+        onPaste={(event) => {
+          const files = imageFilesFrom(event.clipboardData);
+          if (files.length === 0) return;
+          event.preventDefault();
+          void attachments.addImages(files);
+        }}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault();

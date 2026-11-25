@@ -20,17 +20,177 @@ interface RecentEvent {
 
 const recentEvents = new WeakMap<Electron.WebContents, RecentEvent[]>();
 
-function record(contents: Electron.WebContents, kind: string, detail: string): void {
-  const events = recentEvents.get(contents) ?? [];
-  events.push({ at: new Date().toISOString(), kind, detail });
-  if (events.length > RECENT_EVENT_LIMIT) events.splice(0, events.length - RECENT_EVENT_LIMIT);
-  recentEvents.set(contents, events);
+// The same events also go to <logs>/ui-diagnostics.ndjson, so they survive the quit that
+// usually follows a stuck window.
+const LOG_FILE_NAME = "ui-diagnostics.ndjson";
+const LOG_MAX_BYTES = 2 * 1024 * 1024;
+const LOG_KEPT_FILES = 2;
+const LOG_LINES_PER_MINUTE = 120;
+const LOG_REPEAT_WINDOW_MS = 10_000;
+const DIAGNOSTICS_PREFIX = "[ghost-diagnostics]";
+
+let logFile: string | null = null;
+let logBytes = -1;
+let logWrites: Promise<void> = Promise.resolve();
+let logMinute = 0;
+let logLinesThisMinute = 0;
+const lastLogged = new Map<string, number>();
+
+async function appendLogLine(file: string, line: string): Promise<void> {
+  if (logBytes < 0) {
+    await NodeFSP.mkdir(NodePath.dirname(file), { recursive: true });
+    logBytes = await NodeFSP.stat(file).then(
+      (stat) => stat.size,
+      () => 0,
+    );
+  }
+  if (logBytes + line.length > LOG_MAX_BYTES) {
+    for (let index = LOG_KEPT_FILES; index >= 1; index -= 1) {
+      const from = index === 1 ? file : `${file}.${index - 1}`;
+      await NodeFSP.rename(from, `${file}.${index}`).catch(() => undefined);
+    }
+    logBytes = 0;
+  }
+  await NodeFSP.appendFile(file, line, "utf8");
+  logBytes += Buffer.byteLength(line);
 }
 
-/** Keeps the window's recent warnings, errors, hangs and crashes for the report. */
-export function trackDiagnostics(window: Electron.BrowserWindow): void {
+function persist(contents: Electron.WebContents, event: RecentEvent): void {
+  const file = logFile;
+  if (!file) return;
+  const now = Date.now();
+  const key = `${event.kind}\u0000${event.detail}`;
+  if (now - (lastLogged.get(key) ?? -Infinity) < LOG_REPEAT_WINDOW_MS) return;
+  lastLogged.set(key, now);
+  if (lastLogged.size > 500) lastLogged.clear();
+  const minute = Math.floor(now / 60_000);
+  if (minute !== logMinute) {
+    logMinute = minute;
+    logLinesThisMinute = 0;
+  }
+  logLinesThisMinute += 1;
+  if (logLinesThisMinute > LOG_LINES_PER_MINUTE) return;
+  const line = `${JSON.stringify({
+    ...event,
+    pid: process.pid,
+    webContentsId: contents.id,
+    rendererPid: contents.isDestroyed() ? null : contents.getOSProcessId(),
+  })}\n`;
+  logWrites = logWrites.then(() => appendLogLine(file, line)).catch(() => undefined);
+}
+
+function record(contents: Electron.WebContents, kind: string, detail: string): void {
+  const event = { at: new Date().toISOString(), kind, detail };
+  const events = recentEvents.get(contents) ?? [];
+  events.push(event);
+  if (events.length > RECENT_EVENT_LIMIT) events.splice(0, events.length - RECENT_EVENT_LIMIT);
+  recentEvents.set(contents, events);
+  persist(contents, event);
+}
+
+/** Every app window and the main window's child views: what could sit over the page natively. */
+function describeNativeLayers(window: Electron.BrowserWindow): string {
+  const windows = Electron.BrowserWindow.getAllWindows().map((other) => ({
+    main: other === window,
+    title: other.getTitle(),
+    bounds: other.getBounds(),
+    visible: other.isVisible(),
+    focused: other.isFocused(),
+    alwaysOnTop: other.isAlwaysOnTop(),
+    focusable: other.isFocusable(),
+    opacity: other.getOpacity(),
+  }));
+  const views = window.isDestroyed()
+    ? []
+    : window.contentView.children.map((view) => ({
+        bounds: view.getBounds(),
+        visible: view.getVisible(),
+      }));
+  return JSON.stringify({ windows, childViews: views });
+}
+
+/**
+ * Installed in every page load: keeps the last clicks and what they hit, and warns once
+ * three clicks in a row land on <html>/<body> or a full-window fixed layer, the shape of a
+ * window that looks fine but takes no clicks. Costs one style read per click.
+ */
+const INPUT_WATCH_SCRIPT = `(() => {
+  if (window.__ghostDiagnostics) return;
+  const PREFIX = ${JSON.stringify(DIAGNOSTICS_PREFIX)};
+  const describe = (element) => {
+    if (!element || !element.tagName) return null;
+    const id = element.id ? "#" + element.id : "";
+    const classes = typeof element.className === "string" && element.className
+      ? "." + element.className.trim().split(/\\s+/).slice(0, 4).join(".")
+      : "";
+    const slot = element.getAttribute && element.getAttribute("data-slot");
+    const role = element.getAttribute && element.getAttribute("role");
+    return element.tagName.toLowerCase() + id + classes +
+      (slot ? "[data-slot=" + slot + "]" : "") + (role ? "[role=" + role + "]" : "");
+  };
+  const coversWindow = (element) => {
+    if (!element || element === document.documentElement || element === document.body) return true;
+    const style = getComputedStyle(element);
+    if (style.position !== "fixed" && style.position !== "absolute") return false;
+    const rect = element.getBoundingClientRect();
+    return rect.width >= innerWidth * 0.9 && rect.height >= innerHeight * 0.9;
+  };
+  const openLayers = () => [...document.querySelectorAll(
+    "[role=dialog], [role=alertdialog], [data-open], [data-popup-open], dialog[open], [inert]"
+  )].slice(0, 20).map(describe);
+  const state = () => ({
+    route: location.pathname + location.hash,
+    hasFocus: document.hasFocus(),
+    activeElement: describe(document.activeElement),
+    elementAtCentre: describe(document.elementFromPoint(innerWidth / 2, innerHeight / 2)),
+    bodyPointerEvents: getComputedStyle(document.body).pointerEvents,
+    bodyStyle: (document.body.getAttribute("style") || "").slice(0, 200),
+    openLayers: openLayers(),
+  });
+  const trail = [];
+  let warnedAt = 0;
+  addEventListener("pointerdown", (event) => {
+    const target = event.target;
+    const blocked = coversWindow(target);
+    trail.push({ at: new Date().toISOString(), x: Math.round(event.clientX), y: Math.round(event.clientY),
+      target: describe(target), blocked });
+    if (trail.length > 30) trail.shift();
+    const lastThree = trail.slice(-3);
+    const now = Date.now();
+    if (lastThree.length === 3 && lastThree.every((click) => click.blocked) &&
+        now - Date.parse(lastThree[0].at) < 8000 && now - warnedAt > 30000) {
+      warnedAt = now;
+      const fullWindowLayers = [...document.querySelectorAll("body *")].filter((element) => {
+        const style = getComputedStyle(element);
+        if (style.position !== "fixed" && style.position !== "absolute") return false;
+        const rect = element.getBoundingClientRect();
+        return rect.width >= innerWidth * 0.9 && rect.height >= innerHeight * 0.9 &&
+          style.pointerEvents !== "none" && style.visibility !== "hidden";
+      }).slice(0, 20).map((element) => describe(element) + " z=" + getComputedStyle(element).zIndex);
+      console.warn(PREFIX + " blocked-clicks " + JSON.stringify({ ...state(), fullWindowLayers, clicks: trail.slice(-5) }));
+    }
+  }, { capture: true, passive: true });
+  addEventListener("pagehide", () => {
+    console.info(PREFIX + " page-hide " + JSON.stringify({ ...state(), clicks: trail.slice(-8) }));
+  });
+  window.__ghostDiagnostics = { trail, state };
+})()`;
+
+/** Keeps the window's recent warnings, errors, hangs and crashes for the report and the log. */
+export function trackDiagnostics(window: Electron.BrowserWindow, logDirectory: string): void {
+  logFile = NodePath.join(logDirectory, LOG_FILE_NAME);
   const contents = window.webContents;
   contents.on("console-message", (event) => {
+    if (event.message.startsWith(DIAGNOSTICS_PREFIX)) {
+      const body = event.message.slice(DIAGNOSTICS_PREFIX.length + 1);
+      const space = body.indexOf(" ");
+      const kind = space < 0 ? body : body.slice(0, space);
+      record(contents, kind, space < 0 ? "" : body.slice(space + 1));
+      if (kind === "blocked-clicks" && !window.isDestroyed()) {
+        record(contents, "native-layers", describeNativeLayers(window));
+      }
+      return;
+    }
     if (event.level === "warning" || event.level === "error") {
       record(
         contents,
@@ -39,6 +199,11 @@ export function trackDiagnostics(window: Electron.BrowserWindow): void {
       );
     }
   });
+  contents.on("dom-ready", () => {
+    contents.executeJavaScript(INPUT_WATCH_SCRIPT).catch(() => undefined);
+  });
+  contents.on("did-finish-load", () => record(contents, "page-loaded", contents.getURL()));
+  window.on("close", () => record(contents, "window-close", describeNativeLayers(window)));
   window.on("unresponsive", () => record(contents, "unresponsive", "Window stopped responding"));
   window.on("responsive", () => record(contents, "responsive", "Window responds again"));
   contents.on("render-process-gone", (_event, details) =>
@@ -94,6 +259,7 @@ const PAGE_STATE_SCRIPT = `(() => {
     bodyAttributes: [...body.attributes].map((a) => a.name + "=" + a.value.slice(0, 80)),
     openLayers,
     fullWindowLayers: blockers,
+    recentClicks: window.__ghostDiagnostics ? window.__ghostDiagnostics.trail.slice(-15) : null,
     domNodes: document.getElementsByTagName("*").length,
     jsHeapUsedMb: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null,
   };
@@ -184,6 +350,9 @@ export async function saveDiagnosticsReport(window: Electron.BrowserWindow): Pro
     rendererBusy
       ? "  (not available, the page did not answer)"
       : JSON.stringify(pageState, null, 2),
+    "",
+    "Native windows and views",
+    `  ${describeNativeLayers(window)}`,
     "",
     "Processes",
     formatMetrics(),

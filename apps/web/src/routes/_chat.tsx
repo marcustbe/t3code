@@ -1,16 +1,22 @@
-import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
+import { Outlet, createFileRoute, redirect, useLocation } from "@tanstack/react-router";
 
 import { ThreadRouteView } from "../components/ThreadRouteView";
 import { GlobalVoiceInputIndicator } from "../components/chat/GlobalVoiceInputIndicator";
-import { isAppModalPage } from "../components/sidebar/mainAppLocation";
+import { isAppModalPage, isSettingsPage } from "../components/sidebar/mainAppLocation";
 import { resolveThreadRouteTarget } from "../threadRoutes";
 import { retainThreadFindForRoute } from "../components/chat/threadFindStore";
 import { ThreadLinkPrompt } from "../components/promptLinks/ThreadLinkPrompt";
 import { useShownThreadRouteTarget } from "../hooks/useShownThreadRouteTarget";
+import { useClientSettings } from "../hooks/useSettings";
 
 function ChatRouteLayout() {
   // Render both routes here so draft promotion keeps the same ChatView mounted.
   const { shownTarget, modalOpen } = useShownThreadRouteTarget();
+  const settingsFloatingPanel = useClientSettings((settings) => settings.settingsFloatingPanel);
+  // A floating Settings panel leaves the thread visible (still inert) behind it.
+  const settingsFloating = useLocation({
+    select: (location) => settingsFloatingPanel && isSettingsPage(location.pathname),
+  });
   // Settings and Usage are pages of their own in the main area (Settings also swaps the sidebar for
   // its sections, AppSidebarLayout); the thread stays mounted behind them, out of the layout, instead
   // of remounting on Back.
@@ -20,7 +26,11 @@ function ChatRouteLayout() {
         <ThreadLinkPrompt threadRef={shownTarget.threadRef} />
       ) : null}
       {shownTarget ? (
-        <ThreadRouteView target={shownTarget} background={modalOpen} concealed={modalOpen} />
+        <ThreadRouteView
+          target={shownTarget}
+          background={modalOpen}
+          concealed={modalOpen && !settingsFloating}
+        />
       ) : modalOpen ? null : (
         <Outlet />
       )}

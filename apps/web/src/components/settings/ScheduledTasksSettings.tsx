@@ -196,6 +196,7 @@ const EMPTY_DRAFT: DraftState = {
   projectId: "",
   threadId: "",
   threadMode: "new_thread",
+  settleWhenDone: false,
   workspaceMode: "worktree",
   baseRef: "main",
   startFromOrigin: true,
@@ -1696,6 +1697,7 @@ function ScheduledTaskEditorForm({
       projectId: selectedProjectId as ProjectId,
       threadId: draft.threadId ? (draft.threadId as ThreadId) : null,
       ...(offersThreadModes ? { threadMode: draft.threadMode } : {}),
+      settleWhenDone: draft.settleWhenDone,
       workspaceStrategy,
       modelSelection,
       // Tasks have no mode picker; a mode above the administrator's ceiling would fail every run.
@@ -2353,6 +2355,25 @@ function ScheduledTaskEditorForm({
                 <span className="text-xs text-muted-foreground">minutes</span>
               </div>
             )}
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="scheduled-task-snoozed">
+                <T>Snoozed</T>
+              </Label>
+              <p id="scheduled-task-snoozed-description" className="text-sm text-muted-foreground">
+                <T>Finished runs go straight to Settled instead of Done.</T>
+              </p>
+            </div>
+            <Switch
+              id="scheduled-task-snoozed"
+              aria-describedby="scheduled-task-snoozed-description"
+              checked={draft.settleWhenDone}
+              onCheckedChange={(settleWhenDone) =>
+                setDraft((current) => ({ ...current, settleWhenDone }))
+              }
+            />
           </div>
 
           <div className="flex items-center justify-between gap-4">

@@ -518,6 +518,19 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     inset 0 1px rgb(255 255 255 / 4%),
     0 24px 72px -20px rgb(0 0 0 / 90%);
 }
+/* The floating Settings panel has no stroke: its edge is a 1px blurred shadow plus a soft lift. */
+[data-settings-floating-panel] {
+  box-shadow:
+    0 0 1px rgb(0 0 0 / 32%),
+    0 1px 2px rgb(0 0 0 / 6%),
+    0 24px 64px -24px rgb(0 0 0 / 35%);
+}
+:root.dark [data-settings-floating-panel] {
+  box-shadow:
+    0 0 1px rgb(255 255 255 / 30%),
+    0 1px 2px rgb(0 0 0 / 30%),
+    0 24px 72px -20px rgb(0 0 0 / 85%);
+}
 /* The last row (Settled) sits as far above the footer's line as from the sidebar's sides. */
 [data-sidebar-thread-list] {
   padding-bottom: var(--sidebar-side-inset);
@@ -3084,6 +3097,8 @@ html.dark[data-window-translucent] [data-slot="sidebar-container"] {
 
 html[data-window-translucent] [data-slot="sidebar-container"] * {
   --sidebar: transparent;
+  /* Update pills and alerts: an opaque grey read as a white slab on the glass, so tint like the rows. */
+  --sidebar-control-surface: color-mix(in srgb, var(--contrast-foreground) 6%, transparent);
   --background: transparent;
   --app-chrome-background: transparent;
   --sidebar-stage-fade: transparent;
@@ -3101,6 +3116,12 @@ html[data-window-translucent] [data-slot="sidebar-inset"] * {
   --background: transparent;
   --app-chrome-background: transparent;
   --sidebar: transparent;
+}
+
+/* The changed-files header can't be opaque here, so its own tint stacked on the card's and read
+   lighter than the rows. */
+html.dark[data-window-translucent] [data-slot="sidebar-inset"] [data-changed-files-header] {
+  background-image: none;
 }
 
 /* The right panel paints the main area's tint (the sidebar's grey read greyer than the chat at the

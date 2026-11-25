@@ -55,7 +55,7 @@ describe("new thread commands", () => {
     const router = { state: { matches: [] } } as unknown as AnyRouter;
     using stack = new DisposableStack();
     stack.defer(installChatRouteCommands(router));
-    const commands = register.mock.calls[0]![0];
+    const commands = Object.assign({}, ...register.mock.calls.map((call) => call[0]));
     const event = {
       preventDefault: vi.fn(),
       stopPropagation: vi.fn(),
@@ -102,7 +102,7 @@ describe("preview commands", () => {
     stack.defer(installChatRouteCommands(router));
     const event = { preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as KeyboardEvent;
 
-    register.mock.calls[0]![0][command]!(event);
+    Object.assign({}, ...register.mock.calls.map((call) => call[0]))[command]!(event);
 
     expect(dispatch).toHaveBeenCalledWith(action);
   });

@@ -8,6 +8,12 @@ import { useSettingsRestore } from "../components/settings/SettingsPanels";
 
 import { SettingsBreadcrumb } from "../components/settings/SettingsBreadcrumb";
 import { useCloseAppModal } from "../components/sidebar/mainAppLocation";
+import {
+  SettingsFloatingPanel,
+  SettingsFloatingPanelClose,
+} from "../components/settings/SettingsFloatingPanel";
+import { SettingsSidebarNav } from "../components/settings/SettingsSidebarNav";
+import { useClientSettings } from "../hooks/useSettings";
 import { SidebarInset } from "../components/ui/sidebar";
 import { WorkspacePageHeader } from "../components/WorkspacePageHeader";
 import { isElectron } from "../env";
@@ -133,12 +139,15 @@ function SettingsContentLayout() {
       ? environment?.environmentId
       : JSON.stringify(search);
   const [restoreSignal, setRestoreSignal] = useState(0);
+  const floating = useClientSettings((settings) => settings.settingsFloatingPanel);
 
   // Settings sits in the main area like any page: the sidebar shows its sections and a Back row
   // (AppSidebarLayout), and Escape goes back as the old floating panel's close did.
   const closeSettings = useCloseAppModal();
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window keydown listener: Escape leaves Settings
   useEffect(() => {
+    // The floating panel's dialog closes on Escape itself.
+    if (floating) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       const target = event.target instanceof HTMLElement ? event.target : null;
@@ -153,26 +162,48 @@ function SettingsContentLayout() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [closeSettings]);
+  }, [closeSettings, floating]);
+
+  const restoreButton =
+    location.pathname === "/settings/general" ? (
+      <RestoreDeviceDefaultsButton onRestored={() => setRestoreSignal((value) => value + 1)} />
+    ) : null;
+  const content = (
+    <div key={`${contentScopeKey}:${restoreSignal}`} className="min-h-0 flex flex-1 flex-col">
+      <SettingsScopeBoundary pathname={location.pathname}>
+        <Outlet />
+      </SettingsScopeBoundary>
+    </div>
+  );
+
+  if (floating) {
+    return (
+      <SettingsFloatingPanel>
+        <div className="flex w-60 shrink-0 flex-col border-e border-border bg-sidebar">
+          <SettingsSidebarNav pathname={location.pathname} />
+        </div>
+        <div {...contentArea} className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+          <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border ps-5 pe-2">
+            <SettingsBreadcrumb pathname={location.pathname} />
+            <div className="ms-auto flex shrink-0 items-center gap-1">
+              {restoreButton}
+              <SettingsFloatingPanelClose />
+            </div>
+          </header>
+          {content}
+        </div>
+      </SettingsFloatingPanel>
+    );
+  }
 
   return (
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none">
       <div {...contentArea} className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
         <WorkspacePageHeader electron={isElectron} className="border-b border-border">
           <SettingsBreadcrumb pathname={location.pathname} />
-          <div className="ms-auto flex shrink-0 items-center gap-1">
-            {location.pathname === "/settings/general" ? (
-              <RestoreDeviceDefaultsButton
-                onRestored={() => setRestoreSignal((value) => value + 1)}
-              />
-            ) : null}
-          </div>
+          <div className="ms-auto flex shrink-0 items-center gap-1">{restoreButton}</div>
         </WorkspacePageHeader>
-        <div key={`${contentScopeKey}:${restoreSignal}`} className="min-h-0 flex flex-1 flex-col">
-          <SettingsScopeBoundary pathname={location.pathname}>
-            <Outlet />
-          </SettingsScopeBoundary>
-        </div>
+        {content}
       </div>
     </SidebarInset>
   );

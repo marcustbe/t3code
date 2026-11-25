@@ -567,6 +567,8 @@ export const ClientSettingsSchema = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_GLASS_OPACITY)),
   ),
   sidebarShowPullRequests: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  // Settings floats over the window instead of filling the main area and taking over the sidebar.
+  settingsFloatingPanel: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   // The Settled shelf header shows how many chats it holds.
   sidebarShowSettledCount: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   // Sidebar chat rows drop the project name and show only its icon, before the chat title.
@@ -2226,6 +2228,7 @@ export const ClientSettingsPatch = Schema.Struct({
   environmentIdentificationMode: Schema.optionalKey(EnvironmentIdentificationMode),
   glassOpacity: Schema.optionalKey(GlassOpacity),
   sidebarShowPullRequests: Schema.optionalKey(Schema.Boolean),
+  settingsFloatingPanel: Schema.optionalKey(Schema.Boolean),
   sidebarShowSettledCount: Schema.optionalKey(Schema.Boolean),
   sidebarProjectIconOnly: Schema.optionalKey(Schema.Boolean),
   sidebarShowTimestamps: Schema.optionalKey(Schema.Boolean),

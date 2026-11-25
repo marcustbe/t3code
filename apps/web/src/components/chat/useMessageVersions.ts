@@ -5,11 +5,18 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
-import type { EnvironmentId, MessageId, ThreadId } from "@t3tools/contracts";
+import type {
+  ChatAttachment as ContractChatAttachment,
+  EnvironmentId,
+  MessageId,
+  ThreadId,
+} from "@t3tools/contracts";
+import { ATTACHMENT_ONLY_BOOTSTRAP_PROMPT } from "@t3tools/shared/composerContextReferences";
 import { useNavigate } from "@tanstack/react-router";
 import { useGT } from "gt-react";
 import { newMessageId, newThreadId } from "~/lib/utils";
 import { refreshArchivedThreadsForEnvironment } from "../../lib/archivedThreadsState";
+import { startAttachmentUpload } from "../../lib/attachmentUploadQueue";
 import { useMessageVersionStore } from "../../messageVersionStore";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { waitForThreadShell } from "../../state/entities";
@@ -19,13 +26,35 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { buildThreadRouteParams } from "../../threadRoutes";
+import type { ComposerImageAttachment } from "../../composerDraftStore";
+import type { ChatAttachment } from "../../types";
 import type { makeThreadErrorSetter } from "../ChatView.logic";
+import { prepareTurnAttachments } from "./chatViewSend";
+import { environmentUsesAttachmentUploads } from "./useMessageEditAttachments";
 import type { MessageEditTarget } from "./MessagesTimeline.logic";
 
 export interface MessageEditInput {
   readonly messageId: MessageId;
   readonly text: string;
   readonly edit: MessageEditTarget;
+  /** The original message's attachments the edit keeps. */
+  readonly keptAttachments: ReadonlyArray<ChatAttachment>;
+  /** Images pasted or dropped into the edit box. */
+  readonly addedImages: ReadonlyArray<ComposerImageAttachment>;
+}
+
+// Strips client-only fields (preview URLs) before an attachment goes back on the wire.
+function toContractAttachment(attachment: ChatAttachment): ContractChatAttachment {
+  const { name, id, type, mimeType, sizeBytes } = attachment;
+  const source = "source" in attachment ? attachment.source : undefined;
+  return {
+    type,
+    id,
+    name,
+    mimeType,
+    sizeBytes,
+    ...(source ? { source } : {}),
+  } as ContractChatAttachment;
 }
 
 export interface MessageVersionSwitch {
@@ -105,11 +134,42 @@ export function useMessageVersions(input: MessageVersionsInput) {
     }
   };
 
-  const onEditMessage = async ({ messageId, text, edit }: MessageEditInput): Promise<boolean> => {
+  const onEditMessage = async ({
+    messageId,
+    text,
+    edit,
+    keptAttachments,
+    addedImages,
+  }: MessageEditInput): Promise<boolean> => {
     const thread = activeThread;
     const trimmed = text.trim();
-    if (!thread || isWorking || trimmed.length === 0) return false;
+    const hasAttachments = keptAttachments.length + addedImages.length > 0;
+    if (!thread || isWorking || (trimmed.length === 0 && !hasAttachments)) return false;
     setThreadError(thread.id, null);
+    const usesAttachmentUploads = environmentUsesAttachmentUploads(environmentId);
+    // An image pasted before the server config arrived has no upload yet; this is a no-op otherwise.
+    if (usesAttachmentUploads) {
+      for (const image of addedImages) startAttachmentUpload({ environmentId, image });
+    }
+    // Waits for uploads still running; a failed one stops the edit before anything is forked.
+    const added = await prepareTurnAttachments({
+      environmentId,
+      attachments: addedImages,
+      usesAttachmentUploads,
+    }).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    );
+    if (!added.ok) {
+      setThreadError(
+        thread.id,
+        added.error instanceof Error
+          ? added.error.message
+          : gt("Failed to send the edited message."),
+      );
+      return false;
+    }
+    const attachments = [...keptAttachments.map(toContractAttachment), ...added.value];
     const targetThreadId = newThreadId();
     const nextMessageId = newMessageId();
     const createdAt = new Date().toISOString();
@@ -147,7 +207,12 @@ export function useMessageVersions(input: MessageVersionsInput) {
       environmentId,
       input: {
         threadId: targetThreadId,
-        message: { messageId: nextMessageId, role: "user", text: trimmed, attachments: [] },
+        message: {
+          messageId: nextMessageId,
+          role: "user",
+          text: trimmed || ATTACHMENT_ONLY_BOOTSTRAP_PROMPT,
+          attachments,
+        },
         // No title seed: it would retitle the version, and it should keep the chat's title.
         modelSelection: thread.modelSelection,
         runtimeMode: thread.runtimeMode,
